@@ -2,7 +2,8 @@
 
 C# WinForms app (`.NET Framework 4.8`) for [Virtual Desktop](https://www.vrdesktop.net) **Streamer** settings on Windows.
 
-It does **not** ship Quest APKs, keystores, or IL patches.
+It does **not** ship Quest APKs or keystores. Current app version **0.4.7**.
+Write IL can patch a user-selected Quest APK's slider cap (stock shipped APKs stay at 500).
 
 - Author: [dwgx](https://github.com/dwgx)
 - Feedback: csgowiki@qq.com
