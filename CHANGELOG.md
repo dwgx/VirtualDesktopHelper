@@ -1,5 +1,10 @@
 # VirtualDesktopHelper changelog
 
+## 0.4.7 — 2026-08-28
+
+- Write IL: embed LZ4 dlls so a lone VDH.exe still patches APKs (0.4.6 failed with `Could not load K4os.Compression.LZ4`).
+- Status text: current EN freeze `B0604A84` and ZH `39C52DF5` are **stock 500**. Old `8DEEF4FF` was 960.
+
 ## 0.4.6 — 2026-08-28
 
 - Shipped EN/ZH APKs use stock IL cap **500**.

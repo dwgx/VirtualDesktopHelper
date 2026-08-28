@@ -653,8 +653,8 @@ namespace VirtualDesktopHelper
                     "上次识别的 APK " + cfg.LastApkSha.Substring(0, 8) + "… → " + apkCap + " Mbps。"));
             else
                 lines.Add(L.T(
-                    "EN freeze 8DEEF4FF = 960. ZH 39C52DF5 = 500. Drag the in-headset slider.",
-                    "英文冻结包 8DEEF4FF = 960。汉化 39C52DF5 = 500。头显里把滑条拉满即可。"));
+                    "EN freeze B0604A84 and ZH 39C52DF5 are both stock 500. Old 8DEEF4FF was 960.",
+                    "英文冻结包 B0604A84 和汉化 39C52DF5 都是原版上限 500。旧包 8DEEF4FF 才是 960。"));
             lines.Add(L.T(
                 "Write IL only edits the repo DLL. Then repack + reinstall APK. Restart Streamer does nothing here.",
                 "「写入 IL」只改仓库 DLL，还要 repack 并重装 APK。重启串流端改不了这个上限。"));

@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web.Script.Serialization;
@@ -142,7 +143,7 @@ namespace VirtualDesktopHelper
         public int LastBitrate;
         public string LastApkSha;
         public string AdbPath;
-        public const string Version = "0.4.6";
+        public const string Version = "0.4.7";
         static readonly JavaScriptSerializer Ser = new JavaScriptSerializer();
         public static AppCfg Load()
         {
@@ -937,6 +938,12 @@ namespace VirtualDesktopHelper
                         L.T("Patched APK written:\n", "已写出补丁 APK：\n") + dest + "\n\n" + log
                         + L.T("\nInstall it on the headset (Headset tab).", "\n用头显页安装到 Quest。"));
                 }
+                catch (FileNotFoundException ex)
+                {
+                    MessageBox.Show(this, L.T(
+                        "Missing LZ4 library next to VDH.exe. Use the 0.4.7 folder (exe + dlls), not a lone exe.\n",
+                        "VDH.exe 旁边缺少压缩库。请用 0.4.7 整夹（exe+dll），不要只拷一个 exe。\n") + ex.Message);
+                }
                 catch (Exception ex)
                 {
                     MessageBox.Show(this, L.T("Patch failed: ", "打补丁失败：") + ex.Message + "\n" + log);
@@ -951,11 +958,52 @@ namespace VirtualDesktopHelper
         [STAThread]
         static void Main()
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
             Directory.CreateDirectory(Paths.AppDir);
             Directory.CreateDirectory(Paths.HistoryDir);
+            EnsureLz4();
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new MainForm(AppCfg.Load()));
+        }
+
+        static void EnsureLz4()
+        {
+            var dir = Path.Combine(Paths.AppDir, "lib");
+            Directory.CreateDirectory(dir);
+            var asm = typeof(Program).Assembly;
+            var files = new[]
+            {
+                "K4os.Compression.LZ4.dll",
+                "System.Buffers.dll",
+                "System.Memory.dll",
+                "System.Numerics.Vectors.dll",
+                "System.Runtime.CompilerServices.Unsafe.dll"
+            };
+            foreach (var file in files)
+            {
+                var dest = Path.Combine(dir, file);
+                if (File.Exists(dest)) continue;
+                string res = null;
+                foreach (var n in asm.GetManifestResourceNames())
+                    if (n.EndsWith(file, StringComparison.OrdinalIgnoreCase)) { res = n; break; }
+                if (res == null) continue;
+                using (var s = asm.GetManifestResourceStream(res))
+                {
+                    if (s == null) continue;
+                    using (var f = File.Create(dest)) s.CopyTo(f);
+                }
+            }
+            AppDomain.CurrentDomain.AssemblyResolve += (s, e) =>
+            {
+                try
+                {
+                    var name = new AssemblyName(e.Name).Name + ".dll";
+                    var p = Path.Combine(dir, name);
+                    if (File.Exists(p)) return Assembly.LoadFrom(p);
+                }
+                catch { }
+                return null;
+            };
         }
     }
 }
