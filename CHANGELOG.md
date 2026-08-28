@@ -1,5 +1,12 @@
 # VirtualDesktopHelper changelog
 
+## 0.4.5 — 2026-08-28
+
+- OTA: strip junk from VERSION.txt; publish a real `v0.4.5` release so 0.4.3 can update.
+- Device name is read-only.
+- Bitrate row shows IL status (repo DLL vs known APK SHA). No cryptic Mobile.dll popup.
+- Headset grant only runtime perms; logcat no longer dumps kernel `audit: rate limit`.
+
 ## 0.4.4 — 2026-08-28
 
 - adb: search SDK / PATH / VIVE / repo `quest_adb_tools`, never fall back to a bare `adb` on PATH.

@@ -57,10 +57,19 @@ namespace VirtualDesktopHelper
         // Frozen / superseded Quest APKs we built. Install only these without warning.
         public static readonly Dictionary<string, string> KnownApk = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            { "8DEEF4FF24839FA4244C61C9241485836D8BE0E576CD079512229525295E42DA", "1.34.22.0 EN LAN C2acked dwgx (current)" },
-            { "39C52DF500E7FAC06AAA00B69D51488E9093CAB863D4BDBC734C6724BC73F09A", "1.34.22.0 ZH LAN CJK+IL (current)" },
+            { "8DEEF4FF24839FA4244C61C9241485836D8BE0E576CD079512229525295E42DA", "1.34.22.0 EN LAN · IL 960 Mbps" },
+            { "39C52DF500E7FAC06AAA00B69D51488E9093CAB863D4BDBC734C6724BC73F09A", "1.34.22.0 ZH LAN · IL 500 Mbps" },
             { "A9BE37D90287C259C8B71EC5A6BA937C69FEAF27F7DB9134CE1313CECD933AF4", "1.34.22.0 EN LAN (pre-watermark, superseded)" },
         };
+
+        public static int CapForSha(string sha)
+        {
+            if (string.IsNullOrEmpty(sha)) return 0;
+            if (sha.StartsWith("8DEEF4FF", StringComparison.OrdinalIgnoreCase)) return 960;
+            if (sha.StartsWith("39C52DF5", StringComparison.OrdinalIgnoreCase)) return 500;
+            if (sha.StartsWith("A9BE37D9", StringComparison.OrdinalIgnoreCase)) return 960;
+            return 0;
+        }
 
         public static readonly string[] SettingOrder = {
             "ShowPairingRequests","ShownH264PlusWarning","DeviceName",
@@ -130,7 +139,7 @@ namespace VirtualDesktopHelper
         public int LastBitrate;
         public string LastApkSha;
         public string AdbPath;
-        public const string Version = "0.4.4";
+        public const string Version = "0.4.5";
         static readonly JavaScriptSerializer Ser = new JavaScriptSerializer();
         public static AppCfg Load()
         {
@@ -153,7 +162,7 @@ namespace VirtualDesktopHelper
         Dictionary<string, object> data = new Dictionary<string, object>();
         ComboBox cmbLang, cmbCodec, cmbHistory, cmbAddPlat;
         CheckBox chkSecrets, chkPair, chkH264Warn;
-        TextBox tbDetect, tbDevice, tbVideos, tbLast, tbWarn, tbBitrate, tbAddName, txtHeadset;
+        TextBox tbDetect, tbDevice, tbVideos, tbLast, tbWarn, tbBitrate, tbAddName, txtHeadset, txtIlStatus;
         NumericUpDown numMon, numRot;
         ListView lvAcc;
         Label lbCodec, lbDevice, lbVideos, lbLast, lbMon, lbWarn, lbRot, lbAccHint, lbBitrate, lbHeadset;
@@ -290,7 +299,7 @@ namespace VirtualDesktopHelper
             row("ShownH264PlusWarning", chkH264Warn, null);
 
             lbDevice = new Label { AutoSize = true, Anchor = AnchorStyles.Left };
-            tbDevice = new TextBox();
+            tbDevice = new TextBox { ReadOnly = true, BackColor = Color.FromArgb(245, 245, 245) };
             row("DeviceName", tbDevice, null);
             grid.Controls.Remove(grid.GetControlFromPosition(0, 3));
             grid.Controls.Add(lbDevice, 0, 3);
@@ -341,6 +350,18 @@ namespace VirtualDesktopHelper
             row("bitrate", tbBitrate, btnCap);
             grid.Controls.Remove(grid.GetControlFromPosition(0, 9));
             grid.Controls.Add(lbBitrate, 0, 9);
+
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 88));
+            txtIlStatus = new TextBox
+            {
+                Multiline = true,
+                ReadOnly = true,
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(245, 245, 245),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            grid.Controls.Add(txtIlStatus, 0, 10);
+            grid.SetColumnSpan(txtIlStatus, 3);
 
             grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             page.Controls.Add(grid);
@@ -892,7 +913,10 @@ namespace VirtualDesktopHelper
             var dll = Paths.RepoMobile;
             if (!File.Exists(dll))
             {
-                MessageBox.Show(this, L.T("Mobile.dll is only in the repo build tree.", "仓库 patched_assemblies 里没有 Mobile.dll。"));
+                RefreshBitrateLabel();
+                MessageBox.Show(this, txtIlStatus != null ? txtIlStatus.Text : L.T(
+                    "No repo Mobile.dll. The headset cap is already in the installed APK. EN freeze = 960 Mbps — just move the slider.",
+                    "没有仓库 Mobile.dll。上限已经在已装 APK 里。英文冻结包是 960 Mbps，头显里拉滑条即可。"));
                 return;
             }
             var raw = File.ReadAllBytes(dll);

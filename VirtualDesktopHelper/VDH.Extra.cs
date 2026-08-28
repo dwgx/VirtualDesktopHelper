@@ -461,7 +461,13 @@ namespace VirtualDesktopHelper
 
         void HeadsetLogcat()
         {
-            txtHeadset.Text = RunAdb("logcat -d -t 120 -s Unity:I *:E", 20000);
+            var pid = (RunAdb("shell pidof " + Pkg, 8000, false) ?? "").Trim();
+            var parts = pid.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            int n;
+            if (parts.Length > 0 && int.TryParse(parts[0], out n) && n > 0)
+                txtHeadset.Text = RunAdb("logcat -d -t 80 --pid=" + n, 20000);
+            else
+                txtHeadset.Text = RunAdb("logcat -d -t 80 -s Unity:I AndroidRuntime:E ActivityManager:I", 20000);
         }
 
         void HeadsetStart()
@@ -481,19 +487,25 @@ namespace VirtualDesktopHelper
             var perms = new[]
             {
                 "android.permission.RECORD_AUDIO",
-                "android.permission.CAMERA",
                 "android.permission.READ_EXTERNAL_STORAGE",
                 "android.permission.WRITE_EXTERNAL_STORAGE",
-                "android.permission.ACCESS_WIFI_STATE",
-                "android.permission.ACCESS_NETWORK_STATE",
-                "android.permission.INTERNET",
-                "android.permission.WAKE_LOCK",
-                "android.permission.BLUETOOTH",
                 "android.permission.BLUETOOTH_CONNECT"
             };
             var sb = new StringBuilder();
+            sb.AppendLine(L.T("Only runtime permissions. Install-time ones (Internet/Wi-Fi) are skipped.",
+                "只授运行时权限。Internet/Wi-Fi 等安装时权限不用 grant。"));
             foreach (var p in perms)
-                sb.AppendLine(RunAdb("shell pm grant " + Pkg + " " + p, 10000));
+            {
+                var shortn = p.Substring(p.LastIndexOf('.') + 1);
+                var line = RunAdb("shell pm grant " + Pkg + " " + p, 10000) ?? "";
+                if (line.IndexOf("not a changeable", StringComparison.OrdinalIgnoreCase) >= 0
+                    || line.IndexOf("has not requested", StringComparison.OrdinalIgnoreCase) >= 0)
+                    sb.AppendLine(L.T("skip " + shortn + " (not a runtime permission)", "跳过 " + shortn + "（不是运行时权限）"));
+                else if (line.IndexOf("Exception", StringComparison.OrdinalIgnoreCase) >= 0)
+                    sb.AppendLine(L.T("fail " + shortn, "失败 " + shortn));
+                else
+                    sb.AppendLine("OK  " + shortn);
+            }
             txtHeadset.Text = sb.ToString();
         }
 
@@ -612,16 +624,32 @@ namespace VirtualDesktopHelper
 
         void RefreshBitrateLabel()
         {
-            int cap = cfg.LastBitrate;
-            if (cap <= 0) cap = ReadRepoBitrate();
+            int repoCap = ReadRepoBitrate();
+            int apkCap = Catalog.CapForSha(cfg.LastApkSha);
             if (tbBitrate != null && (tbBitrate.Text == "" || tbBitrate.Text == "500" || tbBitrate.Text == "960"))
-                tbBitrate.Text = cap > 0 ? cap.ToString() : "500";
+                tbBitrate.Text = (repoCap > 0 ? repoCap : apkCap > 0 ? apkCap : 500).ToString();
             if (lbBitrate != null)
-            {
-                var sha = cfg.LastApkSha;
-                string extraSha = string.IsNullOrEmpty(sha) ? "" : "  SHA " + sha.Substring(0, 8) + "…";
-                lbBitrate.Text = L.T("Headset bitrate cap (APK IL)", "头显码率上限（APK IL）") + extraSha;
-            }
+                lbBitrate.Text = L.T("Headset IL cap (Mbps)", "头显 IL 上限（Mbps）");
+            if (txtIlStatus == null) return;
+            var lines = new List<string>();
+            if (repoCap > 0)
+                lines.Add(L.T("Repo Mobile.dll IL: " + repoCap + " Mbps.", "仓库 Mobile.dll IL 上限：" + repoCap + " Mbps。"));
+            else
+                lines.Add(L.T(
+                    "Desktop VDH has no patch source. IL cap is already inside the Quest APK.",
+                    "桌面版 VDH 没有补丁源。上限已经打在 Quest APK 里。"));
+            if (apkCap > 0)
+                lines.Add(L.T(
+                    "Last scanned APK " + cfg.LastApkSha.Substring(0, 8) + "… → " + apkCap + " Mbps.",
+                    "上次识别的 APK " + cfg.LastApkSha.Substring(0, 8) + "… → " + apkCap + " Mbps。"));
+            else
+                lines.Add(L.T(
+                    "EN freeze 8DEEF4FF = 960. ZH 39C52DF5 = 500. Drag the in-headset slider.",
+                    "英文冻结包 8DEEF4FF = 960。汉化 39C52DF5 = 500。头显里把滑条拉满即可。"));
+            lines.Add(L.T(
+                "Write IL only edits the repo DLL. Then repack + reinstall APK. Restart Streamer does nothing here.",
+                "「写入 IL」只改仓库 DLL，还要 repack 并重装 APK。重启串流端改不了这个上限。"));
+            txtIlStatus.Text = string.Join("\r\n", lines.ToArray());
         }
 
         int ReadRepoBitrate()
@@ -703,6 +731,17 @@ namespace VirtualDesktopHelper
         // /releases/latest/download/ is a static GitHub redirect, no API quota.
         const string OtaVersionUrl = "https://raw.githubusercontent.com/dwgx/VirtualDesktopHelper/main/VERSION.txt";
 
+        static string SanitizeVersion(string s)
+        {
+            if (s == null) return "";
+            var sb = new StringBuilder();
+            foreach (var c in s.Trim().TrimStart('v', 'V'))
+            {
+                if (char.IsDigit(c) || c == '.') sb.Append(c);
+            }
+            return sb.ToString().Trim('.');
+        }
+
         static bool HostAllowed(string url)
         {
             Uri u;
@@ -764,7 +803,7 @@ namespace VirtualDesktopHelper
             try
             {
                 ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
-                var remoteVer = HttpGet(OtaVersionUrl, 20000).Trim().TrimStart('v');
+                var remoteVer = SanitizeVersion(HttpGet(OtaVersionUrl, 20000));
                 var local = AppCfg.Version;
                 Version rv, lv;
                 var remoteOk = Version.TryParse(remoteVer, out rv);
