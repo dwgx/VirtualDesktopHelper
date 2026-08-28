@@ -1,0 +1,8 @@
+bin/
+obj/
+*.user
+.vs/
+__pycache__/
+*.apk
+*.keystore
+StreamerSettings.json
