@@ -32,6 +32,14 @@ VirtualDesktopHelper/
   app.manifest
 ```
 
+## For later agents
+
+- EN/ZH Quest APKs ship with stock slider cap **500**. Do not bake 960.
+- Bitrate lives in Quest `Mobile.dll` IL (`0x13B0C` `0x14E45` `0x2BFE3` on 22), not Streamer JSON.
+- VDH **Write IL** patches a user-selected APK (offsets XOR-masked in `BitrateApk.cs`) then zipalign+apksigner.
+- No Path C on 22. HorizonOS: Open app, never Restore. Pairing name `dwgx`.
+- `VERSION.txt` must be only `x.y.z` plus newline. Release must include `VDH.exe` + `SHA256SUMS.txt`.
+
 ## Updates
 
 Release assets are `VDH.exe` + `SHA256SUMS.txt` + `VERSION.txt`.
