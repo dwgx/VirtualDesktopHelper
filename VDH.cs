@@ -58,6 +58,7 @@ namespace VirtualDesktopHelper
         public static readonly Dictionary<string, string> KnownApk = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             { "8DEEF4FF24839FA4244C61C9241485836D8BE0E576CD079512229525295E42DA", "1.34.22.0 EN LAN C2acked dwgx (current)" },
+            { "39C52DF500E7FAC06AAA00B69D51488E9093CAB863D4BDBC734C6724BC73F09A", "1.34.22.0 ZH LAN CJK+IL (current)" },
             { "A9BE37D90287C259C8B71EC5A6BA937C69FEAF27F7DB9134CE1313CECD933AF4", "1.34.22.0 EN LAN (pre-watermark, superseded)" },
         };
 
@@ -128,7 +129,7 @@ namespace VirtualDesktopHelper
         public bool CheckUpdates = true;
         public int LastBitrate;
         public string LastApkSha;
-        public const string Version = "0.4.2";
+        public const string Version = "0.4.3";
         static readonly JavaScriptSerializer Ser = new JavaScriptSerializer();
         public static AppCfg Load()
         {
