@@ -1,0 +1,9 @@
+* text=auto
+*.cs linguist-language=C#
+*.csproj linguist-language=C#
+*.sln linguist-language=C#
+*.md linguist-documentation
+*.ps1 linguist-vendored
+*.bat linguist-vendored
+*.py linguist-vendored
+*.ico binary

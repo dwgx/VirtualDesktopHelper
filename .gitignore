@@ -1,8 +1,13 @@
 bin/
 obj/
 *.user
+*.suo
+*.userosscache
 .vs/
+packages/
 __pycache__/
 *.apk
 *.keystore
 StreamerSettings.json
+VDH.exe
+*.png

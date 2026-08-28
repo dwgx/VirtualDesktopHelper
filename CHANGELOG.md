@@ -1,5 +1,11 @@
 # VirtualDesktopHelper changelog
 
+## 0.4.4 — 2026-08-28
+
+- adb: search SDK / PATH / VIVE / repo `quest_adb_tools`, never fall back to a bare `adb` on PATH.
+- If missing: browse, or download Google `platform-tools` from `dl.google.com` only.
+- Remember the chosen path in `%AppData%\VirtualDesktopHelper\config.json`.
+
 ## 0.4.1 — 2026-08-28
 
 - OTA no longer calls `api.github.com` (that 403s when the anonymous rate limit is hit).

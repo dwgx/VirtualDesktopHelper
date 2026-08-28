@@ -129,7 +129,8 @@ namespace VirtualDesktopHelper
         public bool CheckUpdates = true;
         public int LastBitrate;
         public string LastApkSha;
-        public const string Version = "0.4.3";
+        public string AdbPath;
+        public const string Version = "0.4.4";
         static readonly JavaScriptSerializer Ser = new JavaScriptSerializer();
         public static AppCfg Load()
         {
@@ -157,7 +158,7 @@ namespace VirtualDesktopHelper
         ListView lvAcc;
         Label lbCodec, lbDevice, lbVideos, lbLast, lbMon, lbWarn, lbRot, lbAccHint, lbBitrate, lbHeadset;
         Button btnDetect, btnSave, btnFact, btnHist, btnRst, btnBrowse, btnRemove, btnOpenSt, btnCap, btnClearHist, btnFeedback;
-        Button btnHsRefresh, btnHsLog, btnHsStart, btnHsStop, btnHsGrant, btnHsInstall, btnHsFolder, btnOpenCfg, btnOta;
+        Button btnHsRefresh, btnHsLog, btnHsStart, btnHsStop, btnHsGrant, btnHsInstall, btnHsFolder, btnHsAdb, btnOpenCfg, btnOta, btnPickAdb;
         CheckBox chkOta;
         WebBrowser webWiki;
         LinkLabel lnkGh, lnkMail;
@@ -474,6 +475,7 @@ namespace VirtualDesktopHelper
                 btnHsGrant.Text = L.T("Grant perms", "授权");
                 btnHsInstall.Text = L.T("Install APK", "安装 APK");
                 btnHsFolder.Text = L.T("Install from folder…", "从文件夹安装…");
+                if (btnHsAdb != null) btnHsAdb.Text = L.T("Choose adb…", "选择 adb…");
             }
             if (btnOpenCfg != null)
             {
@@ -483,6 +485,9 @@ namespace VirtualDesktopHelper
                 btnOpenCfg.Text = L.T("Open folder", "打开目录");
                 btnOta.Text = L.T("Check for updates", "检查更新");
                 chkOta.Text = L.T("Check GitHub Release on start (HTTPS + SHA-256, no API token)", "启动时检查 GitHub Release（HTTPS + SHA-256，不用 API）");
+                if (btnPickAdb != null) btnPickAdb.Text = L.T("Choose / download adb…", "选择或下载 adb…");
+                if (extra.ContainsKey("app.adblab")) extra["app.adblab"].Text = L.T("adb", "adb");
+                ShowAdbPath();
             }
             extra["author"].Text = L.T("Author  dwgx", "作者  dwgx");
             extra["log"].Text = ChangelogText();

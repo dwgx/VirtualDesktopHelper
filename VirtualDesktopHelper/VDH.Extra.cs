@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.IO.Compression;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -54,12 +55,19 @@ namespace VirtualDesktopHelper
             extra["app.pathlab"] = new Label { AutoSize = true, Margin = new Padding(0, 0, 0, 4) };
             var cfgPath = new TextBox { ReadOnly = true, Width = 520, Text = Paths.AppDir };
             extra["app.cfgpath"] = cfgPath;
+            btnPickAdb = new Button { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = new Padding(0, 12, 0, 4) };
+            btnPickAdb.Click += (s, e) => { AskAdb(true); };
+            extra["app.adblab"] = new Label { AutoSize = true, Margin = new Padding(0, 8, 0, 4) };
+            extra["app.adbpath"] = new TextBox { ReadOnly = true, Width = 520 };
             box.Controls.Add(extra["app.verlab"]);
             box.Controls.Add(extra["app.ver"]);
             box.Controls.Add(chkOta);
             box.Controls.Add(actions);
             box.Controls.Add(extra["app.pathlab"]);
             box.Controls.Add(cfgPath);
+            box.Controls.Add(btnPickAdb);
+            box.Controls.Add(extra["app.adblab"]);
+            box.Controls.Add(extra["app.adbpath"]);
             page.Controls.Add(box);
             return page;
         }
@@ -80,6 +88,7 @@ namespace VirtualDesktopHelper
             btnHsGrant = new Button { AutoSize = true };
             btnHsInstall = new Button { AutoSize = true };
             btnHsFolder = new Button { AutoSize = true };
+            btnHsAdb = new Button { AutoSize = true };
             btnHsRefresh.Click += (s, e) => RefreshHeadset(true);
             btnHsLog.Click += (s, e) => HeadsetLogcat();
             btnHsStart.Click += (s, e) => HeadsetStart();
@@ -87,6 +96,7 @@ namespace VirtualDesktopHelper
             btnHsGrant.Click += (s, e) => HeadsetGrant();
             btnHsInstall.Click += (s, e) => HeadsetInstall();
             btnHsFolder.Click += (s, e) => InstallFromFolder();
+            btnHsAdb.Click += (s, e) => { AskAdb(true); RefreshHeadset(true); };
             bar.Controls.Add(btnHsRefresh);
             bar.Controls.Add(btnHsStart);
             bar.Controls.Add(btnHsStop);
@@ -94,6 +104,7 @@ namespace VirtualDesktopHelper
             bar.Controls.Add(btnHsLog);
             bar.Controls.Add(btnHsInstall);
             bar.Controls.Add(btnHsFolder);
+            bar.Controls.Add(btnHsAdb);
             txtHeadset = new TextBox { Multiline = true, ReadOnly = true, Dock = DockStyle.Fill, ScrollBars = ScrollBars.Both, Font = new Font("Consolas", 9f) };
             root.Controls.Add(lbHeadset, 0, 0);
             root.Controls.Add(bar, 0, 1);
@@ -227,20 +238,180 @@ namespace VirtualDesktopHelper
 
         string FindAdb()
         {
-            var dir = Path.GetDirectoryName(Application.ExecutablePath) ?? ".";
-            var cands = new[]
+            return FindAdb(false);
+        }
+
+        string FindAdb(bool prompt)
+        {
+            if (!string.IsNullOrEmpty(cfg.AdbPath) && File.Exists(cfg.AdbPath))
+                return cfg.AdbPath;
+            foreach (var p in EnumerateAdbCandidates())
             {
-                Path.Combine(dir, "adb", "adb.exe"),
-                Path.GetFullPath(Path.Combine(dir, @"..\analysis\apk_patch\quest_adb_tools\dist\adb.exe")),
-                Path.GetFullPath(Path.Combine(dir, @"..\..\analysis\apk_patch\quest_adb_tools\dist\adb.exe")),
-            };
-            foreach (var p in cands) if (File.Exists(p)) return p;
-            return "adb";
+                if (File.Exists(p))
+                {
+                    cfg.AdbPath = p;
+                    cfg.Save();
+                    ShowAdbPath();
+                    return p;
+                }
+            }
+            if (prompt) return AskAdb(true);
+            return null;
+        }
+
+        static IEnumerable<string> EnumerateAdbCandidates()
+        {
+            var dir = Path.GetDirectoryName(Application.ExecutablePath) ?? ".";
+            yield return Path.Combine(dir, "adb", "adb.exe");
+            yield return Path.Combine(dir, "platform-tools", "adb.exe");
+            yield return Path.Combine(Paths.AppDir, "platform-tools", "adb.exe");
+            var walk = dir;
+            for (int i = 0; i < 6 && !string.IsNullOrEmpty(walk); i++)
+            {
+                yield return Path.Combine(walk, @"analysis\apk_patch\quest_adb_tools\dist\adb.exe");
+                walk = Path.GetDirectoryName(walk);
+            }
+            yield return @"D:\Project\VirtualDesktop\analysis\apk_patch\quest_adb_tools\dist\adb.exe";
+            yield return @"D:\Project\VirtualDesktop\analysis\apk_patch\output\adb\adb.exe";
+            var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            yield return Path.Combine(local, @"Android\Sdk\platform-tools\adb.exe");
+            foreach (var env in new[] { "ANDROID_HOME", "ANDROID_SDK_ROOT" })
+            {
+                var v = Environment.GetEnvironmentVariable(env);
+                if (!string.IsNullOrEmpty(v))
+                    yield return Path.Combine(v, "platform-tools", "adb.exe");
+            }
+            yield return @"D:\Software\Android\Sdk\platform-tools\adb.exe";
+            yield return @"C:\Android\platform-tools\adb.exe";
+            yield return @"C:\platform-tools\adb.exe";
+            yield return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"Android\android-sdk\platform-tools\adb.exe");
+            yield return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"Android\android-sdk\platform-tools\adb.exe");
+            yield return @"D:\Software\VIVE Hub\VIVE Hub\CommonTools\ADB\adb.exe";
+            yield return @"D:\Software\VIVE Hub\VIVE Business Streaming\CommonTools\ADB\adb.exe";
+            var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+            foreach (var d in path.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var p = Path.Combine(d.Trim().Trim('"'), "adb.exe");
+                if (p.Length > 8) yield return p;
+            }
+        }
+
+        void ShowAdbPath()
+        {
+            Control box;
+            if (extra.TryGetValue("app.adbpath", out box))
+                box.Text = string.IsNullOrEmpty(cfg.AdbPath) ? L.T("(not set)", "（未设置）") : cfg.AdbPath;
+        }
+
+        string AskAdb(bool forceDialog)
+        {
+            var found = new List<string>();
+            foreach (var p in EnumerateAdbCandidates())
+                if (File.Exists(p) && !found.Exists(x => string.Equals(x, p, StringComparison.OrdinalIgnoreCase)))
+                    found.Add(p);
+            if (!forceDialog && found.Count > 0)
+            {
+                cfg.AdbPath = found[0];
+                cfg.Save();
+                ShowAdbPath();
+                return cfg.AdbPath;
+            }
+
+            var r = MessageBox.Show(this,
+                L.T(
+                    found.Count > 0
+                        ? ("Found " + found.Count + " adb.exe.\nYes = use " + found[0] + "\nNo = browse\nCancel = download official platform-tools")
+                        : "adb.exe not found.\nYes = browse for adb.exe\nNo = download official Google platform-tools\nCancel = skip",
+                    found.Count > 0
+                        ? ("找到 " + found.Count + " 个 adb.exe。\n是 = 用 " + found[0] + "\n否 = 自己选\n取消 = 下载官方 platform-tools")
+                        : "没有找到 adb.exe。\n是 = 自己选 adb.exe\n否 = 下载 Google 官方 platform-tools\n取消 = 跳过"),
+                "VDH adb",
+                found.Count > 0 ? MessageBoxButtons.YesNoCancel : MessageBoxButtons.YesNoCancel);
+
+            if (found.Count > 0)
+            {
+                if (r == DialogResult.Yes) { cfg.AdbPath = found[0]; cfg.Save(); ShowAdbPath(); return cfg.AdbPath; }
+                if (r == DialogResult.No) return BrowseAdb();
+                if (r == DialogResult.Cancel) return DownloadAdb();
+                return null;
+            }
+            if (r == DialogResult.Yes) return BrowseAdb();
+            if (r == DialogResult.No) return DownloadAdb();
+            return null;
+        }
+
+        string BrowseAdb()
+        {
+            using (var d = new OpenFileDialog())
+            {
+                d.Filter = "adb.exe|adb.exe|Executable|*.exe";
+                d.Title = L.T("Select adb.exe", "选择 adb.exe");
+                if (d.ShowDialog(this) != DialogResult.OK) return null;
+                if (!d.FileName.EndsWith("adb.exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    MessageBox.Show(this, L.T("Pick adb.exe", "请选 adb.exe"));
+                    return null;
+                }
+                cfg.AdbPath = d.FileName;
+                cfg.Save();
+                ShowAdbPath();
+                return cfg.AdbPath;
+            }
+        }
+
+        string DownloadAdb()
+        {
+            const string url = "https://dl.google.com/android/repository/platform-tools-latest-windows.zip";
+            Uri u;
+            if (!Uri.TryCreate(url, UriKind.Absolute, out u) || u.Host.ToLowerInvariant() != "dl.google.com" || u.Scheme != Uri.UriSchemeHttps)
+                return null;
+            var destDir = Path.Combine(Paths.AppDir, "platform-tools");
+            var zip = Path.Combine(Paths.AppDir, "platform-tools.zip");
+            try
+            {
+                Directory.CreateDirectory(Paths.AppDir);
+                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
+                using (var wc = new WebClient())
+                {
+                    wc.Headers["User-Agent"] = "VirtualDesktopHelper/" + AppCfg.Version;
+                    wc.DownloadFile(url, zip);
+                }
+                if (Directory.Exists(destDir)) Directory.Delete(destDir, true);
+                System.IO.Compression.ZipFile.ExtractToDirectory(zip, Paths.AppDir);
+                try { File.Delete(zip); } catch { }
+                var adb = Path.Combine(destDir, "adb.exe");
+                if (!File.Exists(adb))
+                {
+                    MessageBox.Show(this, L.T("Zip extracted but adb.exe missing.", "解压后没有 adb.exe。"));
+                    return null;
+                }
+                cfg.AdbPath = adb;
+                cfg.Save();
+                ShowAdbPath();
+                return adb;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, L.T("Download failed: ", "下载失败：") + ex.Message);
+                return null;
+            }
         }
 
         string RunAdb(string args, int timeoutMs)
         {
-            var adb = FindAdb();
+            return RunAdb(args, timeoutMs, true);
+        }
+
+        string RunAdb(string args, int timeoutMs, bool prompt)
+        {
+            var adb = FindAdb(false);
+            if (string.IsNullOrEmpty(adb) || !File.Exists(adb))
+            {
+                if (prompt) adb = AskAdb(true);
+                if (string.IsNullOrEmpty(adb) || !File.Exists(adb))
+                    return L.T("adb.exe not found. Use Choose adb… or download platform-tools.",
+                        "找不到 adb.exe。点「选择 adb…」或下载官方 platform-tools。");
+            }
             var psi = new ProcessStartInfo(adb, args)
             {
                 RedirectStandardOutput = true,
@@ -270,7 +441,7 @@ namespace VirtualDesktopHelper
 
         void RefreshHeadset(bool verbose)
         {
-            var dev = RunAdb("devices -l", 15000);
+            var dev = RunAdb("devices -l", 15000, verbose);
             var connected = dev.IndexOf("\tdevice", StringComparison.Ordinal) >= 0
                          || dev.IndexOf(" device ", StringComparison.Ordinal) >= 0;
             var unauth = dev.IndexOf("unauthorized", StringComparison.OrdinalIgnoreCase) >= 0;
@@ -285,7 +456,7 @@ namespace VirtualDesktopHelper
             var pkg = connected ? RunAdb("shell dumpsys package " + Pkg, 20000) : "";
             if (pkg.Length > 2500) pkg = pkg.Substring(0, 2500) + "\r\n…";
             if (txtHeadset != null)
-                txtHeadset.Text = "adb: " + FindAdb() + "\r\n" + dev + "\r\n\r\n" + pkg;
+                txtHeadset.Text = "adb: " + (FindAdb(false) ?? "(none)") + "\r\n" + dev + "\r\n\r\n" + pkg;
         }
 
         void HeadsetLogcat()

@@ -1,25 +1,40 @@
-# VirtualDesktopHelper (VDH)
+# VirtualDesktopHelper
 
-Windows tool for official Virtual Desktop **Streamer** settings.  
-It does **not** ship Quest APKs, keystores, or patches.
+C# WinForms app (`.NET Framework 4.8`) for [Virtual Desktop](https://www.vrdesktop.net) **Streamer** settings on Windows.
 
-- Language: C# / .NET Framework 4 WinForms (`VDH.cs`)
+It does **not** ship Quest APKs, keystores, or IL patches.
+
 - Author: [dwgx](https://github.com/dwgx)
 - Feedback: csgowiki@qq.com
-- Related APK notes: https://dwgx.github.io/VirtualDesktop/about.html
-
-## Updates (OTA)
-
-VDH checks only:
-
-`https://api.github.com/repos/dwgx/VirtualDesktopHelper/releases/latest`
-
-It downloads `VDH.exe` and `SHA256SUMS.txt` from that release, refuses any other host, and aborts unless the SHA-256 matches. There is no URL box (no SSRF / no random MITM download).
+- APK notes: https://dwgx.github.io/VirtualDesktop/about.html
 
 ## Build
 
-```
-powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
+Visual Studio 2022 (workload: **.NET desktop development**) or:
+
+```bat
+dotnet build VirtualDesktopHelper.sln -c Release
 ```
 
-Needs Windows `csc.exe` (.NET Framework 4.x).
+Output: `VirtualDesktopHelper\bin\Release\VDH.exe`
+
+Double-click `VDH.bat` to build if needed and run.
+
+## Project
+
+```
+VirtualDesktopHelper.sln
+VirtualDesktopHelper/
+  VirtualDesktopHelper.csproj
+  VDH.cs
+  VDH.Extra.cs
+  VDH.ico
+  app.manifest
+```
+
+## Updates
+
+Release assets are `VDH.exe` + `SHA256SUMS.txt` + `VERSION.txt`.
+The app reads version from `raw.githubusercontent.com/dwgx/VirtualDesktopHelper/main/VERSION.txt`
+and downloads only `https://github.com/dwgx/VirtualDesktopHelper/releases/download/vX.Y.Z/...`
+(HTTPS, host allow-list, SHA-256). No URL box.

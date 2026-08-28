@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>VirtualDesktopHelper</RootNamespace>
+    <AssemblyName>VDH</AssemblyName>
+    <ApplicationIcon>VDH.ico</ApplicationIcon>
+    <LangVersion>7.3</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Version>0.4.4</Version>
+    <AssemblyTitle>VirtualDesktopHelper</AssemblyTitle>
+    <Product>VirtualDesktopHelper</Product>
+    <Authors>dwgx</Authors>
+    <Company>dwgx</Company>
+    <Description>Windows helper for Virtual Desktop Streamer settings.</Description>
+    <Copyright>dwgx</Copyright>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="VDH.cs" />
+    <Compile Update="VDH.Extra.cs" />
+    <None Include="VDH.ico" />
+  </ItemGroup>
+</Project>
