@@ -530,9 +530,7 @@ namespace VirtualDesktopHelper
 
         // Do not use api.github.com — unauthenticated calls 403 when the rate limit is hit.
         // /releases/latest/download/ is a static GitHub redirect, no API quota.
-        const string OtaVersionUrl = "https://github.com/dwgx/VirtualDesktopHelper/releases/latest/download/VERSION.txt";
-        const string OtaSumsUrl = "https://github.com/dwgx/VirtualDesktopHelper/releases/latest/download/SHA256SUMS.txt";
-        const string OtaExeUrl = "https://github.com/dwgx/VirtualDesktopHelper/releases/latest/download/VDH.exe";
+        const string OtaVersionUrl = "https://raw.githubusercontent.com/dwgx/VirtualDesktopHelper/main/VERSION.txt";
 
         static bool HostAllowed(string url)
         {
@@ -612,8 +610,10 @@ namespace VirtualDesktopHelper
                         "从 GitHub 更新 " + local + " → " + remoteVer + " ？\n会核对 SHA-256。"),
                     "VDH", MessageBoxButtons.YesNo) != DialogResult.Yes) return;
                 var tmp = Path.Combine(Path.GetTempPath(), "VDH-" + remoteVer + ".exe");
-                var sums = HttpGet(OtaSumsUrl, 20000);
-                HttpDownload(OtaExeUrl, tmp, 120000);
+                // Pin the tag URL. /latest/download/SHA256SUMS.txt is CDN-cached across releases.
+                var tagBase = "https://github.com/dwgx/VirtualDesktopHelper/releases/download/v" + remoteVer + "/";
+                var sums = HttpGet(tagBase + "SHA256SUMS.txt", 20000);
+                HttpDownload(tagBase + "VDH.exe", tmp, 120000);
                 var got = Sha256File(tmp);
                 if (sums.IndexOf(got, StringComparison.OrdinalIgnoreCase) < 0)
                 {

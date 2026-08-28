@@ -128,7 +128,7 @@ namespace VirtualDesktopHelper
         public bool CheckUpdates = true;
         public int LastBitrate;
         public string LastApkSha;
-        public const string Version = "0.4.1";
+        public const string Version = "0.4.2";
         static readonly JavaScriptSerializer Ser = new JavaScriptSerializer();
         public static AppCfg Load()
         {
