@@ -128,7 +128,7 @@ namespace VirtualDesktopHelper
         public bool CheckUpdates = true;
         public int LastBitrate;
         public string LastApkSha;
-        public const string Version = "0.4.0";
+        public const string Version = "0.4.1";
         static readonly JavaScriptSerializer Ser = new JavaScriptSerializer();
         public static AppCfg Load()
         {
@@ -476,14 +476,12 @@ namespace VirtualDesktopHelper
             }
             if (btnOpenCfg != null)
             {
-                btnOpenCfg.Text = L.T("Open config folder", "打开配置目录");
+                extra["app.verlab"].Text = L.T("Version", "版本");
+                extra["app.ver"].Text = "VDH " + AppCfg.Version;
+                extra["app.pathlab"].Text = L.T("Config folder", "配置目录");
+                btnOpenCfg.Text = L.T("Open folder", "打开目录");
                 btnOta.Text = L.T("Check for updates", "检查更新");
-                chkOta.Text = L.T("Check GitHub releases on start (HTTPS + SHA-256 only)", "启动时检查 GitHub Release（只走 HTTPS 并核对 SHA-256）");
-                extra["app.0"].Text = L.T("Version", "版本");
-                extra["app.1"].Text = L.T("Updates", "更新");
-                extra["app.2"].Text = L.T("Check now", "立刻检查");
-                extra["app.3"].Text = L.T("Config folder", "配置目录");
-                extra["app.4"].Text = L.T("Path", "路径");
+                chkOta.Text = L.T("Check GitHub Release on start (HTTPS + SHA-256, no API token)", "启动时检查 GitHub Release（HTTPS + SHA-256，不用 API）");
             }
             extra["author"].Text = L.T("Author  dwgx", "作者  dwgx");
             extra["log"].Text = ChangelogText();

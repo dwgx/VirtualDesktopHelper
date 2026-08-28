@@ -27,40 +27,40 @@ namespace VirtualDesktopHelper
         TabPage BuildAppTab()
         {
             var page = new TabPage();
-            var g = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, Padding = new Padding(16) };
-            g.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220));
-            g.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            int r = 0;
-            Action<string, Control> row = (lab, ctl) =>
+            var box = new FlowLayoutPanel
             {
-                extra["app." + r] = new Label { Text = lab, AutoSize = true, Anchor = AnchorStyles.Left, Tag = lab };
-                g.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-                g.Controls.Add((Control)extra["app." + r], 0, r);
-                ctl.Dock = DockStyle.Fill;
-                g.Controls.Add(ctl, 1, r);
-                r++;
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                Padding = new Padding(20, 16, 20, 16),
+                AutoScroll = true
             };
-            var ver = new Label { AutoSize = true, Text = "VDH " + AppCfg.Version, Anchor = AnchorStyles.Left };
-            extra["app.ver"] = ver;
-            row("Version", ver);
-            chkOta = new CheckBox { AutoSize = true, Checked = cfg.CheckUpdates };
+            extra["app.verlab"] = new Label { AutoSize = true, Margin = new Padding(0, 0, 0, 4) };
+            extra["app.ver"] = new Label { AutoSize = true, Font = new Font("Segoe UI", 12, FontStyle.Bold), Margin = new Padding(0, 0, 0, 16) };
+            extra["app.ver"].Text = "VDH " + AppCfg.Version;
+            chkOta = new CheckBox { AutoSize = true, Checked = cfg.CheckUpdates, Margin = new Padding(0, 0, 0, 10) };
             chkOta.CheckedChanged += (s, e) => { cfg.CheckUpdates = chkOta.Checked; cfg.Save(); };
-            row("OTA", chkOta);
-            btnOta = new Button { AutoSize = true };
+            var actions = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 0, 0, 18) };
+            btnOta = new Button { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = new Padding(0, 0, 10, 0) };
+            btnOpenCfg = new Button { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
             btnOta.Click += (s, e) => CheckOta(true);
-            row("Update", btnOta);
-            btnOpenCfg = new Button { AutoSize = true };
             btnOpenCfg.Click += (s, e) =>
             {
                 Directory.CreateDirectory(Paths.AppDir);
                 Process.Start("explorer.exe", Paths.AppDir);
             };
-            row("Config", btnOpenCfg);
-            var cfgPath = new TextBox { ReadOnly = true, Text = Paths.AppDir };
-            row("Path", cfgPath);
+            actions.Controls.Add(btnOta);
+            actions.Controls.Add(btnOpenCfg);
+            extra["app.pathlab"] = new Label { AutoSize = true, Margin = new Padding(0, 0, 0, 4) };
+            var cfgPath = new TextBox { ReadOnly = true, Width = 520, Text = Paths.AppDir };
             extra["app.cfgpath"] = cfgPath;
-            g.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            page.Controls.Add(g);
+            box.Controls.Add(extra["app.verlab"]);
+            box.Controls.Add(extra["app.ver"]);
+            box.Controls.Add(chkOta);
+            box.Controls.Add(actions);
+            box.Controls.Add(extra["app.pathlab"]);
+            box.Controls.Add(cfgPath);
+            page.Controls.Add(box);
             return page;
         }
 
@@ -528,7 +528,11 @@ namespace VirtualDesktopHelper
             }
         }
 
-        const string OtaApi = "https://api.github.com/repos/dwgx/VirtualDesktopHelper/releases/latest";
+        // Do not use api.github.com — unauthenticated calls 403 when the rate limit is hit.
+        // /releases/latest/download/ is a static GitHub redirect, no API quota.
+        const string OtaVersionUrl = "https://github.com/dwgx/VirtualDesktopHelper/releases/latest/download/VERSION.txt";
+        const string OtaSumsUrl = "https://github.com/dwgx/VirtualDesktopHelper/releases/latest/download/SHA256SUMS.txt";
+        const string OtaExeUrl = "https://github.com/dwgx/VirtualDesktopHelper/releases/latest/download/VDH.exe";
 
         static bool HostAllowed(string url)
         {
@@ -591,51 +595,29 @@ namespace VirtualDesktopHelper
             try
             {
                 ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
-                var json = HttpGet(OtaApi, 20000);
-                var ser = new JavaScriptSerializer();
-                var map = ser.Deserialize<Dictionary<string, object>>(json);
-                var tag = Convert.ToString(map.ContainsKey("tag_name") ? map["tag_name"] : "");
-                if (string.IsNullOrEmpty(tag))
-                {
-                    if (interactive) MessageBox.Show(this, L.T("No release tag.", "没有 Release。"));
-                    return;
-                }
+                var remoteVer = HttpGet(OtaVersionUrl, 20000).Trim().TrimStart('v');
                 var local = AppCfg.Version;
-                if (string.Compare(tag.TrimStart('v'), local, StringComparison.OrdinalIgnoreCase) <= 0)
+                Version rv, lv;
+                var remoteOk = Version.TryParse(remoteVer, out rv);
+                var localOk = Version.TryParse(local, out lv);
+                bool newer = remoteOk && localOk ? rv > lv : string.Compare(remoteVer, local, StringComparison.OrdinalIgnoreCase) > 0;
+                if (!newer)
                 {
                     if (interactive)
                         MessageBox.Show(this, L.T("Already current: " + local, "已是当前版本：" + local));
                     return;
                 }
-                string exeUrl = null, sumUrl = null;
-                var assets = map["assets"] as System.Collections.ArrayList;
-                if (assets != null)
-                {
-                    foreach (Dictionary<string, object> a in assets)
-                    {
-                        var n = Convert.ToString(a["name"]);
-                        var u = Convert.ToString(a["browser_download_url"]);
-                        if (!HostAllowed(u)) continue;
-                        if (n.Equals("VDH.exe", StringComparison.OrdinalIgnoreCase)) exeUrl = u;
-                        if (n.Equals("SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase)) sumUrl = u;
-                    }
-                }
-                if (exeUrl == null || sumUrl == null)
-                {
-                    if (interactive) MessageBox.Show(this, L.T("Release missing VDH.exe or SHA256SUMS.txt.", "Release 缺少 VDH.exe 或 SHA256SUMS.txt。"));
-                    return;
-                }
                 if (MessageBox.Show(this,
-                    L.T("Update " + local + " → " + tag + " from GitHub?\nSHA-256 will be checked.",
-                        "从 GitHub 更新 " + local + " → " + tag + " ？\n会核对 SHA-256。"),
+                    L.T("Update " + local + " → " + remoteVer + " from GitHub?\nSHA-256 will be checked.",
+                        "从 GitHub 更新 " + local + " → " + remoteVer + " ？\n会核对 SHA-256。"),
                     "VDH", MessageBoxButtons.YesNo) != DialogResult.Yes) return;
-                var tmp = Path.Combine(Path.GetTempPath(), "VDH-" + tag + ".exe");
-                var sums = HttpGet(sumUrl, 20000);
-                HttpDownload(exeUrl, tmp, 120000);
+                var tmp = Path.Combine(Path.GetTempPath(), "VDH-" + remoteVer + ".exe");
+                var sums = HttpGet(OtaSumsUrl, 20000);
+                HttpDownload(OtaExeUrl, tmp, 120000);
                 var got = Sha256File(tmp);
                 if (sums.IndexOf(got, StringComparison.OrdinalIgnoreCase) < 0)
                 {
-                    File.Delete(tmp);
+                    try { File.Delete(tmp); } catch { }
                     MessageBox.Show(this, L.T("SHA-256 mismatch. Update aborted.", "SHA-256 对不上。已中止。") + "\r\n" + got);
                     return;
                 }

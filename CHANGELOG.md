@@ -1,5 +1,11 @@
 # VirtualDesktopHelper changelog
 
+## 0.4.1 — 2026-08-28
+
+- OTA no longer calls `api.github.com` (that 403s when the anonymous rate limit is hit).
+- Uses `github.com/.../releases/latest/download/{VERSION.txt,SHA256SUMS.txt,VDH.exe}` plus SHA-256.
+- VDH tab layout: stacked labels and auto-sized buttons (no stretched empty bar).
+
 ## 0.4.0 — 2026-08-28
 
 - Home tab is Streamer settings (right-hand codec essay moved to Wiki).
