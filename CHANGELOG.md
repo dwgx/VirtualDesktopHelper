@@ -1,5 +1,12 @@
 # VirtualDesktopHelper changelog
 
+## 0.4.6 — 2026-08-28
+
+- Shipped EN/ZH APKs use stock IL cap **500**.
+- Home → Write IL picks a Quest APK, applies obfuscated Mobile.dll immediates, zipalign+sign → `*_capN.apk`.
+- Wiki + `AGENT.md` for later agents. Feedback dump is short.
+- Check for updates: real `v0.4.6` release; shows already-latest when current.
+
 ## 0.4.5 — 2026-08-28
 
 - OTA: strip junk from VERSION.txt; publish a real `v0.4.5` release so 0.4.3 can update.

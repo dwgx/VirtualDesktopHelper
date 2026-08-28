@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
+using System.Security.Cryptography;
 using System.Text;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
@@ -57,7 +58,8 @@ namespace VirtualDesktopHelper
         // Frozen / superseded Quest APKs we built. Install only these without warning.
         public static readonly Dictionary<string, string> KnownApk = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            { "8DEEF4FF24839FA4244C61C9241485836D8BE0E576CD079512229525295E42DA", "1.34.22.0 EN LAN · IL 960 Mbps" },
+            { "B0604A84F9651D90C6D0685DDA8FC2EBA99677946BE0346854078C472D36712A", "1.34.22.0 EN LAN · IL 500 Mbps" },
+            { "8DEEF4FF24839FA4244C61C9241485836D8BE0E576CD079512229525295E42DA", "1.34.22.0 EN LAN (960-cap, superseded)" },
             { "39C52DF500E7FAC06AAA00B69D51488E9093CAB863D4BDBC734C6724BC73F09A", "1.34.22.0 ZH LAN · IL 500 Mbps" },
             { "A9BE37D90287C259C8B71EC5A6BA937C69FEAF27F7DB9134CE1313CECD933AF4", "1.34.22.0 EN LAN (pre-watermark, superseded)" },
         };
@@ -65,6 +67,7 @@ namespace VirtualDesktopHelper
         public static int CapForSha(string sha)
         {
             if (string.IsNullOrEmpty(sha)) return 0;
+            if (sha.StartsWith("B0604A84", StringComparison.OrdinalIgnoreCase)) return 500;
             if (sha.StartsWith("8DEEF4FF", StringComparison.OrdinalIgnoreCase)) return 960;
             if (sha.StartsWith("39C52DF5", StringComparison.OrdinalIgnoreCase)) return 500;
             if (sha.StartsWith("A9BE37D9", StringComparison.OrdinalIgnoreCase)) return 960;
@@ -139,7 +142,7 @@ namespace VirtualDesktopHelper
         public int LastBitrate;
         public string LastApkSha;
         public string AdbPath;
-        public const string Version = "0.4.5";
+        public const string Version = "0.4.6";
         static readonly JavaScriptSerializer Ser = new JavaScriptSerializer();
         public static AppCfg Load()
         {
@@ -910,33 +913,36 @@ namespace VirtualDesktopHelper
                 MessageBox.Show(this, L.T("Bitrate 50–4000.", "码率 50–4000。"));
                 return;
             }
-            var dll = Paths.RepoMobile;
-            if (!File.Exists(dll))
+            using (var d = new OpenFileDialog())
             {
-                RefreshBitrateLabel();
-                MessageBox.Show(this, txtIlStatus != null ? txtIlStatus.Text : L.T(
-                    "No repo Mobile.dll. The headset cap is already in the installed APK. EN freeze = 960 Mbps — just move the slider.",
-                    "没有仓库 Mobile.dll。上限已经在已装 APK 里。英文冻结包是 960 Mbps，头显里拉滑条即可。"));
-                return;
+                d.Filter = "APK|*.apk";
+                d.Title = L.T("Quest APK to patch", "选择要改上限的 Quest APK");
+                if (d.ShowDialog(this) != DialogResult.OK) return;
+                var dest = Path.Combine(Path.GetDirectoryName(d.FileName) ?? ".",
+                    Path.GetFileNameWithoutExtension(d.FileName) + "_cap" + cap + ".apk");
+                var log = new StringBuilder();
+                try
+                {
+                    Cursor = Cursors.WaitCursor;
+                    Application.DoEvents();
+                    CapPatch.Apply(d.FileName, cap, dest, log);
+                    cfg.LastBitrate = cap;
+                    if (File.Exists(dest))
+                    {
+                        cfg.LastApkSha = BitConverter.ToString(SHA256.Create().ComputeHash(File.ReadAllBytes(dest))).Replace("-", "");
+                        cfg.Save();
+                    }
+                    RefreshBitrateLabel();
+                    MessageBox.Show(this,
+                        L.T("Patched APK written:\n", "已写出补丁 APK：\n") + dest + "\n\n" + log
+                        + L.T("\nInstall it on the headset (Headset tab).", "\n用头显页安装到 Quest。"));
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this, L.T("Patch failed: ", "打补丁失败：") + ex.Message + "\n" + log);
+                }
+                finally { Cursor = Cursors.Default; }
             }
-            var raw = File.ReadAllBytes(dll);
-            var hit = Catalog.ByMobileSize(raw.Length) ?? line;
-            var offs = hit.BitrateImm;
-            if (offs == null || offs.Length == 0)
-            {
-                MessageBox.Show(this, L.T("This Streamer line has no named bitrate sites.", "这一代没有单列码率地址。"));
-                return;
-            }
-            var buf = BitConverter.GetBytes(cap);
-            foreach (var off in offs)
-            {
-                if (off < 0 || off + 4 > raw.Length) { MessageBox.Show(this, "bad offset"); return; }
-                Buffer.BlockCopy(buf, 0, raw, off, 4);
-            }
-            File.WriteAllBytes(dll, raw);
-            MessageBox.Show(this, L.T(
-                "Wrote " + cap + " Mbps into " + hit.Version + ". Repack the APK to use it on the headset.",
-                "已把 " + cap + " Mbps 写入 " + hit.Version + "。上头显还需要重新打包 APK。"));
         }
     }
 
