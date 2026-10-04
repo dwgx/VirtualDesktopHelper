@@ -1,0 +1,20 @@
+bin/
+obj/
+.vs/
+*.user
+# 外部快照与二进制：不进仓库
+reference/
+artifacts/
+*.apk
+*.aab
+*.exe
+*.dll
+*.pdb
+*.zip
+*.tar
+*.jar
+*.keystore
+*.jks
+# adb / 抓取产物
+_logs/
+_capture/
