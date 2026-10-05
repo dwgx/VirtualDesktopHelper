@@ -468,7 +468,7 @@ public static class AdbProbe
         // The third screen runs TWO probes — HeadsetProbe then HeadsetDeepProbe — and --adb used to
         // run only the deep one. So the command people paste into issues was silently a subset of
         // what the tool can see. Both now run, in the same order.
-        var basic = await new Core.Adb.HeadsetProbe(client).RunAsync(CancellationToken.None)
+        var basic = await new Core.Adb.HeadsetProbe(client).RunAsync(serial, CancellationToken.None)
             .ConfigureAwait(false);
         var check = await new Core.Adb.HeadsetDeepProbe(client)
             .ProbeAsync(basic.Evidence.TryGetValue("serial", out var s0) ? s0 : (serial ?? ""), CancellationToken.None)

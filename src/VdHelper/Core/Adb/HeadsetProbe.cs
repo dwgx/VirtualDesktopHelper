@@ -41,7 +41,7 @@ public sealed class HeadsetProbe(AdbClient adb)
         ("android.permission.POST_NOTIFICATIONS", "无通知权限，后台保活受限"),
     ];
 
-    public async Task<CheckResult> RunAsync(CancellationToken ct = default)
+    public async Task<CheckResult> RunAsync(string? serial = null, CancellationToken ct = default)
     {
         var ev = new Dictionary<string, string> { ["adb"] = adb.AdbPath };
 
@@ -86,7 +86,22 @@ public sealed class HeadsetProbe(AdbClient adb)
                 + "再 `adb connect <头显IP>:5555`；头显 IP 可在「设置 → Wi-Fi → 连接详情」看到。");
         }
 
-        var serial = serials[0]!;
+        // With two headsets — or a headset and a phone — the first serial is whichever adb happened
+        // to list first, and the whole report would then be about a device the user did not mean.
+        // Say so and ask, rather than measuring the wrong thing confidently.
+        if (serial is { Length: > 0 } wanted && !serials.Contains(wanted))
+            return new CheckResult("adb", CheckStatus.Unknown,
+                $"--serial 指定的 {wanted} 不在设备列表里",
+                "现在连着的是：" + string.Join("、", serials), ev, Array.Empty<FixAction>(),
+                "序列号就是 `adb devices -l` 第一列那一串。");
+        if (serials.Count > 1 && string.IsNullOrWhiteSpace(serial))
+            return new CheckResult("adb", CheckStatus.Unknown,
+                $"同时连着 {serials.Count} 台设备，不知道该看哪一台",
+                "一次只接一台，或者用 --serial <序列号> 指定：\n" + string.Join("\n", serials.Select(s => "  " + s)),
+                ev, Array.Empty<FixAction>(),
+                "序列号就是 `adb devices -l` 第一列那一串。");
+        serial = serials.FirstOrDefault(s => s.Equals(serial, StringComparison.OrdinalIgnoreCase))
+            ?? serials[0];
         ev["serial"] = serial;
 
         var probes = new (string Id, string Label, string[] Args)[]

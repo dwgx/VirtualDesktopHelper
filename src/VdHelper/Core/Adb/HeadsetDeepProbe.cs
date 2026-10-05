@@ -115,6 +115,11 @@ public sealed class HeadsetDeepProbe(AdbClient adb)
                 ev, WiringGuidance);
         }
 
+        if (online.Count > 1 && string.IsNullOrWhiteSpace(serial))
+            return Unknown($"同时连着 {online.Count} 台设备，不知道该看哪一台",
+                "一次只接一台，或者用 --serial 指定：\n" + string.Join("\n", online.Keys.Select(s => "  " + s)),
+                ev, WiringGuidance);
+
         var target = string.IsNullOrWhiteSpace(serial) ? online.Keys.First() : serial.Trim();
         if (!online.TryGetValue(target, out var state))
             return Unknown($"头显 {target} 当前不在线",
