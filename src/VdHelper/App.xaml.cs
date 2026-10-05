@@ -112,9 +112,10 @@ public static class SelfTest
     public static async Task<int> RunAsync(string[] args)
     {
         var sb = new StringBuilder();
+        HealthReport? report = null;
         try
         {
-            var report = await HealthEngine.RunAsync(CancellationToken.None);
+            report = await HealthEngine.RunAsync(CancellationToken.None);
             var changes = HealthHistory.Save(report);
 
             // --symptom narrows the report to one user-reported failure mode. It is also the
@@ -207,10 +208,17 @@ public static class SelfTest
         if (outIndex >= 0 && outIndex + 1 < args.Length)
             await File.WriteAllTextAsync(args[outIndex + 1], text);
 
-        return text.Contains("verdict=Streamable") ? 0
-            : text.Contains("verdict=AtRisk") ? 3
-            : text.Contains("verdict=Blocked") ? 4
-            : 5;
+        // Derived from the verdict itself, not from string-matching the report we just printed.
+        // The old form meant the tool could exit 5 ("the run failed") while its own headline said
+        // 本机网络体检通过 — two contradictory answers from one run — and any check whose text
+        // happened to contain "verdict=Streamable" could have flipped the exit code.
+        return report?.Verdict switch
+        {
+            HealthVerdict.Streamable => 0,
+            HealthVerdict.AtRisk => 3,
+            HealthVerdict.Blocked => 4,
+            _ => 5,
+        };
     }
 }
 
