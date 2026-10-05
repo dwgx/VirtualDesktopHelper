@@ -3,49 +3,98 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:VdHelper.Views"
              DataContext="{x:Static vm:HealthViewModel.Current}">
-    <Grid>
+    <Grid Margin="18,14,18,10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Style="{StaticResource Muted}" Margin="4,0,4,10"
-                   Text="每一项都能展开看到原始输出。所有修复动作先备份、后执行、可回滚；路由器等本机改不了的设置只给指引。" />
+        <TextBlock Grid.Row="0" Style="{StaticResource Muted}" Margin="0,0,0,10"
+                   Text="每项都能展开看到原始输出。所有修复先备份、可回滚；路由器这类本机改不了的只给指引。" />
 
         <ListView Grid.Row="1" ItemsSource="{Binding Rows}"
                   Background="Transparent" BorderThickness="0"
                   ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="Margin" Value="0,0,0,6" />
+                    <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="BorderThickness" Value="0" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListViewItem">
+                                <ContentPresenter />
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate>
-                    <Expander Margin="0,0,0,8" Background="Transparent" BorderThickness="0">
+                    <Expander Background="Transparent" BorderThickness="0">
                         <Expander.Header>
                             <Grid Background="Transparent">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="72" />
+                                    <ColumnDefinition Width="64" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <Border Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Left"
-                                        Padding="8,2" CornerRadius="3" Background="White"
-                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
-                                    <TextBlock FontSize="12" FontWeight="SemiBold"
+                                        Padding="6,1" CornerRadius="2" Background="#1E1E1E">
+                                    <TextBlock FontSize="11.5"
                                                Text="{Binding Status, Converter={StaticResource StatusText}}"
                                                Foreground="{Binding Status, Converter={StaticResource StatusBrush}}" />
                                 </Border>
                                 <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap"
-                                           Margin="10,0,0,0" FontWeight="SemiBold" Text="{Binding Summary}" />
+                                           Margin="10,0,0,0" Style="{StaticResource ChromeText}" FontSize="13"
+                                           Text="{Binding Summary}" />
                             </Grid>
                         </Expander.Header>
-                        <StackPanel Margin="24,6,0,0">
+                        <StackPanel Margin="74,4,0,10">
                             <TextBlock Style="{StaticResource Muted}" Text="{Binding Detail}" />
-                            <TextBlock Style="{StaticResource Muted}" Margin="0,8,0,0"
-                                       Text="{Binding Evidence, StringFormat=原始输出：{0}{NewLine}}" />
-                            <TextBlock Style="{StaticResource Muted}" Margin="0,8,0,0" FontWeight="SemiBold"
-                                       Foreground="{StaticResource InkBrush}"
-                                       Text="{Binding FixesText, StringFormat={}{0}}"
-                                       Visibility="{Binding HasFixes, Converter={StaticResource BoolToVisible}}" />
-                            <TextBlock Style="{StaticResource Muted}" Margin="0,8,0,0"
+
+                            <ItemsControl ItemsSource="{Binding Fixes}" Margin="0,8,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="0,0,0,6" Padding="10" CornerRadius="3"
+                                                Background="#161616" BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
+                                            <StackPanel>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Style="{StaticResource ChromeText}"
+                                                               FontSize="12.5" Text="{Binding Title}" />
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                        <TextBlock VerticalAlignment="Center" Margin="0,0,8,0"
+                                                                   Style="{StaticResource Muted}" FontSize="11.5"
+                                                                   Text="{Binding Risk, StringFormat=风险 {0}}" />
+                                                        <Button Content="执行" MinWidth="72" Height="24"
+                                                                Command="{Binding ApplyCommand}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                                <TextBlock Style="{StaticResource Mono}" Margin="0,6,0,0"
+                                                           Text="{Binding What, StringFormat=执行：{0}}" />
+                                                <TextBlock Style="{StaticResource Mono}"
+                                                           Text="{Binding Backup, StringFormat=备份：{0}}" />
+                                                <TextBlock Style="{StaticResource Mono}"
+                                                           Text="{Binding Rollback, StringFormat=回滚：{0}}" />
+                                                <TextBlock Style="{StaticResource Muted}" FontSize="11.5" Margin="0,4,0,0"
+                                                           Text="{Binding LastMessage}"
+                                                           Visibility="{Binding LastMessage, Converter={StaticResource StringToVisible}}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Style="{StaticResource Muted}" Margin="0,6,0,0"
                                        Text="{Binding GuidanceText, StringFormat=指引：{0}}"
                                        Visibility="{Binding HasGuidance, Converter={StaticResource BoolToVisible}}" />
+
+                            <TextBlock Style="{StaticResource Mono}" Margin="0,8,0,0"
+                                       Text="{Binding EvidenceText, StringFormat=原始输出：{0}}" />
                         </StackPanel>
                     </Expander>
                 </DataTemplate>

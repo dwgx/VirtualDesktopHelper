@@ -23,7 +23,10 @@ public partial class App : Application
             return;
         }
 
-        var window = new Views.ShellWindow();
+        var tabIndex = 0;
+        var i = Array.IndexOf(args, "--tab");
+        if (i >= 0 && i + 1 < args.Length && int.TryParse(args[i + 1], out var parsed)) tabIndex = parsed;
+        var window = new Views.ShellWindow(tabIndex);
         MainWindow = window;
         window.Show();
     }

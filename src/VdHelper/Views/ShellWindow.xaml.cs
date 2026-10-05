@@ -1,3 +1,4 @@
+using System.Windows.Input;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
@@ -10,12 +11,23 @@ public partial class ShellWindow : Window, INotifyPropertyChanged
 {
     private string _statusText = "准备中…";
 
-    public ShellWindow()
+    public ShellWindow(int initialTab = 0)
     {
         InitializeComponent();
         DataContext = this;
+        Tabs.SelectedIndex = initialTab;
         Loaded += async (_, _) => await RefreshAsync();
     }
+
+    private void OnDrag(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ButtonState == MouseButtonState.Pressed)
+            DragMove();
+    }
+
+    private void OnMinimize(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+    private void OnClose(object sender, RoutedEventArgs e) => Close();
 
     public string StatusText
     {
@@ -38,10 +50,22 @@ public partial class ShellWindow : Window, INotifyPropertyChanged
     private void Raise([CallerMemberName] string? name = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
+    private static ShellWindow? _current;
+
+    /// <summary>Entry point used by fix rows after they apply a repair.</summary>
+    public static Task<HealthReport> RunHealthAsync() => HealthEngine.RunAsync(CancellationToken.None);
+
+    internal static void RefreshVerdict(HealthReport report) => _current?.ApplyReport(report);
+
     internal async Task RefreshAsync()
     {
         StatusText = "正在体检…";
-        var report = await HealthEngine.RunAsync(CancellationToken.None);
+        ApplyReport(await HealthEngine.RunAsync(CancellationToken.None));
+    }
+
+    private void ApplyReport(HealthReport report)
+    {
+        _current = this;
         HealthViewModel.Publish(report);
         Verdict = report.Verdict;
         var pass = report.Results.Count(r => r.Status == CheckStatus.Pass);

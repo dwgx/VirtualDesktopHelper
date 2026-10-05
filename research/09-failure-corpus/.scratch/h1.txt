@@ -1,0 +1,106 @@
+redlib. 
+Feeds
+in /r/OculusQuest
+reddit
+settings
+
+r/OculusQuest • u/Elliot99110 • Aug 01 '24
+
+Discussion Virtual desktop computer unreachable
+
+I just bought a quest 3 and was excited to use it because I have been stuck with the quest 1 for so long. I then did all the things to set up for virtual desktop. Turned on dev mode and all that but now im stuck I have been trying all day to fix this and nothing is working. I see my pc on the app in the quest but then when I try to connect it just says computer unreachable. I need help I have done all of the things in the FAQ tab on the website. So please if anyone had this problem please help
+
+2
+permalink
+reddit
+
+100% Upvoted
+
+11 comments sorted by
+
+Confidence
+Top
+New
+Controversial
+Old
+
+2
+
+u/Superb_Imagination70 Aug 01 '24
+
+Did you update the streamer app on the PC.
+
+2
+
+u/Elliot99110 Aug 01 '24
+
+Yup
+
+2
+
+u/OskO Aug 01 '24
+
+Dev mode has nothing to do with Virtual Desktop. We'll need more information on your network topology to help you figure things up, but I'd start by checking the firewall settings.
+
+I also suggest you to check their Discord so you can have a more fluid back and forth while troubleshooting.
+
+1
+
+u/Elliot99110 Aug 01 '24
+
+Yea I have asked on the discord and they didn’t know how to fix it sadly
+
+2
+
+u/bysunday Aug 01 '24 edited Aug 01 '24
+virtual desktop streamer is running on the pc. "check for interfering apps..." and "check for updates..." both result in no change. [my options in pc: preferred codec - automatic, adaptive quantization, openxr runtime - vdxr, gamepad emulation - auto, audio streaming - vr headset only, use virtual audio driver, allow remote connections, auto-select mic, ask for computer access]
+quest connect to wifi of dedicated router ethernet connection to pc. i recommend to test a router like this in ap mode with no internet just to make sure it works.
+start vd on quest. on average i have to restart the app at least 3 times when i get the "not on the same network" message or "no computers". eventually after quitting the app and restarting, it will finally show up as normal.
+
+1
+
+u/Elliot99110 Aug 01 '24
+
+Nope sadly it gave me the same thing computer unreachable
+
+2
+
+u/bysunday Aug 01 '24
+
+if this is a dedicated router i would reset it to default settings. if it is your isp router i have no suggestions since i do not want you to mess up your home internet.
+
+reinstall both programs on pc and quest.
+
+i assume everything on standalone quest works internet wise, right?
+
+1
+
+u/Lodan Aug 01 '24
+
+Full send and turn off your firewall. That's what I did because I was getting tired of struggling with it
+
+1
+
+u/Gamel999 Aug 01 '24
+
+if you are using ISP router. maybe there is some firewall rules. but i don't recommend you to change any of those. you can:
+
+1.) add a dedicated router; OR
+
+2.) try enable "remote access" on VD PC side client
+
+1
+
+u/ZookeepergameNaive86 Aug 01 '24
+
+Do VD alternatives like Airlink or SteamLink work? That should tell you if it's a VD or networking problem at least.
+
+1
+
+u/[deleted] Nov 28 '24 edited Nov 08 '25
+
+connect person growth scary escape gold flag fearless historical dependent
+
+This post was mass deleted and anonymized with Redact
+
+v0.36.0 ⓘ View instance info <> Code

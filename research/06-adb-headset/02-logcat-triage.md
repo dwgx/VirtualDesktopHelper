@@ -129,12 +129,19 @@ findstr /I "mono\|System.Exception\|NullReference\|InvalidCast\|InvalidOperation
 留着只会让用户以为「没输出 = 没检查过」。保留 `VRD` + `MonoDroid` + `AndroidRuntime` +
 `FATAL` 四条即可覆盖已证实的故障面。
 
-### 2.3 反向过滤器（`-v threadtime` 下按 tag 精确取）
+### 2.3 按 tag 精确取
 
 ```bash
 adb -s <serial> logcat -d -v threadtime -s VRD:E MonoDroid:I AndroidRuntime:E ActivityTaskManager:I
 ```
-`-s TAG:LEVEL` 语法在本机 adb 30.0.4 的 `adb help` 里列为 `-s TAG[:PRIORITY]` 形式（本轮未在设备上验证可组合使用）。`[未验证]`
+
+⚠️ **本机 adb 30.0.4 的 `adb help` 里 `-s` 只被解释为 `-s SERIAL`（选设备）**，
+输出原文：` -s SERIAL  use device with given serial (overrides $ANDROID_SERIAL)`；
+`adb help` 的 logcat 行只有一句 ` logcat    show device log (logcat --help for more)`。
+**上面这条命令能否在本机这版 adb 上正确解析为「logcat 的 tag 过滤器」，本轮无法确证** ——
+`adb logcat --help` 在无设备时会挂在 `- waiting for device -`（本机实测，已中止该探测）。
+→ 该用法标 `[未验证]`；验证条件：头显连接授权后跑 `adb logcat --help` 看 `-s` 的解释。
+若不成立，退回 §2.1 的 `grep -E` 方案（那条是纯 shell，一定可用）。
 
 ---
 
@@ -345,9 +352,9 @@ Caching launch for component com.dwgx1.vd.recovered/.../VrActivity
 |---|---|---|---|
 | S1 | `ActivityTaskManager: Displayed <pkg>/<activity> for user 0: +<ms>` | 真机 `logcat_v2.txt:11`（+763ms）、`logcat_v2d.txt:1148`（+785ms）、`logcat_binary_patch.txt:1112`（+1s108ms） | Activity 已上屏。**VDHelper 最可靠的「App 起来了」判据** |
 | S2 | `UiModeController: Notify UI mode change: UiModeConfiguration { uiModeFlags = 8 (IMMERSIVE), ... immersiveAppPackageName = <pkg> }` | 真机 `logcat_exit3.txt:142` | 已进入沉浸 VR 模式 |
-| S3 | `InterstitialController: onImmersiveActivityAppearing/Appeared` | 真机 `logcat_exit6:54` | 沉浸态确认 |
-| S4 | `[SEO] ShellSpatialWindowManagerService: Placing immersive activity into new volumetric window` | 真机 `logcat_exit3:45` | VR 窗口已放置 |
-| S5 | `xrBeginSession [start]` / `[end]` + `XR_SESSION_STATE_FOCUSED` | 真机 `logcat_exit6:59,110,250,252` | OpenXR 会话聚焦 |
+| S3 | `InterstitialController: onImmersiveActivityAppearing: uid: <n>, pid: 0, state: <s>, <pkg>` | 真机 `logcat_exit6.txt:291` | 沉浸态确认（`pid: 0` = 尚未起进程，与 S6 配对看） |
+| S4 | `[SEO] ShellSpatialWindowManagerService: Placing immersive activity into new volumetric window` | 真机 `logcat_exit3.txt:98` | VR 窗口已放置 |
+| S5 | `OpenXR_SessionImpl: ------------ xrBeginSession [start]/[end]` + `PostSessionStateChange:[pid: <n>] XR_SESSION_STATE_VISIBLE -> XR_SESSION_STATE_FOCUSED` | 真机 `logcat_exit6.txt:59`（start）、`:110`（end）、`:250`（state change）、`:252`（`[SEO] VrPlatformOpenXr: Session state changed XR_SESSION_STATE_FOCUSED`） | OpenXR 会话聚焦。**注意 `:250/:252` 的 pid 是 2985 = vrshell，不是 VD** |
 | S6 | `InterstitialManager: Foreground app change: immersiveApp <pkg>, pid: <n>, renderingEnabled: 1` | 真机 `logcat_exit6:100`（注意这条的 pkg 是 `com.oculus.vrshell`、pid 2985 —— **要匹配 pid，不能只匹配 pkg**） | 渲染已开启 |
 | S7 | `VrFocus: onForegroundActivitiesChanged: ... fg: 1` | 【假设】形态未在真机日志中捕获到 `fg: 1` 的实例；真机只见 `fg: 0`（`logcat_binary_patch.txt:118`） | VR 焦点在 App 上 |
 
@@ -437,7 +444,7 @@ Caching launch for component com.dwgx1.vd.recovered/.../VrActivity
   `ex.GetBaseException()` 已在上游被处理）。
   → **VDHelper 的过滤器必须同时包含 `MonoDroid` 和 `VRD`，不能只要 `VRD`。**
 
-### 5.2 旧过滤器里零命中的两条
+### 5.2 旧过滤器里零命中 / 极少命中的三条
 
 ```
 EGL_BAD|eglMakeCurrent|eglCreateContext|EGL Error   → 0（全部 11 份）
@@ -448,17 +455,26 @@ openxr|XR_ERROR|session_state                     → 仅 logcat_exit3 的 2 行
 
 ### 5.3 出现频次最高的 tag（`logcat_v2d.txt`，共 1350 行）
 
+统计命令（可复现）：
+```bash
+grep -ohE ' [VDIWEF] [A-Za-z_][A-Za-z0-9_.]*:' logcat_v2d.txt | awk '{print $2}' | sort | uniq -c | sort -rn | head -20
 ```
-100 OVRService            79 libjingle        74 [CT]          42 [SEO]
-39 MSF.C.MSFCore         30 nativeloader     29 RipcServerMgr 29 RipcClientConnection
-27 OpenXR_Properties     26 TREX             24 CompatibilityChangeReporter
-24 OVRLibrary            22 RuntimeIpcBroker 21 org.webrtc.Logging
-21 OpenXR-Loader         19 TelemetryService 19 OpenXR_ExtensionAccess
-19 AppManagerInternal    18 libloaderimpl    18 OVRPlatform
+输出（前 20，本机 2026-10-05 实测）：
 ```
-
-**这些全是 Oculus 系统栈与 vrshell 的噪声**（`[CT]`=Compositor Tunnel、`libjingle`=WebRTC、
-`OVRService`/`OVRLibrary`=Oculus 服务、`TREX`=Oculus 手部追踪、`MSF`=Presence）。
+100 OVRService          79 libjingle        30 nativeloader
+ 27 OpenXR_Properties   25 CompatibilityChangeReporter
+ 24 OVRLibrary          22 RuntimeIpcBroker 21 org.webrtc.Logging
+ 19 TelemetryService    19 OpenXR_ExtensionAccess 19 AppManagerInternal
+ 18 libloaderimpl       18 OVRPlatform      14 AudioManager
+ 13 ParfaitServiceHelper 13 OpenXR_DriverLoader 12 parfait
+ 12 com.oculus.platform.util.Util  12 RuntimeIpcHelperService 12 RegisterProcessTokenResultBuilder
+```
+⚠️ **这条正则漏掉了以 `[` 开头的 tag**（`[CT]`、`[SEO]`、`[MD]`）——
+它们在同文件里出现频次也高（`[CT]` 74 次、`[SEO]` 42 次，见另一条含方括号的正则统计）。
+用 `[A-Za-z_]` 起的 tag 与 `[CT]`/`[SEO]` 两类**都是 Oculus 系统栈噪声**：
+`[CT]` = Compositor Tunnel、`libjingle`/`org.webrtc.Logging` = WebRTC、
+`OVRService`/`OVRLibrary`/`OVRPlatform` = Oculus 平台服务、`parfait` = Oculus 遥测、
+`Ripc*` = Oculus 内部 IPC、`TREX` = 手部追踪、`MSF` = Presence。**没有一条是 VD 的。**
 → VDH 若把整份 logcat 直接甩给用户，他们只会看到这些。**必须按 §2.1 先过滤再展示。**
 
 `Unity` / `Xenko` tag：**11 份全部 0 命中**（`grep -cE '\bUnity\b'` / `\bXenko'`）。
@@ -490,10 +506,7 @@ openxr|XR_ERROR|session_state                     → 仅 logcat_exit3 的 2 行
 | 连接时带宽测量 | 测量结果 | 假设会有类似 `MeasuredBandwidth=NNNN` 的行 | `NetworkManager.MeasureBandwidth`（`:242-249`）只写 `SettingsBase<...>.Default`，**无 Log**。数据只在 PerformanceOverlay 显示（`PerformanceOverlay.cs:389-391`） |
 | 发现电脑成功 | 发现到 N 台 | 假设类似 `Found N computers` | `RefreshComputersAsync` 全程无 Log |
 | 云注册成功 | 注册 token 下发 | 假设类似 `Registered <region>` | `ServiceHelper<IComputerRegistry>` 走 WCF，无 Log |
-| AOT/IL 配平破坏 | Mono 校验失败 | **假设** `E MonoDroid : InvalidProgramException: IL_xxxx: ...` | 这类异常**确实存在过**（`05_input_aot_native.md:49-51` 记录 v8.3/v8.4 分别抛
-  `InvalidProgramException: IL_0000: ret` 与 `IL_0002: bge.un IL_6f060009`），
-  且 `MonoDroid: UNHANDLED EXCEPTION:` 的格式已真机确证（§3.2）→ **这一条可信度较高，但仍标假设**，
-  因为那两条具体 IL 报错行本身未出现在本工作区的 logcat 抓取里 |
+| AOT/IL 配平破坏 | Mono 校验失败 | **假设** `E MonoDroid : InvalidProgramException: IL_xxxx: ...` | 这类异常**确实存在过**（`05_input_aot_native.md:49-51` 记录 v8.3/v8.4 分别抛 `InvalidProgramException: IL_0000: ret` 与 `IL_0002: bge.un IL_6f060009`），且 `MonoDroid: UNHANDLED EXCEPTION:` 的格式已真机确证（§3.2）→ **这一条可信度较高，但仍标假设**，因为那两条具体 IL 报错行本身未出现在本工作区的 logcat 抓取里 |
 | 串流黑屏 | 视频帧未到 | 假设类似 `FirstVideoSample` 相关 | `VideoPlayer.FirstVideoSample` 事件（`Game.cs:1569`）**无 Log** |
 
 **若要把这些假设变成事实，唯一的办法是连上头显实测。** 本轮不做（Non-Conflict 禁止真机操作）。

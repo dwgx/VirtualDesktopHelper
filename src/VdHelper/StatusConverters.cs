@@ -1,3 +1,4 @@
+using System.Windows;
 using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
@@ -37,6 +38,15 @@ public sealed class StatusToTextConverter : IValueConverter
         HealthVerdict.Blocked => "阻断",
         _ => "未知",
     };
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => Binding.DoNothing;
+}
+
+public sealed class StringToVisibilityConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => string.IsNullOrWhiteSpace(value as string) ? Visibility.Collapsed : Visibility.Visible;
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => Binding.DoNothing;
