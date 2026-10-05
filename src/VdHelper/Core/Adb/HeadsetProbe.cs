@@ -32,13 +32,13 @@ public sealed class HeadsetProbe(AdbClient adb)
     /// </summary>
     public static readonly (string Permission, string Symptom)[] RuntimePermissions =
     [
-        ("com.oculus.permission.USE_SCENE", "场景应用未授权，VR 焦点会被系统收回（旧系统认这一条）"),
-        ("horizonos.permission.USE_SCENE", "场景应用未授权，VR 焦点会被系统收回（新系统认这一条）"),
-        ("com.oculus.permission.FACE_TRACKING", "面部追踪缺失，VR 里部分渲染分支被关闭（旧系统）"),
-        ("horizonos.permission.FACE_TRACKING", "面部追踪缺失，VR 里部分渲染分支被关闭（新系统）"),
-        ("com.oculus.permission.EYE_TRACKING", "眼动缺失，应用会自行关闭注视点串流（旧系统）"),
-        ("horizonos.permission.EYE_TRACKING", "眼动缺失，应用会自行关闭注视点串流（新系统）"),
-        ("android.permission.POST_NOTIFICATIONS", "无通知权限，后台保活受限"),
+        ("com.oculus.permission.USE_SCENE", "场景应用未授权，VR 焦点会被系统收回（旧系统认这一条）［未验证］"),
+        ("horizonos.permission.USE_SCENE", "场景应用未授权，VR 焦点会被系统收回（新系统认这一条）［未验证］"),
+        ("com.oculus.permission.FACE_TRACKING", "面部追踪缺失，VR 里部分渲染分支被关闭（旧系统）［未验证］"),
+        ("horizonos.permission.FACE_TRACKING", "面部追踪缺失，VR 里部分渲染分支被关闭（新系统）［未验证］"),
+        ("com.oculus.permission.EYE_TRACKING", "眼动缺失，应用会自行关闭注视点串流（旧系统）［未验证］"),
+        ("horizonos.permission.EYE_TRACKING", "眼动缺失，应用会自行关闭注视点串流（新系统）［未验证］"),
+        ("android.permission.POST_NOTIFICATIONS", "无通知权限，后台保活受限［未验证］"),
     ];
 
     public async Task<CheckResult> RunAsync(string? serial = null, CancellationToken ct = default)
@@ -182,7 +182,11 @@ public sealed class HeadsetProbe(AdbClient adb)
             ? $"{installed.Count} 个客户端包在运行，缺 {missing.Count} 项运行时权限"
             : $"{installed.Count} 个客户端包在运行，{granted.Count} 项权限齐全";
         return new CheckResult("adb", status, summary,
-            "权限缺失的表现：30 秒后 VR 焦点被系统收回、注视点串流被自动关闭、面部追踪分支不执行。",
+            "权限缺失会怎样，表现见 research/06-adb-headset/03-symptom-decision-table.md。"
+            + "**下面三条全部标了［未验证］**：它们来自 install_template.bat 与文档，"
+            + "本工具还没有连过头显，没有一条是在真机上看着它发生的——"
+            + "该表 §I 要求这类句子在界面上标出来，以前这里一句都没标。"
+            + "「缺权限」是实测的，「缺了会掉焦点」还不是。",
             ev,
             missing.Count > 0 ? HeadsetFixes.GrantPermissions(missing, serial, installed) : Array.Empty<FixAction>(),
             missing.Count > 0 ? null : "进程在跑、权限齐全，若头显里仍列不出这台 PC，才轮到看 PC 侧（第一屏）。");
