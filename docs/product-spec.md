@@ -1,4 +1,8 @@
-# VDHelper 产品规格（v0.1 草案）
+# VDHelper 产品规格
+
+> **状态：历史文档。** 这份草案写于 v0.1，当时只有 18 项检测、三个界面里有两个是空的。
+> 现在的事实以 `README.md` 与 `docs/checks.md` 为准（后者由 `tools/export-checks.ps1` 从一次
+> 真实运行生成）。留在这里是为了记录当初是怎么定范围的，不是当前规格。
 
 一个 Windows 桌面工具，面向**使用 patched Virtual Desktop 基线的玩家**，回答一个问题：
 
