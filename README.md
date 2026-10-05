@@ -91,6 +91,8 @@ tools\publish.ps1            REM 构建自包含单文件 + SHA256SUMS + VERSION
 dist\v0.3.0\VdHelper.exe     REM 直接双击用
 ```
 
+`--set-param` 在 Streamer 运行时一律拒绝（它有 2 秒防抖保存，会覆盖外部写入）。要先改参数就跑 `--quit-streamer`——本机的 Streamer 以管理员权限运行，所以那条命令中途会弹一次 UAC。
+
 所有命令行的用法。退出码写在下表里，脚本可以直接判：
 
 | 命令 | 作用 | 退出码 |
@@ -102,6 +104,7 @@ dist\v0.3.0\VdHelper.exe     REM 直接双击用
 | `--report f.md` / `--report-html f.html` | 写成能直接贴进 issue 的成品 | 同 `--selftest` |
 | `--apply --list` | 列出本轮可自动修复的项 | `0` |
 | `--apply <fixId>` | 执行一项修复（会先备份，可回滚） | `0` 成功 / `6` 失败 / `9` 没有匹配的修复项 |
+| `--quit-streamer` | 结束 Streamer，好让参数能改 | `0` 已退出 / `6` 结束失败 |
 | `--set-param <key> <json>` | 直接写一个配置键 | `0` 成功并已回读确认 / `2` 未知键 / `7` 只读或不在本机 / `8` Streamer 在运行 / `6` 写失败 |
 
 `--report` / `--report-html` 排在 `--selftest` **之前**：两个一起给时，报告标志生效。

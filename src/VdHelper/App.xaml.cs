@@ -50,6 +50,22 @@ public partial class App : Application
             return;
         }
 
+        // --quit-streamer exists because every write path refuses while the Streamer runs, and the
+        // refusal tells the user to quit it — without giving them a way to do that from here. It is
+        // not a repair for something broken: nothing is wrong, the settings file is simply locked by
+        // a 2-second debounced save.
+        if (args.Contains("--quit-streamer"))
+        {
+            ClaimConsole();
+            Console.WriteLine("将结束 Virtual Desktop Streamer。当前若有串流会话，会被断开。");
+            Console.WriteLine("本机的 Streamer 以管理员权限运行，所以中途会弹一次 UAC，请点「是」。");
+            var qr = await Core.Health.Fixes.QuitStreamerVerifiedAsync(CancellationToken.None);
+            Console.WriteLine((qr.Success ? "OK   " : "FAIL ") + qr.Message);
+            if (!qr.Success && !string.IsNullOrWhiteSpace(qr.RollbackHint)) Console.WriteLine(qr.RollbackHint);
+            Shutdown(qr.Success ? 0 : 6);
+            return;
+        }
+
         if (args.Contains("--selftest"))
         {
             ClaimConsole();

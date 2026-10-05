@@ -136,6 +136,65 @@ public static class Fixes
     }
 
     /// <summary>
+    /// Quits the Streamer and confirms it is actually gone. Not elevation: the Streamer runs as the
+    /// same user, so a plain Stop-Process is enough, and making the user click through UAC just to
+    /// change one setting is the wrong trade. Falls back to telling them how when access is denied.
+    /// </summary>
+    public static async Task<FixResult> QuitStreamerVerifiedAsync(CancellationToken ct)
+    {
+        int? Current()
+        {
+            var p = Process.GetProcessesByName("VirtualDesktop.Streamer");
+            var id = p.Length > 0 ? p[0].Id : (int?)null;
+            foreach (var x in p) x.Dispose();
+            return id;
+        }
+
+        var before = Current();
+        if (before is null)
+            return new FixResult(true, "Streamer 本来就没在运行，参数可以直接改。");
+
+        // Ask for a graceful close first. Force is the fallback, not the opening move: the Streamer
+        // holds session sockets, and a clean exit is what lets it release them.
+        const string stop =
+            "Get-Process -Name 'VirtualDesktop.Streamer' -ErrorAction SilentlyContinue "
+            + "| ForEach-Object { $_.CloseMainWindow() | Out-Null }; Start-Sleep -Seconds 2; "
+            + "Get-Process -Name 'VirtualDesktop.Streamer' -ErrorAction SilentlyContinue "
+            + "| Stop-Process -Force";
+
+        async Task<bool> Gone()
+        {
+            for (var i = 0; i < 10; i++)
+            {
+                await Task.Delay(500, ct).ConfigureAwait(false);
+                if (Current() is null) return true;
+            }
+            return false;
+        }
+
+        // First try without elevation. On this machine that is refused with "Access is denied"
+        // because the Streamer runs elevated under its service — so the escalation below is not a
+        // fallback for theory, it is the path that actually has to work.
+        var plain = await PowerShellRunner.RunAsync(stop, ct: ct).ConfigureAwait(false);
+        if (await Gone().ConfigureAwait(false))
+            return new FixResult(true, $"Streamer 已退出（原 PID {before}）。现在可以改参数了。", plain.Combined);
+
+        // The caller is responsible for warning about the UAC prompt before calling in here.
+        var (elevatedOk, detail) = await ElevatedAsync(stop, ct).ConfigureAwait(false);
+        if (!elevatedOk)
+            return new FixResult(false, "提权执行失败：" + detail, plain.Combined);
+        if (await Gone().ConfigureAwait(false))
+            return new FixResult(true,
+                $"Streamer 已退出（原 PID {before}，普通权限结束不了，改用管理员）。现在可以改参数了。",
+                plain.Combined);
+
+        return new FixResult(false,
+            $"没能结束 Streamer（仍是 PID {Current()}）。它多半由 VirtualDesktop.Service 看护着立刻拉起："
+            + $"先用管理员身份结束 VirtualDesktop.Service，再结束 Streamer，或 taskkill /PID {before} /F。",
+            detail);
+    }
+
+    /// <summary>
     /// Runs a script elevated and returns a status you can actually trust.
     /// <para>
     /// Three traps, all hit on this machine:
