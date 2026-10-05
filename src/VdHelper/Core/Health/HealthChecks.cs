@@ -54,6 +54,7 @@ public static class HealthChecks
         .. PerformanceChecks.Create(),
         .. MachineStateChecks.Create(),
         .. GpuRuntimeChecks.Create(),
+        WifiQualityCheck.Create(),
         LossProbe.Create(),
     ];
 
