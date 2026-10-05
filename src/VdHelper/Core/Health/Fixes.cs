@@ -1,4 +1,4 @@
-﻿using System.IO;
+﻿﻿﻿using System.IO;
 using System.Diagnostics;
 using VdHelper.Core.Checks;
 using VdHelper.Core.Model;
@@ -291,7 +291,35 @@ public static class Fixes
             "只启动进程，不改任何配置。",
             "Stop-Process -Name 'VirtualDesktop.Streamer' -Force",
             FixRisk.Low,
-            ct => RunPsAsync($"Start-Process '{StreamerChecks.ResolveStreamerExe()}'", "Virtual Desktop Streamer", ct)),
+            async ct =>
+            {
+                int? Before() => Process.GetProcessesByName("VirtualDesktop.Streamer")
+                    .Select(p => p.Id).OrderBy(x => x).FirstOrDefault() is var id && id > 0 ? id : null;
+                var before = Before();
+                var launched = await RunPsAsync(
+                    $"Start-Process '{StreamerChecks.ResolveStreamerExe()}'",
+                    "Virtual Desktop Streamer", ct).ConfigureAwait(false);
+                if (!launched.Success)
+                    return new FixResult(false, "启动命令未成功：" + launched.Message, launched.Message);
+
+                for (var i = 0; i < 12; i++)
+                {
+                    await Task.Delay(500, ct).ConfigureAwait(false);
+                    var after = Before();
+                    if (after is not null)
+                        return new FixResult(true,
+                            before is null
+                                ? $"Streamer 已启动：PID {after}"
+                                : $"Streamer 在运行（PID {after}，启动前已经是 {before}）",
+                            launched.Message);
+                }
+
+                return new FixResult(false,
+                    "命令返回成功，但 6 秒内没有看到 VirtualDesktop.Streamer 进程。"
+                    + "**进程被创建不等于它活着**——这正是本工具存在的那类故障"
+                    + "（服务在跑 ≠ Streamer 起得来）。看 svc-log 与账号，必要时看服务日志。",
+                    launched.Message);
+            }),
     ];
 
     /// <summary>
