@@ -65,7 +65,10 @@ ul.plain li::before{content:"";position:absolute;left:2px;top:.72em;width:6px;he
 .tblwrap{overflow-x:auto;margin:16px 0 6px;border:1px solid var(--line);border-radius:12px}
 table{border-collapse:collapse;width:100%;font-size:13.5px}
 th,td{text-align:left;vertical-align:top;padding:11px 13px;border-bottom:1px solid var(--line)}
-th{background:#0e111a;color:var(--mut);font:600 11.5px/1.5 var(--sans);letter-spacing:.03em;position:sticky;top:54px;z-index:2}
+th{background:#0e111a;color:var(--mut);font:600 11.5px/1.5 var(--sans);letter-spacing:.03em}
+# NOT position:sticky. .tblwrap sets overflow-x:auto, which makes it a scroll container, so a
+# sticky th resolves against .tblwrap rather than the page: the header pinned itself 54px below
+# the table's own top edge and covered the first data row of every table on the site.
 tbody tr:nth-child(even){background:rgba(255,255,255,.014)}
 tbody tr:hover{background:rgba(91,140,255,.05)}
 tbody tr:last-child td{border-bottom:0}
