@@ -1,4 +1,4 @@
-<Application x:Class="VdHelper.App"
+﻿<Application x:Class="VdHelper.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:VdHelper">
@@ -25,6 +25,7 @@
         <SolidColorBrush x:Key="PassBrush" Color="#5BC85B" />
         <SolidColorBrush x:Key="WarnBrush" Color="#E0A030" />
         <SolidColorBrush x:Key="BlockBrush" Color="#E05B5B" />
+        <SolidColorBrush x:Key="UnknownBrush" Color="#8A8F98" />
 
         <FontFamily x:Key="UiFont">Verdana</FontFamily>
         <sys:Double x:Key="BodySize" xmlns:sys="clr-namespace:System;assembly=mscorlib">14.667</sys:Double>
