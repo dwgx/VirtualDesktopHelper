@@ -87,6 +87,30 @@ public sealed class HealthViewModel
     private static HealthReport? _last;
 
     public ObservableCollection<CheckRow> Rows { get; } = new();
+
+    /// <summary>
+    /// "What to do next", one line per finding. A verdict on its own is not actionable, and the
+    /// first thing people do with a 34-row list is close the window.
+    /// </summary>
+    public ObservableCollection<NextActionRow> Actions { get; } = new();
+
+    public string ActionsHint => Actions.Count == 0
+        ? ""
+        : Actions.Count(a => a.Action.Kind == NextActionKind.FixThisFirst) + " 条先修 · "
+          + Actions.Count(a => a.Action.Kind == NextActionKind.ThenThis) + " 条再修 · "
+          + Actions.Count(a => a.Action.Kind == NextActionKind.WorthKnowing) + " 条值得知道";
+
+    private void LoadActions(HealthReport report)
+    {
+        Actions.Clear();
+        foreach (var a in report.NextActions)
+            Actions.Add(new NextActionRow(a));
+        Raise(nameof(Actions));
+        Raise(nameof(ActionsHint));
+    }
+
+    private void Raise([CallerMemberName] string? name = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     public ObservableCollection<SymptomTab> Symptoms { get; } = new();
 
     private SymptomTab? _selected;
@@ -151,6 +175,7 @@ public sealed class HealthViewModel
     public static void Publish(HealthReport report)
     {
         _last = report;
+        Current.LoadActions(report);
         Current.Rebuild();
     }
 
@@ -174,6 +199,8 @@ public sealed class HealthViewModel
 
     public static void ClearForStreaming()
     {
+        Current.Actions.Clear();
+        Current.Raise(nameof(Actions));
         Current.Rows.Clear();
         Current.PropertyChanged?.Invoke(Current, new PropertyChangedEventArgs(nameof(Rows)));
     }
@@ -229,4 +256,31 @@ public sealed class SymptomTab : INotifyPropertyChanged
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
+}
+/// <summary>One line in the health view's "what to do next" panel.</summary>
+public sealed class NextActionRow
+{
+    public NextActionRow(NextAction action) => Action = action;
+
+    public NextAction Action { get; }
+
+    public string Title => Action.Title;
+
+    public string What => Action.What;
+
+    public string Tag => Action.Kind switch
+    {
+        NextActionKind.FixThisFirst => "先修",
+        NextActionKind.ThenThis => "再修",
+        _ => "知道",
+    };
+
+    public string Caveat => Action.Caveat;
+
+    public bool HasCaveat => !string.IsNullOrWhiteSpace(Caveat);
+
+    /// <summary>Only the two actionable kinds get a colour; "知道" must not look urgent.</summary>
+    public string Accent => Action.Kind == NextActionKind.FixThisFirst ? "#FF5B6E"
+        : Action.Kind == NextActionKind.ThenThis ? "#FFCC66"
+        : "#8B93A8";
 }

@@ -1,4 +1,4 @@
-﻿using System.Windows.Input;
+﻿﻿using System.Windows.Input;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
@@ -74,15 +74,9 @@ public partial class ShellWindow : Window, INotifyPropertyChanged
     private void ApplyReport(HealthReport report, bool streamed = false)
     {
         _current = this;
-        if (streamed)
-        {
-            _changes = HealthHistory.Save(report);
-            Verdict = report.Verdict;
-            StatusText = $"体检完成 — {report.VerdictText}";
-            Raise(nameof(Verdict));
-            Raise(nameof(VerdictText));
-            return;
-        }
+        // Both paths converge here. The streaming path used to return early, which meant the
+        // per-status counts — and anything else derived from the finished report — only ever
+        // appeared when a repair was re-run, not on a normal health pass.
         _changes = HealthHistory.Save(report);
         HealthViewModel.Publish(report);
         Verdict = report.Verdict;

@@ -119,5 +119,90 @@ public sealed class HealthReport
         }
     }
 
+    /// <summary>
+    /// The three things worth doing next, in the order a person should do them.
+    /// <para>
+    /// A verdict alone is not actionable: "阻断" tells you that something is wrong but not which
+    /// of 34 rows to touch first, and the first thing most people do with a 34-row list is close
+    /// the window. Ordering is deliberate:
+    /// </para>
+    /// <list type="number">
+    /// <item>Failures, because those are what stop a session from starting.</item>
+    /// <item>Warnings that carry a repair, because those are actionable.</item>
+    /// <item>Warnings that only explain something — still worth knowing, listed last, never
+    /// dressed up as urgent.</item>
+    /// </list>
+    /// <para>
+    /// A finding that a live session is currently up is deliberately excluded: telling someone
+    /// their stream is broken while they are streaming it is the fastest way to lose them.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<NextAction> NextActions
+    {
+        get
+        {
+            var live = LiveSessionPorts.Count > 0;
+            var failures = Results.Where(r => r.Status == CheckStatus.Block).ToList();
+            var fixable = Results.Where(r => r.Status == CheckStatus.Warn && r.Fixes.Count > 0).ToList();
+            var advisory = Results.Where(r => r.Status == CheckStatus.Warn && r.Fixes.Count == 0).ToList();
+
+            var actions = new List<NextAction>();
+            foreach (var r in failures)
+            {
+                var fix = r.Fixes.FirstOrDefault();
+                actions.Add(new NextAction(
+                    r.Id,
+                    DefinitionOf(r.Id)?.Title ?? r.Id,
+                    fix?.Title ?? r.Summary,
+                    NextActionKind.FixThisFirst,
+                    live));
+            }
+            foreach (var r in fixable)
+            {
+                var fix = r.Fixes[0];
+                actions.Add(new NextAction(r.Id, DefinitionOf(r.Id)?.Title ?? r.Id,
+                    fix.Title, NextActionKind.ThenThis, live));
+            }
+            foreach (var r in advisory)
+            {
+                actions.Add(new NextAction(r.Id, DefinitionOf(r.Id)?.Title ?? r.Id,
+                    r.Summary, NextActionKind.WorthKnowing, live));
+            }
+            // No cap, and that is a deliberate reversal. An earlier version showed the first six,
+            // which on this machine cut the disabled VD display driver — a Warn with no repair, so
+            // it sorted behind six rows of advisory noise and never appeared at all. A cap that
+            // hides findings is worse than a longer list; every Warn is a real observation the
+            // user paid for by running the tool.
+            return actions;
+        }
+    }
+
+    private CheckDefinition? DefinitionOf(string id) =>
+        Definitions.FirstOrDefault(d => d.Id == id);
+
     private int CountBy(CheckStatus status) => Results.Count(r => r.Status == status);
+}
+/// <summary>One concrete next step, with enough context to act on it without hunting.</summary>
+public sealed record NextAction(
+    string CheckId,
+    string Title,
+    string What,
+    NextActionKind Kind,
+    bool SessionIsLive)
+{
+    /// <summary>Shown when a session is up right now, so urgency is not overstated.</summary>
+    public string Caveat => SessionIsLive ? "当前正在串流，这一条不影响这一局" : "";
+}
+
+public enum NextActionKind
+{
+    /// <summary>Stops the stream from starting at all.</summary>
+    FixThisFirst,
+
+    /// <summary>Actionable, but the session can still start.</summary>
+    ThenThis,
+
+    /// <summary>Explains something. Not a repair.</summary>
+    WorthKnowing,
+
 }

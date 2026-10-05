@@ -1,6 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Net.NetworkInformation;
 using VdHelper.Core.Checks;
 using VdHelper.Core.Diagnosis;
@@ -19,6 +20,53 @@ public static class StreamerChecks
     public const string ServiceLog = ProgramData + @"\ServiceLog.txt";
     public const string StreamerLog = ProgramData + @"\StreamerLog.txt";
     public const string StreamerExe = @"C:\Program Files\Virtual Desktop Streamer\VirtualDesktop.Streamer.exe";
+
+    /// <summary>PIDs of every running Streamer process; empty when it is not running.</summary>
+    public static IReadOnlyList<int> StreamerProcessIds()
+    {
+        try
+        {
+            return Process.GetProcessesByName("VirtualDesktop.Streamer")
+                .Select(p => p.Id)
+                .ToList();
+        }
+        catch (InvalidOperationException)
+        {
+            return Array.Empty<int>();
+        }
+    }
+
+    /// <summary>
+    /// Name and PID of whatever holds a UDP port, read from the connection table.
+    /// <para>
+    /// <c>IPGlobalProperties</c> lists listeners but cannot attribute them, and attribution is the
+    /// whole point here: a port stolen by another process is invisible to every other check in this
+    /// tool. Returns null when the owner cannot be resolved rather than guessing.
+    /// </para>
+    /// </summary>
+    private static async Task<string?> WhoOwnsUdpPortAsync(int port, CancellationToken ct)
+    {
+        try
+        {
+            var rows = await PowerShellRunner
+                .LinesAsync("Get-NetUDPEndpoint -LocalPort " + port + " -ErrorAction SilentlyContinue | "
+                    + "ForEach-Object { \"$($_.OwningProcess)\" }", ct)
+                .ConfigureAwait(false);
+            var row = rows.FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(row)) return null;
+            if (!int.TryParse(row.Trim(), out var pid)) return null;
+            using var proc = Process.GetProcessById(pid);
+            return $"{proc.ProcessName} (PID {pid})";
+        }
+        catch (ArgumentException)
+        {
+            return null;   // the process exited between the two reads
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
 
     private static readonly Regex ErrorLine =
         new(@"^(?<ts>\d{4}-\d{2}-\d{2}[^|]*)\|(?<level>ERROR|WARN)\|(?<comp>[^|]*)\|(?<msg>.*)$",
@@ -105,17 +153,71 @@ public static class StreamerChecks
             async ct =>
             {
                 var ev = new Dictionary<string, string>();
+                var listeners = new Dictionary<int, IPEndPoint>();
                 try
                 {
                     foreach (var ep in IPGlobalProperties.GetIPGlobalProperties().GetActiveUdpListeners()
                              .Where(e => e.Port is 38850 or 38860))
+                    {
+                        listeners[ep.Port] = ep;
                         ev["UDP " + ep.Port] = ep.Address + ":" + ep.Port;
+                    }
                 }
                 catch (NetworkInformationException ex)
                 {
                     return new CheckResult("udp-discovery", CheckStatus.Unknown,
                         "读不到 UDP 监听表", ex.Message, ev, Array.Empty<FixAction>(),
                         "需要管理员权限才能枚举全部监听套接字。");
+                }
+
+                // Who owns the port matters as much as whether it is bound. The Streamer opens
+                // 38850 with `new UdpClient` and swallows the exception if the bind fails
+                // (research/13-endpoints/02-discovery-protocol.md, VD-R/-.112.cs:281/330/:454-456),
+                // so a port stolen by another process leaves no log line at all — the Streamer
+                // just quietly never answers a discovery packet, and the headset reports
+                // "no computer found" for a reason nothing on this machine would show.
+                var streamerPid = StreamerProcessIds().FirstOrDefault();
+                foreach (var port in listeners.Keys.ToList())
+                {
+                    var owner = port == 38850
+                        ? await WhoOwnsUdpPortAsync(port, ct).ConfigureAwait(false)
+                        : null;
+                    if (owner is not null)
+                        ev["UDP " + port + " 持有者"] = owner;
+                }
+
+                var bound38850 = listeners.TryGetValue(38850, out var l38850) ? l38850 : null;
+                if (bound38850 is not null)
+                {
+                    var owner = await WhoOwnsUdpPortAsync(38850, ct).ConfigureAwait(false);
+                    // Process.ProcessName has the .exe stripped, so comparing against the full
+                    // file name flags every healthy machine. Verified: this exact mistake produced
+                    // "UDP 38850 被别的进程占着：VirtualDesktop.Streamer" on the Streamer itself.
+                    const string streamerName = "VirtualDesktop.Streamer";
+                    if (owner is not null
+                        && !owner.Contains(streamerName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return new CheckResult("udp-discovery", CheckStatus.Block,
+                            $"UDP 38850 被别的进程占着：{owner}",
+                            "**这会表现为「头显找不到电脑」，但网络配置全对。**"
+                            + "Streamer 用 new UdpClient 独占绑定 38850，绑不上时异常被静默吞掉，"
+                            + "日志里不会留任何一行——于是配对请求到了也没人回。",
+                            ev, Array.Empty<FixAction>(),
+                            $"先停掉上面那个进程再重测。常见占位者：其它串流/远控软件、VPN 客户端、旧版 Streamer 残留进程。"
+                            + $"Streamer 自己的 PID 是 {(streamerPid > 0 ? streamerPid.ToString() : "（没找到）")}。");
+                    }
+
+                    var addr = bound38850.Address;
+                    if (addr is not null
+                        && !addr.Equals(IPAddress.Any) && !addr.Equals(IPAddress.IPv6Any))
+                    {
+                        return new CheckResult("udp-discovery", CheckStatus.Warn,
+                            $"UDP 38850 只绑在 {bound38850.Address}，不是所有网卡",
+                            "绑在单个地址上意味着从别的网卡进来的发现包收不到——" +
+                            "有线连着 PC、头显走 Wi-Fi 的场景正好会中招。",
+                            ev, Array.Empty<FixAction>(),
+                            "重启 Streamer 通常会回到 0.0.0.0；若反复出现，看有没有虚拟网卡抢走了绑定。");
+                    }
                 }
 
                 var (tcp, _) = await NetworkInventory
