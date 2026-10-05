@@ -108,11 +108,23 @@ public static class HealthChecks
                     return Task.FromResult(new CheckResult("net-apipa", CheckStatus.Pass,
                         "没有离线网卡持有 APIPA 地址", "正常。", ev, Array.Empty<FixAction>()));
 
+                // No repair here, and the absence is deliberate. These adapters are already down;
+                // disabling one changes nothing observable today and makes the state permanent, so
+                // clicking it costs the user the adapter later (Wi-Fi and Bluetooth Network
+                // Connection are in this list on a normal laptop) in exchange for nothing. The next
+                // -actions panel used to rank it as '再修', above eleven findings worth knowing.
+                // Disabling is also the wrong remedy even in the general case: an adapter stuck on
+                // APIPA is failing to get a DHCP lease, and the address that needs fixing is the
+                // lease, not the adapter.
                 return Task.FromResult(new CheckResult("net-apipa", CheckStatus.Warn,
                     $"{stale.Count} 块离线网卡持有 APIPA 地址（{string.Join("、", stale.Select(a => a.Name))}）",
-                    "这些地址不参与正常通信，但会让网卡枚举与广播绑定选错目标。禁用不用的网卡是最稳的处理。",
-                    ev, Fixes.DisableAdapters(stale.Select(a => a.Name)),
-                    "若这些网卡确实要用（备用网口、VPN 客户端），请勿禁用，改为排查它们为何停留在 APIPA。"));
+                    "这些网卡本来就是 Down 状态，**禁用它们不会改善任何当下的行为**，"
+                    + "只会把这个状态变成永久的——之后想用 Wi-Fi 或蓝牙网络连接的人会发现它没了。"
+                    + "这里只报告、不提供一键禁用。",
+                    ev, Array.Empty<FixAction>(),
+                    "真正该做的是让它们不再停留在 APIPA：检查这些网卡为何拿不到 DHCP 地址"
+                    + "（网线/USB 转接口没插好、DHCP 池耗尽、交换机没开）。"
+                    + "如果确认某块网口永远不用，可以在「网络连接」里手动禁用它——那是你的决定，不是工具替你按。"));
             });
 
     private static ICheck VirtualAdapterCheck() =>

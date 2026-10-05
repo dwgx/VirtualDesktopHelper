@@ -29,13 +29,13 @@ public static class Fixes
         return actions;
     }
 
-    public static IReadOnlyList<FixAction> DisableUnusableAdapters()
-    {
-        var unusable = NetworkInventory.ReadAdapters()
-            .Where(a => !a.IsUp && !a.IsLoopback && a.ApipaAddresses.Count > 0)
-            .Select(a => a.Name);
-        return DisableAdapters(unusable);
-    }
+    /// <summary>
+    /// Kept deliberately unused. It is the only place the tool could disable a network adapter,
+    /// and disabling an already-down adapter buys nothing while permanently removing it from the
+    /// user's machine. Re-introduce it only with a reason a user asked for.
+    /// </summary>
+    public static IReadOnlyList<FixAction> DisableUnusableAdapters() =>
+        Array.Empty<FixAction>();
 
     public static IReadOnlyList<FixAction> RestoreVdRule() =>
     [
