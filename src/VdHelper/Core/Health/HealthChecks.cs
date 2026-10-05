@@ -315,16 +315,29 @@ public static class HealthChecks
             : line;
     }
 
+    /// <summary>
+    /// Runs a read-only PowerShell query and turns its output into the evidence map.
+    /// <para>
+    /// Stderr is captured deliberately. PowerShell exits 0 even when a cmdlet is missing — a script
+    /// calling an unavailable cmdlet writes to stderr, prints nothing to stdout, and still reports
+    /// success. With stderr discarded, <c>!Lines.Any(...)</c> judged "nothing wrong" and the check
+    /// came back Pass, which is a false all-clear from a machine the tool simply could not read.
+    /// The caller turns a non-empty stderr with empty stdout into Unknown instead.
+    /// </para>
+    /// </summary>
     internal static async Task<Dictionary<string, string>> PsEvidenceAsync(string script, CancellationToken ct)
     {
         var r = await PowerShellRunner.RunAsync(script, ct: ct).ConfigureAwait(false);
         var lines = r.Ok
             ? r.StdOut.Split('\r', '\n').Select(l => l.TrimEnd()).Where(l => l.Length > 0).ToList()
             : new List<string>();
+        var err = (r.StdErr ?? "").Split('\r', '\n')
+            .Select(l => l.TrimEnd()).Where(l => l.Length > 0).ToList();
         return new Dictionary<string, string>
         {
             ["_exit"] = r.ExitCode.ToString(),
             ["_lines"] = string.Join(" ;; ", lines),
+            ["_errLines"] = string.Join(" ;; ", err),
             ["_first"] = lines.FirstOrDefault() ?? r.Combined,
             ["_script"] = script,
         };
