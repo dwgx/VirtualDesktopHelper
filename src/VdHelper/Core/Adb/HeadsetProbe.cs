@@ -1,4 +1,4 @@
-using VdHelper.Core.Model;
+﻿using VdHelper.Core.Model;
 
 namespace VdHelper.Core.Adb;
 
@@ -53,7 +53,7 @@ public sealed class HeadsetProbe(AdbClient adb)
                 ev, Array.Empty<FixAction>(),
                 "无线方式：`adb tcpip 5555` 后 `adb connect <头显IP>:5555`；头显 IP 可在「设置 → Wi-Fi → 连接详情」看到。");
 
-        var serial = serials[0];
+        var serial = serials[0]!;
         ev["serial"] = serial;
 
         var probes = new (string Id, string Label, string[] Args)[]
@@ -68,7 +68,9 @@ public sealed class HeadsetProbe(AdbClient adb)
         foreach (var (id, label, args) in probes)
         {
             var r = await adb.RunAsync(["-s", serial, .. args], 8000, ct);
-            ev[label] = r.Ok ? string.Join(" ;; ", r.Lines) : "读取失败: " + (r.StdErr.Trim() is { Length: > 0 } e ? e : r.StdOut.Trim());
+            ev[label] = r.Ok
+                ? string.Join(" ;; ", r.Lines)
+                : "读取失败: " + (r.StdErr.Trim() is { Length: > 0 } e ? e : r.StdOut.Trim());
         }
 
         var packages = ev.TryGetValue("已装包", out var pkgs) ? pkgs : "";

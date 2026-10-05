@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -101,7 +101,7 @@ public static class ConfigFile
         {
             if (!File.Exists(Path_)) return default;
             var node = JsonNode.Parse(File.ReadAllText(Path_))?.AsObject();
-            if (node is null || !node.TryGetPropertyValue(key, out var value)) return default;
+            if (node is null || !node.TryGetPropertyValue(key, out var value) || value is null) return default;
             return value.GetValue<T>();
         }
         catch (Exception ex) when (ex is IOException or JsonException or InvalidOperationException)
