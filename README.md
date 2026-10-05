@@ -48,8 +48,9 @@ Windows 端 **Virtual Desktop 串流检测 / 诊断 / 修复工具**。
 - **无线链路本身**：头显在典型配置下就是走 Wi-Fi 连这台 PC 的，工具会报频段、信道、协商速率与信号，
   并单独标出 **DFS 信道（36–48）**——部分路由器会在雷达检测时短暂静默，表现成周期性卡顿，
   而有线指标全绿时根本看不出来。无线没连上时这一项报「未知」而不是「通过」：没测到不等于没问题。
-- **服务在跑 ≠ Streamer 起得来**：本机 `ServiceLog.txt` 反复记录
-  `HRESULT -2147024891 configured identity is incorrect`。此时所有网络项都显示正常，但 PC 永远不广播。
+- **服务在跑 ≠ Streamer 起得来（已过去的一次故障）**：`ServiceLog.txt` 里留有 5 条历史
+  `HRESULT -2147024891 configured identity is incorrect`，最近一条 2026-09-18。当时所有网络项都正常，PC 却不广播——
+  **现在不是这个状态**：`svc-log` 报 Warn 并说明身份绑定已恢复，`udp-discovery` 报 Pass（38850 正在监听）。
 - **官方自己的告警被屏蔽**：`DontWarnApps` 含 `NetworkProfile`。
 - **离线网卡持有 APIPA**：本机 3 块 Down 状态网卡各持一个 `169.254.x.x`，干扰发现与选路。
 - **虚拟网卡排在物理网卡前面**：广播会走错出口（Hyper-V / WSL / VPN）。
