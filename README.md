@@ -104,6 +104,7 @@ dist\v0.5.0\VdHelper.exe     REM 直接双击用
 | `--report f.md` / `--report-html f.html` | 写成能直接贴进 issue 的成品 | 同 `--selftest` |
 | `--apply --list` | 列出本轮可自动修复的项 | `0` |
 | `--apply <fixId>` | 执行一项修复（会先备份，可回滚） | `0` 成功 / `6` 失败 / `9` 没有匹配的修复项 |
+| `--report f.md --symptom ZZ` | 症状类写错了 | `2` 未知症状类（会列出可选的 S1–S7） |
 | `--quit-streamer` | 结束 Streamer，好让参数能改 | `0` 已退出 / `6` 结束失败 |
 | `--set-param <key> <json>` | 直接写一个配置键 | `0` 成功并已回读确认 / `2` 未知键 / `7` 只读或不在本机 / `8` Streamer 在运行 / `6` 写失败 |
 
