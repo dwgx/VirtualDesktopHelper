@@ -95,14 +95,33 @@ public static class LossProbe
                         "在第三屏填一个头显 IP，这一项才有东西可测。");
 
                 var worst = 0.0;
+                var seen = new List<(string Label, string Host, int Received, int Sent, double Loss)>();
                 foreach (var (label, host) in targets)
                 {
                     var s = await MeasureAsync(host, InPassSamples, 500, ct).ConfigureAwait(false);
                     ev[label + " " + host] =
                         $"{s.Received}/{s.Sent} 收到 · 丢包 {s.LossPercent:F0}% · "
                         + $"延迟 {s.MinMs:F0}/{s.AvgMs:F0}/{s.MaxMs:F0} ms · 抖动 {s.JitterMs:F1} ms";
+                    seen.Add((label, host, s.Received, s.Sent, s.LossPercent));
                     worst = Math.Max(worst, s.LossPercent);
                 }
+
+                // Same distinction as the CLI verdict: "nobody answered" is not packet loss. The
+                // screen used to report "测到 100% 丢包" whenever the headset was simply asleep,
+                // and then told the reader to suspect the router — which the gateway line right
+                // above had already ruled out.
+                var silent = seen.Where(r => r.Received == 0).ToList();
+                var clean = seen.Where(r => r.Received > 0 && r.Loss < 5).ToList();
+
+                if (silent.Count > 0 && (clean.Count > 0 || silent.Count == seen.Count))
+                    return new CheckResult("net-loss", CheckStatus.Warn,
+                        string.Join("、", silent.Select(r => $"{r.Label} {r.Host}")) + $" 完全不应答（0 收到）",
+                        "这一项测的不是丢包，而是「有没有人应答」。0 收到不等于丢包——睡着的头显和关着屏幕的笔记本都是 0 收到。",
+                        ev, Array.Empty<FixAction>(),
+                        "本机链路本身" + (clean.Count > 0
+                            ? "没问题：" + string.Join("、", clean.Select(r => $"{r.Label} {r.Host}")) + " 通畅。 "
+                            : "无法从这次采样判断。 ")
+                        + "先确认头显醒着、Wi-Fi 连着、地址没变；把这一项当成丢包去查路由器会白查。");
 
                 if (worst >= 5)
                     return new CheckResult("net-loss", CheckStatus.Warn,
@@ -152,19 +171,80 @@ public static class LossProbe
 
         Console.WriteLine($"丢包探测：每目标 {count} 次采样");
         var sw = Stopwatch.StartNew();
-        var worst = 0.0;
+        var results = new List<(string Label, string Host, int Received, int Sent, double Loss)>();
         foreach (var (label, host) in targets)
         {
             var s = await MeasureAsync(host, count, 800).ConfigureAwait(false);
-            worst = Math.Max(worst, s.LossPercent);
+            results.Add((label, host, s.Received, s.Sent, s.LossPercent));
             Console.WriteLine($"  {label} {host,-15} {s.Received}/{s.Sent} 收到 · 丢包 {s.LossPercent,5:F0}% · "
                 + $"延迟 min/avg/max {s.MinMs:F0}/{s.AvgMs:F0}/{s.MaxMs:F0} ms · 抖动 {s.JitterMs:F1} ms");
         }
         sw.Stop();
+
+        var worst = results.Max(r => r.Loss);
         Console.WriteLine($"耗时 {sw.ElapsedMilliseconds} ms，最差丢包 {worst:F0}%");
-        Console.WriteLine(worst >= 5
-            ? "结论：测到丢包。先分清是 PC→路由器这一段还是 Wi-Fi 那一段。"
-            : "结论：这一次没测到丢包。画面卡的时候再跑一次——随机丢包不会每次都赶上。");
+        foreach (var line in Verdict(results)) Console.WriteLine(line);
         return 0;
+    }
+
+    /// <summary>
+    /// Turns the per-target numbers into wording that follows from them.
+    /// <para>
+    /// The first version took only the worst loss across all targets and printed one fixed sentence
+    /// telling the user to work out whether the loss was before or after the router. On this machine
+    /// that said "分不清是 PC→路由器还是 Wi-Fi" while the gateway line directly above it read 0% —
+    /// the measurement had already answered the question and the verdict threw the answer away.
+    /// </para>
+    /// <para>
+    /// The distinction that matters: one target answering nothing while another is clean is not
+    /// packet loss, it is that host not being there. A headset that is asleep produces 100% and so
+    /// does a laptop with its screen closed; calling both "丢包" sends people to the router first.
+    /// </para>
+    /// </summary>
+    private static IEnumerable<string> Verdict(List<(string Label, string Host, int Received, int Sent, double Loss)> results)
+    {
+        var dead = results.Where(r => r.Received == 0).ToList();
+        var partial = results.Where(r => r.Received > 0 && r.Loss >= 5).ToList();
+        var clean = results.Where(r => r.Received > 0 && r.Loss < 5).ToList();
+
+        if (results.All(r => r.Loss < 5))
+        {
+            yield return "结论：这次每个目标都通，没有测到丢包。画面卡的时候再跑一次——随机丢包不会每次都赶上。";
+            yield break;
+        }
+
+        if (dead.Count == results.Count)
+        {
+            yield return "结论：所有目标一个都没应答（0 收到）。这不是丢包，是这些地址此刻都没在应答——";
+            yield return "头显可能睡着/换了 IP/换了网段，或者它所在的那一段被挡住了。先确认它开着、Wi-Fi 连着。";
+            yield break;
+        }
+
+        if (partial.Count > 0)
+        {
+            foreach (var r in partial)
+            {
+                yield return $"{r.Label} {r.Host} 部分丢包 {r.Loss:F0}%（{r.Received}/{r.Sent} 收到）——这一段是通的，但不稳。";
+            }
+            if (clean.Count > 0)
+            {
+                yield return string.Join("、", clean.Select(r => $"{r.Label} {r.Host}")) + " 是干净的，";
+                yield return "所以问题落在上面这几条链路上，不是这台 PC 的整体网络。";
+            }
+        }
+
+        if (dead.Count > 0)
+        {
+            foreach (var r in dead)
+            {
+                yield return $"{r.Label} {r.Host} 完全不应答（0/{r.Sent}）——这不是丢包，是它此刻不在应答。";
+            }
+            if (clean.Count > 0)
+            {
+                yield return "同一次里 " + string.Join("、", clean.Select(r => $"{r.Label} {r.Host}"))
+                         + " 通畅，所以 PC 的网卡和路由器这一段是好的；";
+                yield return "要处理的是上面这个目标本身（睡着 / 改了 IP / 被 AP 隔离），不是路由器。";
+            }
+        }
     }
 }
