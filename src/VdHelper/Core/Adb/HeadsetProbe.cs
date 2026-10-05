@@ -19,15 +19,25 @@ public sealed class HeadsetProbe(AdbClient adb)
         "com.vrdesktop.streamer",
     ];
 
-    /// <summary>Runtime permissions whose absence has a known symptom.</summary>
+    /// <summary>
+    /// Runtime permissions whose absence has a known symptom.
+    /// <para>
+    /// <c>com.oculus.*</c> and <c>horizonos.*</c> come in pairs and both are needed: older Quest OS
+    /// only recognises the first, newer systems only the second — install.bat and
+    /// install_template.bat:61-68 list them that way. The previous table here had seven rows but only
+    /// four distinct names, three of them duplicated and labelled "同上（第二个授权位）", and each
+    /// name was a malformed paste of the two prefixes into <c>com.oculus.horizonos.permission.*</c> —
+    /// a string that exists on no device. The seven below are the real grant strings.
+    /// </para>
+    /// </summary>
     public static readonly (string Permission, string Symptom)[] RuntimePermissions =
     [
-        ("com.oculus.horizonos.permission.USE_SCENE", "场景应用未授权，VR 焦点会被系统收回"),
-        ("com.oculus.horizonos.permission.USE_SCENE", "同上（第二个授权位）"),
-        ("com.oculus.horizonos.permission.FACE_TRACKING", "面部追踪缺失，VR 里部分渲染分支被关闭"),
-        ("com.oculus.horizonos.permission.FACE_TRACKING", "同上（第二个授权位）"),
-        ("com.oculus.horizonos.permission.EYE_TRACKING", "眼动缺失，应用会自行关闭注视点串流"),
-        ("com.oculus.horizonos.permission.EYE_TRACKING", "同上（第二个授权位）"),
+        ("com.oculus.permission.USE_SCENE", "场景应用未授权，VR 焦点会被系统收回（旧系统认这一条）"),
+        ("horizonos.permission.USE_SCENE", "场景应用未授权，VR 焦点会被系统收回（新系统认这一条）"),
+        ("com.oculus.permission.FACE_TRACKING", "面部追踪缺失，VR 里部分渲染分支被关闭（旧系统）"),
+        ("horizonos.permission.FACE_TRACKING", "面部追踪缺失，VR 里部分渲染分支被关闭（新系统）"),
+        ("com.oculus.permission.EYE_TRACKING", "眼动缺失，应用会自行关闭注视点串流（旧系统）"),
+        ("horizonos.permission.EYE_TRACKING", "眼动缺失，应用会自行关闭注视点串流（新系统）"),
         ("android.permission.POST_NOTIFICATIONS", "无通知权限，后台保活受限"),
     ];
 
@@ -99,9 +109,11 @@ public sealed class HeadsetProbe(AdbClient adb)
         var packages = ev.TryGetValue("已装包", out var pkgs) ? pkgs : "";
         var installed = PackageNames.Where(p => packages.Contains(p, StringComparison.OrdinalIgnoreCase)).ToList();
 
-        var granted = await ReadPermissionsAsync(serial, ct);
+        var granted = await ReadPermissionsAsync(serial, installed, ct);
         foreach (var (perm, Granted) in granted)
             ev["权限 " + perm] = Granted ? "granted" : "未授予";
+        foreach (var perm in Absent)
+            ev["权限 " + perm] = "该系统不认识这条（非故障）";
 
         var missing = granted.Where(g => !g.Granted).Select(g => g.Permission).Distinct().ToList();
         var running = new List<string>();
@@ -109,9 +121,14 @@ public sealed class HeadsetProbe(AdbClient adb)
             foreach (var pkg in installed)
             {
                 var pid = await adb.RunAsync(["-s", serial, "shell", "pidof", pkg], 8000, ct);
-                var pidText = pid.Ok ? pid.StdOut.Trim() : "";
-                if (pidText.Length > 0)
-                    running.Add($"{pkg} (pid {pidText})");
+                // pidof prints pids space-separated; anything else on stdout (a shell error, a
+                // warning) is not a pid, and treating it as one would report a process as alive.
+                var pids = (pid.Ok ? pid.StdOut : "")
+                    .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .Where(x => int.TryParse(x, out _))
+                    .ToList();
+                if (pids.Count > 0)
+                    running.Add($"{pkg} (pid {string.Join(",", pids)})");
                 else
                     ev["进程 " + pkg] = "未在运行";
             }
@@ -146,38 +163,119 @@ public sealed class HeadsetProbe(AdbClient adb)
         return new CheckResult("adb", status, summary,
             "权限缺失的表现：30 秒后 VR 焦点被系统收回、注视点串流被自动关闭、面部追踪分支不执行。",
             ev,
-            missing.Count > 0 ? HeadsetFixes.GrantPermissions(missing) : Array.Empty<FixAction>(),
+            missing.Count > 0 ? HeadsetFixes.GrantPermissions(missing, serial, installed) : Array.Empty<FixAction>(),
             missing.Count > 0 ? null : "进程在跑、权限齐全，若头显里仍列不出这台 PC，才轮到看 PC 侧（第一屏）。");
     }
 
+    /// <summary>
+    /// Per-permission granted state for the packages we found installed.
+    /// <para>
+    /// Read from <c>dumpsys package</c>, not from <c>pm list permissions</c>. The latter lists what
+    /// packages <i>declare</i>, not what the app was <i>granted</i>, so for ordinary permissions it
+    /// answers "yes" almost unconditionally — the check would have reported every permission granted
+    /// on a device where none were.
+    /// </para>
+    /// <para>
+    /// A permission that does not appear in the dump at all is reported as "该系统不认识这条" rather
+    /// than as missing, because on a given Quest OS only one of the com.oculus.* / horizonos.* pair
+    /// exists and demanding the other would invent a fault.
+    /// </para>
+    /// </summary>
     private async Task<List<(string Permission, bool Granted)>> ReadPermissionsAsync(
-        string serial, CancellationToken ct)
+        string serial, IReadOnlyList<string> packages, CancellationToken ct)
     {
-        var r = await adb.RunAsync(["-s", serial, "shell", "pm", "list", "permissions"], 8000, ct);
-        var grantedLines = string.Join('\n', r.Lines);
+        var grantedSet = new HashSet<string>(StringComparer.Ordinal);
+        var knownSet = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var pkg in packages)
+        {
+            var r = await adb.RunAsync(["-s", serial, "shell", "dumpsys", "package", pkg], 15000, ct);
+            if (!r.Ok) continue;
+            var text = string.Join('\n', r.Lines);
+            foreach (var line in r.Lines)
+            {
+                var m = System.Text.RegularExpressions.Regex.Match(
+                    line.Trim(),
+                    @"^(?<name>[A-Za-z0-9_.]+):\s*granted=(?<g>true|false)");
+                if (!m.Success) continue;
+                knownSet.Add(m.Groups["name"].Value);
+                if (m.Groups["g"].Value == "true") grantedSet.Add(m.Groups["name"].Value);
+            }
+        }
+
         var results = new List<(string, bool)>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (perm, _) in RuntimePermissions)
         {
-            if (seen.Add(perm))
-                results.Add((perm, grantedLines.Contains(perm, StringComparison.Ordinal)));
+            if (!knownSet.Contains(perm))
+            {
+                // Not this system's string at all — neither granted nor a fault.
+                Absent.Add(perm);
+                continue;
+            }
+            results.Add((perm, grantedSet.Contains(perm)));
         }
         return results;
     }
+
+    /// <summary>Permissions this Quest OS does not have at all — neither granted nor a fault.</summary>
+    private readonly HashSet<string> Absent = new(StringComparer.Ordinal);
 }
 
 public static class HeadsetFixes
 {
-    public static IReadOnlyList<FixAction> GrantPermissions(IEnumerable<string> permissions) =>
-    [
-        new FixAction(
-            "headset-grant",
-            "授予缺失的运行时权限",
-            "adb -s <serial> shell pm grant <package> <permission>",
-            "仅授予权限，不改其它设置；可用 pm revoke <package> <permission> 逐项撤销。",
-            "adb -s <serial> shell pm revoke <package> <permission>",
-            FixRisk.Low,
-            ct => Task.FromResult(new FixResult(true,
-                "用 pm grant 逐项授予：" + string.Join("、", permissions)))),
-    ];
+    /// <summary>
+    /// Grants the permissions, for real, and reports what actually happened.
+    /// <para>
+    /// The previous version returned <c>Task.FromResult(new FixResult(true, ...))</c> without running
+    /// anything: <c>--apply headset-grant</c> printed 成功 and changed nothing on the device. On a
+    /// tool whose entire value is that its verdicts can be trusted, that manufactures the exact false
+    /// all-clear this project keeps removing elsewhere.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<FixAction> GrantPermissions(
+        IEnumerable<string> permissions, string serial, IReadOnlyList<string> packages)
+    {
+        var perms = permissions.Distinct().ToList();
+        var pkgs = packages.Where(p => !string.IsNullOrEmpty(p)).ToList();
+        return
+        [
+            new FixAction(
+                "headset-grant",
+                "授予缺失的运行时权限（真执行，逐项回报结果）",
+                string.Join(" ;; ", pkgs.SelectMany(p => perms
+                    .Select(x => "adb -s " + serial + " shell pm grant " + p + " " + x))),
+                "仅授予权限，不改其它设置；回滚用 pm revoke 逐项撤销：" + string.Join(" ;; ", perms),
+                string.Join(" ;; ", pkgs.SelectMany(p => perms
+                    .Select(x => "adb -s " + serial + " shell pm revoke " + p + " " + x))),
+                FixRisk.Low,
+                async ct =>
+                {
+                    var adbPath = AdbLocator.Find();
+                    if (adbPath is null) return new FixResult(false, "找不到 adb.exe，没有真的执行任何命令。");
+                    var adb = new AdbClient(adbPath);
+                    var done = new List<string>();
+                    var failed = new List<string>();
+                    foreach (var pkg in pkgs)
+                    {
+                        foreach (var perm in perms)
+                        {
+                            var r = await adb.RunAsync(
+                                ["-s", serial, "shell", "pm", "grant", pkg, perm], 10000, ct)
+                                .ConfigureAwait(false);
+                            if (r.Ok) done.Add(pkg + " " + perm);
+                            else failed.Add(pkg + " " + perm + " -> "
+                                + (r.StdErr.Trim() is { Length: > 0 } se ? se : r.StdOut.Trim()));
+                        }
+                    }
+                    return failed.Count == 0 && done.Count > 0
+                        ? new FixResult(true, "已授予 " + done.Count + " 项", string.Join("\n", done))
+                        : new FixResult(false,
+                            "成功 " + done.Count + " 项，失败 " + failed.Count + " 项：\n"
+                            + string.Join("\n", failed.Take(6))
+                            + "\n注意：com.oculus.* 与 horizonos.* 在同一个系统上通常只有一个存在，"
+                            + "另一条会报「未知权限」——那是正常的，不是故障。",
+                            string.Join("\n", done));
+                }),
+        ];
+    }
 }
