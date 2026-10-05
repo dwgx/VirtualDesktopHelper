@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿using System.Diagnostics;
+﻿﻿﻿﻿﻿﻿using System.Diagnostics;
 using System.Globalization;
 using VdHelper.Core.Checks;
 using VdHelper.Core.Model;
@@ -174,6 +174,12 @@ public static class GpuRuntimeChecks
 
     // NVIDIA clocks_event_reasons bits. Idle, ApplicationsClocksSetting and DisplayClockSetting are
     // normal states, not throttling; the rest are reasons the card is held below its boost clock.
+    //
+    // The throttling branch was written as correct-by-construction and marked unverified, on the
+    // grounds that nothing would make this laptop report a throttle bit on demand. That retired
+    // itself: the machine reached 89% load and 100.8 W on its own, and the published v0.6.0 binary
+    // reported 降频原因位域 0x4 — SwPowerCap, 1UL << 2 — and named it. So the bit table and the branch
+    // are confirmed against a real driver report, not only against the documentation.
     private const ulong GpuIdle = 1UL << 0;
     private const ulong ApplicationsClocks = 1UL << 1;
     private const ulong SwPowerCap = 1UL << 2;
