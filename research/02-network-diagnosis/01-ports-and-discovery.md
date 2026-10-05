@@ -1,4 +1,4 @@
-﻿# 01 — PC↔Quest 局域网串流：端口矩阵与发现机制
+# 01 — PC↔Quest 局域网串流：端口矩阵与发现机制
 
 范围：Virtual Desktop（vrdesktop.net）PC Streamer ↔ Quest 头显，**同网段 LAN 直连**路径。
 所有代码事实来自 Owner 的反编译树，**本轮重新核实过**，不复用上一轮报告的行号（上一轮引用的

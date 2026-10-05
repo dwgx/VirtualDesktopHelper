@@ -1,4 +1,4 @@
-﻿# 02 — PC 侧检测与修复清单
+# 02 — PC 侧检测与修复清单
 
 配套文档：`01-ports-and-discovery.md`（端口/发现机制事实）、`03-root-cause-triage.md`（排查顺序）。
 

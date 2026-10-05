@@ -1,4 +1,4 @@
-﻿# VDHelper
+# VDHelper
 
 Windows 端 **Virtual Desktop 串流检测 / 诊断 / 修复工具**。
 

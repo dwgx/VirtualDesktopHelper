@@ -1,4 +1,9 @@
-﻿## VDHelper 0.1.0 — Virtual Desktop 串流体检
+这个 tag 下的资产在发布之后被反复重新上传过，与最初发布时不是同一个二进制。
+**请改用 v0.3.0。** 原因写在 `WORKFLOW.md` 第 9 节：标签发布即冻结，不再原地覆盖。
+
+---
+
+## VDHelper 0.1.0 — Virtual Desktop 串流体检
 
 面向使用 patched Virtual Desktop 基线（去联网鉴权、去 Quest 账号鉴权）的玩家。
 这一版解决的不是画面问题，而是 **「头显找不到 PC / PC 发现不到头显」** 这一层。
