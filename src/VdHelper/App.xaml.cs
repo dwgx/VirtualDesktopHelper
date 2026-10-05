@@ -332,7 +332,11 @@ public static class SetParam
         }
         if (info.ReadOnly)
         {
-            Console.WriteLine($"{key} 是 DPAPI 密文键，改了会清空配对，拒绝写入。");
+            // ReadOnly covers two different situations, and only one of them is DPAPI. Saying
+            // "密文键" about the other is a fabricated reason for refusing.
+            Console.WriteLine(info.Secret
+                ? $"{key} 是 DPAPI 密文键，改了会清空配对，拒绝写入。"
+                : $"{key} 是只读键：Streamer 自己不持久化它（源码上带 [JsonIgnore]），本机改不了。");
             return 7;
         }
         if (!info.LivesOnPc)

@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Reflection;
 using System.Text.Json;
 
@@ -20,6 +20,8 @@ public sealed record ParameterInfo(
     bool NeedsRestart,
     bool NeedsReconnect,
     bool ReadOnly,
+    /// <summary>True only when ReadOnly is because the value is DPAPI-encrypted pairing material.</summary>
+    bool Secret,
     bool Caution,
     string Source,
     int Table)
@@ -63,6 +65,7 @@ public static class ParameterCatalog
                 Bool(e, "needsRestart"),
                 Bool(e, "needsReconnect"),
                 Bool(e, "readOnly"),
+                Bool(e, "secret"),
                 Bool(e, "caution"),
                 Str(e, "source"),
                 (int)(Num(e, "table"))));

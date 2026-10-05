@@ -1,4 +1,4 @@
-<UserControl x:Class="VdHelper.Views.ParametersView"
+﻿<UserControl x:Class="VdHelper.Views.ParametersView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:VdHelper.Views"
@@ -12,7 +12,7 @@
 
         <TextBlock Grid.Row="0" Style="{StaticResource Muted}" Text="{Binding Summary}" Margin="0,0,0,4" />
         <TextBlock Grid.Row="1" Style="{StaticResource Mono}" Margin="0,0,0,10"
-                   Text="改配置前必须先退出 Streamer：它有 2 秒防抖保存，会把外部写入覆盖掉。写入时自动备份为 .vdhelper.bak。只读项是 DPAPI 密文，改了会清空配对。头显侧项在本机不落盘，只能在头显里改。" />
+                   Text="改配置前必须先退出 Streamer：它有 2 秒防抖保存，会把外部写入覆盖掉。写入时自动备份为 .vdhelper.bak。只读项分两种：DPAPI 密文（改了会清空配对），以及 Streamer 自己就不持久化的键（源码上带 [JsonIgnore]，本机写了也没用）。头显侧项在本机不落盘，只能在头显里改。" />
 
         <ListView Grid.Row="2" ItemsSource="{Binding Rows}"
                   Background="Transparent" BorderThickness="0"
