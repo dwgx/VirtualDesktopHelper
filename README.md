@@ -88,7 +88,7 @@ VdHelper.exe --report-html out.html --symptom S2  REM 单文件 HTML，原始输
 
 ```bat
 tools\publish.ps1            REM 构建自包含单文件 + SHA256SUMS + VERSION
-dist\v0.3.0\VdHelper.exe     REM 直接双击用
+dist\v0.5.0\VdHelper.exe     REM 直接双击用
 ```
 
 `--set-param` 在 Streamer 运行时一律拒绝（它有 2 秒防抖保存，会覆盖外部写入）。要先改参数就跑 `--quit-streamer`——本机的 Streamer 以管理员权限运行，所以那条命令中途会弹一次 UAC。
