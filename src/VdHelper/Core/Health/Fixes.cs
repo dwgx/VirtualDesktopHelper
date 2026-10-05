@@ -51,10 +51,20 @@ public static class Fixes
             "fw-restore-vd",
             "重建 Virtual Desktop 入站放行规则",
             add,
-            "添加前先导出：`netsh advfirewall firewall export <备份文件>`；同名规则若已存在需先删除。",
+            "不动已有规则，也不自动导出。回滚会删掉**所有**同名规则，包括你自己早先建的那条。",
             @"netsh advfirewall firewall delete rule name=""Virtual Desktop Streamer""",
             FixRisk.Medium,
-            ct => RunPsAsync(add, "Virtual Desktop Streamer", ct),
+            // netsh advfirewall refuses without elevation — verified on this machine, twice, both
+            // returning "The requested operation requires elevation" and exit 1. PowerShellRunner
+            // deliberately never elevates, so this fix used to promise a UAC prompt in the UI and
+            // then fail on permissions. ElevatedAsync is the same helper streamer-restart uses.
+            async ct =>
+            {
+                var (ok, detail) = await ElevatedAsync(add, ct).ConfigureAwait(false);
+                return ok
+                    ? new FixResult(true, "已重建入站放行规则", detail)
+                    : new FixResult(false, "无法提权执行：" + detail, detail);
+            },
             NeedsElevation: true),
     ];
     }
@@ -64,18 +74,23 @@ public static class Fixes
         new FixAction(
             "svc-start",
             "启动 VirtualDesktop 服务",
-            "Start-Service -Name 'VirtualDesktop.Service' （并按需 Set-Service -StartupType Automatic）",
-            "未改动启动类型；仅在服务已停止时启动。",
-            "Stop-Service -Name 'VirtualDesktop.Service'",
+            "Start-Service -Name 'VirtualDesktop.Service.exe'",
+            "不改启动类型；只在服务已停止时把它启动起来。",
+            "Stop-Service -Name 'VirtualDesktop.Service.exe'",
             FixRisk.Low,
             async ct =>
             {
-                var started = await RunPsAsync("Start-Service -Name 'VirtualDesktop.Service'", "VirtualDesktop.Service", ct)
+                // The service is named VirtualDesktop.Service.exe, with the suffix. -Name is an exact
+                // match, so the old name never resolved: Start-Service threw NoServiceFoundForGivenName
+                // every time and the read-back below never ran once. Verified on this machine —
+                // Get-Service -Name 'VirtualDesktop.Service' returns nothing,
+                // Get-Service -Name 'VirtualDesktop.Service.exe' returns it, Running.
+                var started = await RunPsAsync("Start-Service -Name 'VirtualDesktop.Service.exe'", "VirtualDesktop.Service.exe", ct)
                     .ConfigureAwait(false);
                 if (!started.Success)
                     return new FixResult(false, "启动命令未成功：" + started.Message);
                 var state = await PowerShellRunner
-                    .RunAsync("(Get-Service | Where-Object { $_.Name -like 'VirtualDesktop*' } | Select-Object -First 1).Status", ct: ct)
+                    .RunAsync("(Get-Service -Name 'VirtualDesktop.Service.exe' -ErrorAction SilentlyContinue).Status", ct: ct)
                     .ConfigureAwait(false);
                 return state.StdOut.Contains("Running", StringComparison.OrdinalIgnoreCase)
                     ? new FixResult(true, "服务已处于 Running", state.StdOut.Trim())

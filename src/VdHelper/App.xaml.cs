@@ -431,7 +431,12 @@ public static class SetParam
 
             // Post-condition: re-read and compare, rather than trusting the writer's return.
             var after = Core.Config.StreamerSettings.Load();
-            var expected = value.ToString();
+            // Both sides must be raw JSON text. JsonElement.ToString() on a bool gives the .NET
+            // "True"/"False" while the file holds "true"/"false", and the comparison below is
+            // Ordinal — so every bool write succeeded and then reported exit 6, which README
+            // defines as 写失败. Verified before the change in a standalone .NET 10 program:
+            // onDisk "true" vs expected "True" -> match False.
+            var expected = value.GetRawText();
             var actual = after.GetRaw(key);
             var matches = string.Equals(actual?.Trim('"'), expected.Trim('"'), StringComparison.Ordinal);
             if (!matches)
