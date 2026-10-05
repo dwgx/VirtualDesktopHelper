@@ -103,7 +103,15 @@ public static class StreamerConfigWriter
 
         var doc = System.Text.Json.Nodes.JsonNode.Parse(text)!.AsObject();
         doc[key] = System.Text.Json.Nodes.JsonValue.Create(value);
-        var updated = doc.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+        // Relaxed escaping is the default encoder's opposite, and deliberately so: the default one
+        // rewrites every "+" inside the DPAPI base64 blobs as \u002B. The decoded bytes are
+        // identical, so nothing breaks — but the saved file no longer matches what the Streamer
+        // wrote, and every untouched line looks changed to a diff or a backup comparison. Verified
+        // against the real StreamerSettings.json: all four Accounts blobs survive byte-for-byte
+        // either way, so this is about the file staying honest, not about repair.
+        var options = new JsonSerializerOptions { WriteIndented = true };
+        options.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
+        var updated = doc.ToJsonString(options);
 
         System.Text.Json.Nodes.JsonNode.Parse(updated);  // validate what we are about to write
         File.WriteAllText(path, updated);
