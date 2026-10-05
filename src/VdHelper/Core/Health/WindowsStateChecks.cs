@@ -243,13 +243,24 @@ public static class WindowsStateChecks
                     ["无线"] = string.Join(" | ", wireless.Select(a => $"{a.Name} ({a.PrimaryIPv4})")),
                     ["官方要求"] = "Wired computer to 5 GHz AC or AX Wi-Fi router",
                 };
+                // The requirement quoted in ev["官方要求"] is "Wired computer to 5 GHz AC or AX
+                // Wi-Fi router". This branch tests the first half of it and the Pass used to cover
+                // the whole sentence — it reads no router model, no band, and no link rate (link-rate
+                // reads those and is not called from here). The no-link branch also copied the same
+                // wireless detail even when wireless.Count == 0.
                 if (wired.Count > 0)
                     return Task.FromResult(new CheckResult("link-type", CheckStatus.Pass,
-                        $"PC 走有线（{wired[0].Name}）", "符合官方对电脑端的要求。", ev, Array.Empty<FixAction>()));
+                        $"PC 走有线（{wired[0].Name}）",
+                        "满足官方 Computer Requirements 的前半句（电脑端走网线）。"
+                        + "**后半句「接 5GHz AC/AX 路由器」本项没有测**——路由器型号与频段不在采集范围里。",
+                        ev, Array.Empty<FixAction>()));
 
                 return Task.FromResult(new CheckResult("link-type", CheckStatus.Warn,
                     wireless.Count > 0 ? "PC 只走无线" : "没有可用的链路",
-                    "官方 Computer Requirements 要求电脑走网线接 5GHz 路由器；纯无线更容易掉帧与断链。",
+                    wireless.Count > 0
+                        ? "官方 Computer Requirements 要求电脑走网线接 5GHz 路由器；"
+                          + "纯无线更容易掉帧与断链（这是社区语料里的经验，不是本项测出来的）。"
+                        : "本机既没有可用的有线链路，也没有无线链路——先解决基础连通性。",
                     ev, Array.Empty<FixAction>(),
                     "插网线即可；工具不会禁用无线网卡，因为你可能正用它连外网。"));
             });

@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+﻿﻿using System.Diagnostics;
 using System.IO;
 using VdHelper.Core.Checks;
 using VdHelper.Core.Model;
@@ -104,7 +104,7 @@ public static class MachineStateChecks
 
     public static ICheck NicPowerSaveCheck() =>
         CheckFactory.Delegate(
-            new("nic-powersave", "网卡节能", "网卡会不会在空闲时睡着？", "物理链路"),
+            new("nic-powersave", "网卡节能", "网卡休眠之后还能被唤醒吗？", "物理链路"),
             async ct =>
             {
                 var lines = await PowerShellRunner.LinesAsync(PsNicPower, ct).ConfigureAwait(false);
@@ -125,7 +125,12 @@ public static class MachineStateChecks
 
                 if (risky.Count == 0)
                     return new CheckResult("nic-powersave", CheckStatus.Pass,
-                        "没有网卡关闭了网络唤醒", "休眠唤醒后网卡正常回来。", ev, Array.Empty<FixAction>());
+                        "没有网卡关闭了网络唤醒",
+                        "这两项（WakeOnMagicPacket / WakeOnPattern）都是**唤醒能力**，不是休眠开关。"
+                        + "所以本项答的是「网卡睡着以后还能不能被叫醒」；"
+                        + "「它会不会在空闲时睡着」要看 DeviceSleepOnDisconnect 与电源管理里的"
+                        + "「允许计算机关闭此设备以节约电源」——两者都读进证据了，但没参与判定。"
+                        + "**本项没有让任何网卡真正进入过睡眠。**", ev, Array.Empty<FixAction>());
 
                 return new CheckResult("nic-powersave", CheckStatus.Warn,
                     $"{risky.Count} 块网卡关闭了唤醒能力",
