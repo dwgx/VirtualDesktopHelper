@@ -32,13 +32,17 @@ public static class FirewallPairChecks
     /// </para>
     /// </summary>
     private const string PsFwRules =
-        "$ErrorActionPreference='SilentlyContinue'; "
-        + "Get-NetFirewallRule -DisplayName 'Virtual Desktop*' | ForEach-Object { $r=$_; "
-        + "$p=($r | Get-NetFirewallApplicationFilter).Program; "
+        // -ErrorAction Stop on the outer query, and no blanket $ErrorActionPreference / exit 0.
+        // This script had both, so a Get-NetFirewallRule that failed outright looked identical to
+        // "there are no rules" — exit 0, empty stdout — and fw-pair answered Block with a repair
+        // attached on a machine it had failed to read. The per-rule noise is real and is silenced
+        // locally instead, on just the two calls that generate it.
+        "Get-NetFirewallRule -DisplayName 'Virtual Desktop*' -ErrorAction Stop | ForEach-Object { $r=$_; "
+        + "$p=($r | Get-NetFirewallApplicationFilter -ErrorAction SilentlyContinue).Program; "
         + "$ex = if ([string]::IsNullOrWhiteSpace($p) -or $p -eq 'Any') { 'NoProgram' } "
         + "else { [string](Test-Path -LiteralPath ([Environment]::ExpandEnvironmentVariables($p))) }; "
         + "Write-Output ('{0}|{1}|{2}|{3}|{4}|{5}|{6}' -f $r.DisplayName,$r.Direction,$r.Action,"
-        + "$r.Enabled,$r.Profile,$p,$ex) }; exit 0";
+        + "$r.Enabled,$r.Profile,$p,$ex) }";
 
     /// <summary>
     /// 解析脚本输出。独立成方法是为了能对真实规则行做单测，而不必去创建/改动防火墙规则。

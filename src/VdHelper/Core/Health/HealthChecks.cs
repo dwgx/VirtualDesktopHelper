@@ -19,7 +19,12 @@ public static class HealthChecks
         "Get-NetConnectionProfile | Select-Object InterfaceAlias,NetworkCategory | Format-Table -AutoSize | Out-String -Width 200";
 
     private const string PsVdRule =
-        "Get-NetFirewallRule -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like 'Virtual Desktop*' } | Select-Object DisplayName,Enabled,Direction,Action | Format-Table -AutoSize | Out-String -Width 200";
+        // -ErrorAction Stop, not SilentlyContinue. Silenced, a failed Get-NetFirewallRule returned
+        // zero rows with exit 0, and fw-vd read that as "no inbound allow rule" — a Block with
+        // fw-restore-vd attached, on a machine it had not managed to read. A query that genuinely
+        // finds nothing still returns zero rows and still reaches the judge, which is the point:
+        // "there is no rule" and "I could not ask" have to stay different answers.
+        "Get-NetFirewallRule -ErrorAction Stop | Where-Object { $_.DisplayName -like 'Virtual Desktop*' } | Select-Object DisplayName,Enabled,Direction,Action | Format-Table -AutoSize | Out-String -Width 200";
 
     private const string PsDefender =
         "Get-NetFirewallProfile | Select-Object Name,Enabled | Format-Table -AutoSize | Out-String -Width 120";
