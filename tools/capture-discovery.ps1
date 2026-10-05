@@ -62,7 +62,14 @@ function Show-Findings([string]$path) {
     Write-Host ''
     Write-Host ("共 {0} 行，来自 {1}" -f $lines.Count, $path) -ForegroundColor Cyan
 
+    $presence = @($lines | Where-Object { $_ -match '\b38860\b' })
     $hits = @($lines | Where-Object { $_ -match '\b38850\b' })
+
+    if ($presence.Count -gt 0) {
+        Write-Host ("另外看到 {0} 行目的/来源端口 38860 —— 那是 PC 侧的" -f $presence.Count) -ForegroundColor Cyan
+        Write-Host '「我在」广播：Streamer 启动后会往 255.255.255.255:38860 发空包（0 字节载荷）。'
+        Write-Host '看到它就说明 PC 这一侧在广播；它和 38850（发现/配对协议）是两回事。'
+    }
     if ($hits.Count -eq 0) {
         Write-Host "这份抓包里没有一个提到端口 38850 的包。" -ForegroundColor Yellow
         Write-Host '读法：这段时间没有相关流量，或流量没到这块网卡。不要据此判「网络坏了」。'
