@@ -102,6 +102,14 @@ dotnet build src/VdHelper/VdHelper.csproj -c Release
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\export-checks.ps1   # 重新生成 docs/checks.md
 ```
 
+## 先读这三页
+
+检测项全表、症状分诊表、社区错解逐条纠偏——都由脚本从调研源文件生成，数字不会和代码脱节：
+
+- [常见问题 · 症状分诊 + 错解纠偏](docs/faq.html)
+- [检测项全表 · 怎么查 / 怎么判 / 怎么退](docs/checks.html)
+- [首页 · 本机实测结论](docs/index.html)
+
 ## 它不做什么
 
 - 不做串流本身（那是官方 Streamer 的事）。
