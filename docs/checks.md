@@ -17,7 +17,7 @@
 | 警告 | **fw-defender** | Defender 防火墙：Domain     True / Private   False / Public    False |
 | 通过 | **svc-vd** | VirtualDesktop.Service.exe Running Automatic |
 | 通过 | **port-vd** | 4 个端口由 Virtual Desktop 持有，没有被别的程序抢占 |
-| 阻断 | **session-stale** | 1 个通道是残留套接字（最早建立于 1 小时 37 分前） |
+| 阻断 | **session-stale** | 1 个通道是残留套接字（最早建立于 1 小时 52 分前） |
 | 通过 | **streamer-proc** | Streamer 进程运行中（1 个） |
 | 警告 | **svc-log** | 服务日志有 5 条历史 ERROR（最近一次 2026-09-18 15:37:35.6962），但 Streamer 正在运行 |
 | 通过 | **udp-discovery** | UDP 38850 正在监听（发现/配对协议就绪） |
@@ -36,6 +36,10 @@
 | 通过 | **accounts-persisted** | 配对信息已落盘（OculusQuest 1 条、Oculus 3 条），设备名 Meta Quest 3 |
 | 警告 | **fw-profile-inbound** | profile 默认入站：Domain     True        NotConfigured / Private   False        NotConfigured / Public    False        NotConfigured |
 | 警告 | **gpu-pick** | Virtual Desktop Monitor |
+| 警告 | **proc-tuner** | 硬件调校类命中 6 个（占 CPU、抢主线程） |
+| Unknown | **nic-powersave** | 读不到网卡电源管理属性 |
+| 警告 | **display-inventory** | Virtual Desktop Monitor(Error) |
+| 通过 | **cfg-version** | Streamer 版本 1.34.22.0 |
 
 ## 检查项定义与来源
 
