@@ -38,6 +38,31 @@ public sealed class StatusToBrushConverter : IValueConverter
 
 }
 
+/// <summary>
+/// The status silhouette, so the judgement does not rest on colour alone. See the four
+/// Glyph* geometries in Resources/Theme.Palette.xaml.
+/// </summary>
+public sealed class StatusToGlyphConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        var key = value switch
+        {
+            CheckStatus.Pass => "GlyphPass",
+            CheckStatus.Warn => "GlyphWarn",
+            CheckStatus.Block => "GlyphBlock",
+            HealthVerdict.Streamable => "GlyphPass",
+            HealthVerdict.AtRisk => "GlyphWarn",
+            HealthVerdict.Blocked => "GlyphBlock",
+            _ => "GlyphUnknown",
+        };
+        return Application.Current?.TryFindResource(key) as Geometry ?? Geometry.Empty;
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => Binding.DoNothing;
+}
+
 public sealed class StatusToTextConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch

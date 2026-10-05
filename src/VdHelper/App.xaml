@@ -19,6 +19,7 @@
 
         <local:StatusToBrushConverter x:Key="StatusBrush" />
         <local:StatusToTextConverter x:Key="StatusText" />
+        <local:StatusToGlyphConverter x:Key="StatusGlyph" />
         <local:StringToVisibilityConverter x:Key="StringToVisible" />
         <BooleanToVisibilityConverter x:Key="BoolToVisible" />
 

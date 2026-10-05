@@ -130,9 +130,15 @@
                                 </Grid.ColumnDefinitions>
                                 <Border Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Left"
                                         Padding="6,1" CornerRadius="2" Background="#1E1E1E">
-                                    <TextBlock FontSize="11.5"
-                                               Text="{Binding Status, Converter={StaticResource StatusText}}"
-                                               Foreground="{Binding Status, Converter={StaticResource StatusBrush}}" />
+                                               <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                   <!-- Shape before colour: the badge has to survive greyscale and colour blindness. -->
+                                                   <Path Width="11" Height="11" Stretch="Uniform" Margin="0,0,5,0"
+                                                         Data="{Binding Status, Converter={StaticResource StatusGlyph}}"
+                                                         Fill="{Binding Status, Converter={StaticResource StatusBrush}}" />
+                                                   <TextBlock FontSize="11.5"
+                                                              Text="{Binding Status, Converter={StaticResource StatusText}}"
+                                                              Foreground="{Binding Status, Converter={StaticResource StatusBrush}}" />
+                                               </StackPanel>
                                 </Border>
                                 <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap"
                                            Margin="10,0,0,0" Style="{StaticResource ChromeText}" FontSize="13"
