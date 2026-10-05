@@ -30,11 +30,14 @@ public static class ReportWriter
     private static readonly Regex Ciphertext = new(@"AQAA[A-Za-z0-9+/=]{16,}", RegexOptions.Compiled);
 
     /// <summary>
-    /// Status → the same four words <c>StatusConverters.StatusToTextConverter</c> puts on screen.
-    /// Duplicated rather than called because that one is a WPF <c>IValueConverter</c> and a report
-    /// must be renderable without a dispatcher. Change both together if the vocabulary moves.
+    /// The same four words <c>StatusConverters.StatusToTextConverter</c> puts on screen, and the
+    /// same ones the console now prints. It used to be private, so the CLI spelled the states
+    /// Pass / Warn / Block / Unknown while markdown, HTML and the UI all said 通过 / 警告 / 阻断 /
+    /// 未知 — one run, three vocabularies. It is duplicated rather than called from the WPF
+    /// converter because a report must render without a dispatcher; this way there are two copies,
+    /// not four.
     /// </summary>
-    private static string Badge(CheckStatus status) => status switch
+    public static string Badge(CheckStatus status) => status switch
     {
         CheckStatus.Pass => "通过",
         CheckStatus.Warn => "警告",
@@ -64,6 +67,10 @@ public static class ReportWriter
         ["_first"] = "输出首行",
         ["_script"] = "查询命令",
         ["_耗时"] = "本项耗时",
+        // Absent from this table, so a check that hit the stderr guard printed a raw
+        // "_errLines: …" row directly above its own neatly named "命令退出码: 0" — and that row is
+        // the input to the guard, so it is the one line in the evidence block worth reading.
+        ["_errLines"] = "查询错误输出（stderr）",
     };
 
     private const string LivePortsKey = "_livePorts";
@@ -77,7 +84,14 @@ public static class ReportWriter
                 Redact(e.Value)))
             .ToList();
 
-    private static string Redact(string value) => Ciphertext.Replace(value, "〔已脱敏：DPAPI 密文〕");
+    /// <summary>
+    /// Public because the console has to use it too. This was the only output surface that printed
+    /// evidence verbatim: markdown and HTML both went through Redact, so a DPAPI ciphertext in a
+    /// check's evidence would have been stripped everywhere except --selftest. One surface without
+    /// the backstop is one surface where a redaction bug stays invisible until someone pastes the
+    /// output into an issue.
+    /// </summary>
+    public static string Redact(string value) => Ciphertext.Replace(value, "〔已脱敏：DPAPI 密文〕");
 
     // ------------------------------------------------------------------ public API
 

@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+﻿﻿﻿﻿using System.Text.Json;
 using VdHelper.Core.Config;
 using VdHelper.Core.Model;
 using System.Runtime.InteropServices;
@@ -214,17 +214,23 @@ public static class SelfTest
             }
             foreach (var r in shown)
             {
-                sb.AppendLine($"[{r.Status,-7}] {r.Id,-13} {r.Summary}");
+                // Everything a user can paste goes through the same Redact the reports use. This was
+                // the only surface printing evidence verbatim, so a ciphertext reaching a check's
+                // evidence would have been stripped from markdown and HTML and printed by --selftest.
+                // The status word is the one thing that has to read the same as the reports, so the
+                // console shows 通过/警告/阻断/未知 rather than Pass/Warn — pasting this into an issue
+                // next to an HTML report used to leave the reader with two vocabularies.
+                sb.AppendLine($"[{Reports.ReportWriter.Badge(r.Status),-4}] {r.Id,-13} {Reports.ReportWriter.Redact(r.Summary)}");
                 // The "why" belongs in the console too, not only in the UI: the actionable part
                 // ("ERROR_DISABLED，右键启用即可") lives here and the CLI is what gets pasted around.
                 if (!string.IsNullOrWhiteSpace(r.Detail))
-                    sb.AppendLine($"            {r.Detail}");
+                    sb.AppendLine($"            {Reports.ReportWriter.Redact(r.Detail)}");
                 foreach (var (k, v) in r.Evidence)
-                    sb.AppendLine($"            {k}: {v}");
+                    sb.AppendLine($"            {k}: {Reports.ReportWriter.Redact(v)}");
                 foreach (var f in r.Fixes)
-                    sb.AppendLine($"            FIX[{f.Risk}] {f.Title} — {f.What} | rollback: {f.Rollback}");
+                    sb.AppendLine($"            FIX[{f.Risk}] {f.Title} — {Reports.ReportWriter.Redact(f.What)} | rollback: {Reports.ReportWriter.Redact(f.Rollback)}");
                 if (r.Guidance is not null)
-                    sb.AppendLine($"            GUIDE: {r.Guidance}");
+                    sb.AppendLine($"            GUIDE: {Reports.ReportWriter.Redact(r.Guidance)}");
             }
             if (changes.Count > 0)
             {
