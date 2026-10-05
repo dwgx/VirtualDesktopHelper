@@ -40,6 +40,16 @@ public partial class App : Application
             return;
         }
 
+        // --report-html is checked before --report: both are prefixes of the same idea and the
+        // HTML one is the rarer path, so it must not fall through to the Markdown writer.
+        if (args.Contains("--report-html") || args.Contains("--report"))
+        {
+            AttachConsole(-1);
+            var html = args.Contains("--report-html");
+            Shutdown(await ReportExport.RunAsync(args, html));
+            return;
+        }
+
         var tabIndex = 0;
         var i = Array.IndexOf(args, "--tab");
         if (i >= 0 && i + 1 < args.Length && int.TryParse(args[i + 1], out var parsed)) tabIndex = parsed;
@@ -94,6 +104,10 @@ public static class SelfTest
             foreach (var r in shown)
             {
                 sb.AppendLine($"[{r.Status,-7}] {r.Id,-13} {r.Summary}");
+                // The "why" belongs in the console too, not only in the UI: the actionable part
+                // ("ERROR_DISABLED，右键启用即可") lives here and the CLI is what gets pasted around.
+                if (!string.IsNullOrWhiteSpace(r.Detail))
+                    sb.AppendLine($"            {r.Detail}");
                 foreach (var (k, v) in r.Evidence)
                     sb.AppendLine($"            {k}: {v}");
                 foreach (var f in r.Fixes)

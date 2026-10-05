@@ -13,6 +13,9 @@
 
 每个修复动作都显示**备份**与**回滚命令**，路由器 / 杀软 / 接口 metric 这类本机改不了的只给指引，不假装能自动修。
 无头用法：`VdHelper.exe --selftest --out report.txt`（退出码 0/3/4）、`VdHelper.exe --apply <fixId>`、`--apply --list`。
+报告导出：`VdHelper.exe --report out.md [--symptom S2]` / `--report-html out.html`，
+把一次体检写成能直接发出去的成品（结论行、按症状类分组、折叠的原始输出、与上次的变化、免责声明），
+Markdown 与单文件 HTML 两种。不写任何 DPAPI 密文 / 令牌 / 账户条目内容，机器名与局域网地址保留。
 
 ### 本机实测抓到的真实故障
 

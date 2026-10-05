@@ -32,7 +32,8 @@ public static class SymptomCatalog
             ["computer is unreachable", "PC is unreachable", "failed to see any computer at all",
              "can't connect to a computer contact support"],
             ["session-stale", "port-vd", "lan-reach", "fw-pair", "fw-vd", "fw-outbound",
-             "net-profile", "route-metric", "vpn-proc", "net-apipa", "net-virtual", "ics", "nat-type"],
+             "fw-profile-inbound", "net-profile", "route-metric", "vpn-proc", "net-apipa",
+             "net-virtual", "ics", "nat-type"],
             "电脑已经被发现，问题在后面的握手：先确认头显 IP 能不能 ping 通，再看防火墙与出口网卡。"),
 
         new("S3", "说不在同一网络",
@@ -47,7 +48,8 @@ public static class SymptomCatalog
 
         new("S5", "有画面但黑的 / 没画面",
             ["black screen", "blank screen", "I can hear audio but no visuals", "shows no display"],
-            ["session-stale", "rdp-session", "link-type", "cfg-streamer", "svc-log", "streamer-proc", "net-primary"],
+            ["gpu-pick", "rdp-session", "session-stale", "link-type", "cfg-streamer", "svc-log",
+             "streamer-proc", "net-primary"],
             "「有声音没画面」是显示链路问题：先查有没有活动 RDP 会话占着显示器，再查 PC 是不是走了无线。"),
 
         new("S6", "连上就掉 / 定时卡",
@@ -59,7 +61,7 @@ public static class SymptomCatalog
 
         new("S7", "画质差 / 不跟手",
             ["choppy", "stutter", "bitrate only 60-70", "black bars when turning my head", "blurry"],
-            ["link-rate", "link-type", "cfg-streamer", "route-metric", "vpn-proc", "av"],
+            ["link-rate", "link-type", "gpu-pick", "cfg-streamer", "route-metric", "vpn-proc", "av"],
             "画质与延迟：链路速率、接入方式、码率与编解码设置是第一梯队，别一上来换路由器。"),
     ];
 

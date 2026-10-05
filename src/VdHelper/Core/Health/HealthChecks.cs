@@ -51,6 +51,7 @@ public static class HealthChecks
         .. LinkRateChecks.Create(),
         .. NatChecks.Create(),
         .. FirewallPairChecks.Create(),
+        .. PerformanceChecks.Create(),
     ];
 
     // ---------------------------------------------------------------- adapters

@@ -27,6 +27,27 @@ Windows 端 **Virtual Desktop 串流检测 / 诊断 / 修复工具**。
 无头用法：`VdHelper.exe --selftest --symptom S2 --out report.txt`，
 用户可以把某一类症状的完整报告发出来当求助材料。
 
+## 报告导出（可以直接发出去）
+
+`--report` / `--report-html` 把一次体检写成**能贴进社区求助帖或 GitHub issue 的成品**，
+而不是给自己看的控制台流水：
+
+```powershell
+VdHelper.exe --report out.md --symptom S2        REM Markdown，适合贴 issue
+VdHelper.exe --report-html out.html --symptom S2  REM 单文件 HTML，原始输出折叠在 <details> 里
+```
+
+两种格式内容一致，都含：结论行（含「串流中 / 未串流」与通道端口、对端）、生成时间与机器标识、
+按症状类分组的检测项（状态徽标 + 编号 + 一句结论 + 折叠的原始输出）、与上次的变化、免责声明。
+不带 `--symptom` 时按 7 个症状类分组输出全部 25 项。
+
+**脱敏口径**：不写任何 DPAPI 密文、令牌、账户条目内容——`Accounts` 只报分组名与条目数
+（沿用 `FirewallPairChecks` 的口径，另有一道 `AQAA` 前缀兜底）。机器名、用户名与局域网地址**保留**：
+没有它们，别人没法判断你的网络环境。贴到公开场合前请自己再看一眼。
+
+报告还会点名「症状类列了、但本轮 PC 侧体检没有结果」的检测（如 `headset-deep`），
+而不是悄悄略过——那一栏是 Unknown，不是通过。
+
 ## 它解决的真问题（都是本机实测）
 
 - **服务在跑 ≠ Streamer 起得来**：本机 `ServiceLog.txt` 反复记录

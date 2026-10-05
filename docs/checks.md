@@ -17,11 +17,11 @@
 | 警告 | **fw-defender** | Defender 防火墙：Domain     True / Private   False / Public    False |
 | 通过 | **svc-vd** | VirtualDesktop.Service.exe Running Automatic |
 | 通过 | **port-vd** | 4 个端口由 Virtual Desktop 持有，没有被别的程序抢占 |
-| 阻断 | **session-stale** | 1 个通道是残留套接字（最早建立于 51 分钟前） |
+| 阻断 | **session-stale** | 1 个通道是残留套接字（最早建立于 1 小时 37 分前） |
 | 通过 | **streamer-proc** | Streamer 进程运行中（1 个） |
 | 警告 | **svc-log** | 服务日志有 5 条历史 ERROR（最近一次 2026-09-18 15:37:35.6962），但 Streamer 正在运行 |
 | 通过 | **udp-discovery** | UDP 38850 正在监听（发现/配对协议就绪） |
-| 警告 | **cfg-streamer** | ShowPairingRequests=false：靠弹窗配对新头显会被静默忽略（靠名字在客户端选则不受影响）；DontWarnApps 含 NetworkProfile：官方自己的网络告警被屏蔽了 |
+| 警告 | **cfg-streamer** | ShowPairingRequests=false：靠弹窗配对新头显会被静默忽略（靠名字在客户端选则不受影响）；DontWarnApps 含 NetworkProfile：官方自己的网络告警被屏蔽了；AutoAdjustBitrate=false：自动调码率已关，卡在「measuring bandwidth」时社区的首选解法就是把它打开 |
 | 警告 | **ics** | SharedAccess(ICS)：Running |
 | 通过 | **fw-outbound** | 出站策略：Domain          NotConfigured / Private         NotConfigured / Public          NotConfigured |
 | 通过 | **av** | 已注册杀软：Windows Defender :: 397568 |
@@ -34,6 +34,8 @@
 | 通过 | **nat-type** | 路由器支持 UPnP（UPnP / SSDP），NAT 类型 Open；外网 IP 是 172.16.80.42（私有段），上级还有一层 NAT——这只影响异地连接，不影响同网段 |
 | 通过 | **fw-pair** | 入站放行有效（Virtual Desktop Streamer），没有针对 VD 的出站拦截 |
 | 通过 | **accounts-persisted** | 配对信息已落盘（OculusQuest 1 条、Oculus 3 条），设备名 Meta Quest 3 |
+| 警告 | **fw-profile-inbound** | profile 默认入站：Domain     True        NotConfigured / Private   False        NotConfigured / Public    False        NotConfigured |
+| 警告 | **gpu-pick** | Virtual Desktop Monitor |
 
 ## 检查项定义与来源
 

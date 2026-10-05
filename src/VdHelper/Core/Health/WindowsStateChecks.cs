@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using VdHelper.Core.Checks;
 using VdHelper.Core.Config;
 using VdHelper.Core.Diagnosis;
@@ -57,6 +57,13 @@ public static class WindowsStateChecks
                 ev["DeviceName"] = s.GetString("DeviceName") ?? "-";
                 ev["CodecName"] = s.GetString("CodecName") ?? "-";
                 ev["PreferredCodec"] = s.GetRaw("PreferredCodec") ?? "-";
+                // The audit caught this: these keys were listed as "present" but their values were
+                // never read, so the user could not see that auto-bitrate is OFF on this machine.
+                ev["AutoAdjustBitrate"] = s.GetBool("AutoAdjustBitrate")?.ToString() ?? "(未设置 → 默认 true)";
+                ev["OpenXRRuntime"] = s.GetRaw("OpenXRRuntime") ?? "-";
+                ev["MonitorCount"] = s.GetRaw("MonitorCount") ?? "-";
+                ev["ShownH264PlusWarning"] = s.GetBool("ShownH264PlusWarning")?.ToString() ?? "-";
+                var autoBitrate = s.GetBool("AutoAdjustBitrate");
                 var muted = s.GetString("DontWarnApps") ?? string.Join(",", s.GetStringArray("DontWarnApps"));
                 var pairingOff = s.GetBool("ShowPairingRequests") == false;
                 var neverConnected = last is null;
@@ -67,6 +74,8 @@ public static class WindowsStateChecks
                 if (muted.Contains("NetworkProfile", StringComparison.OrdinalIgnoreCase))
                     problems.Add("DontWarnApps 含 NetworkProfile：官方自己的网络告警被屏蔽了");
                 if (neverConnected) problems.Add("LastConnectDate 为空：这台 PC 从未成功连过");
+                if (autoBitrate == false)
+                    problems.Add("AutoAdjustBitrate=false：自动调码率已关，卡在「measuring bandwidth」时社区的首选解法就是把它打开");
 
                 if (problems.Count == 0)
                     return Task.FromResult(new CheckResult("cfg-streamer", CheckStatus.Pass,
