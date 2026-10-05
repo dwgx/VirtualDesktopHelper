@@ -16,10 +16,10 @@
 | 通过 | **fw-vd** | 找到入站放行规则（Virtual Desktop Streamer    True   Inbound  Allow） |
 | 警告 | **fw-defender** | Defender 防火墙：Domain     True / Private   False / Public    False |
 | 通过 | **svc-vd** | VirtualDesktop.Service.exe Running Automatic |
-| 通过 | **port-vd** | 四个 VD 端口都空闲 |
+| 通过 | **port-vd** | 4 个端口上有活动会话：38810、38820、38830、38840 |
 | 通过 | **streamer-proc** | Streamer 进程运行中（1 个） |
 | 警告 | **svc-log** | 服务日志有 5 条历史 ERROR（最近一次 2026-09-18 15:37:35.6962），但 Streamer 正在运行 |
-| 通过 | **udp-discovery** | UDP 38850 已监听（发现/配对协议） |
+| 警告 | **udp-discovery** | UDP 38850/38860 都没有活动 |
 | 警告 | **cfg-streamer** | ShowPairingRequests=false：靠弹窗配对新头显会被静默忽略（靠名字在客户端选则不受影响）；DontWarnApps 含 NetworkProfile：官方自己的网络告警被屏蔽了 |
 | 警告 | **ics** | SharedAccess(ICS)：Running |
 | 通过 | **fw-outbound** | 出站策略：Domain          NotConfigured / Private         NotConfigured / Public          NotConfigured |
@@ -30,7 +30,7 @@
 | 通过 | **link-rate** | Ethernet 协商速率 1 Gbps |
 | 通过 | **vpn-proc** | 没有发现 VPN/代理客户端进程 |
 | 通过 | **rdp-session** | 只有本机 console 会话（1 条），没有远程桌面在跑 |
-| 通过 | **nat-type** | 路由器支持 UPnP（UPnP / SSDP），NAT 类型 Cone/Restricted；外网 IP 是 172.16.80.42（私有段），上级还有一层 NAT——这只影响异地连接，不影响同网段 |
+| 通过 | **nat-type** | 路由器支持 UPnP（UPnP / SSDP），NAT 类型 Open；外网 IP 是 172.16.80.42（私有段），上级还有一层 NAT——这只影响异地连接，不影响同网段 |
 | 通过 | **fw-pair** | 入站放行有效（Virtual Desktop Streamer），没有针对 VD 的出站拦截 |
 | 通过 | **accounts-persisted** | 配对信息已落盘（OculusQuest 1 条、Oculus 3 条），设备名 Meta Quest 3 |
 

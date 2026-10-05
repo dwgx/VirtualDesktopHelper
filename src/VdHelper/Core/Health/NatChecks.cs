@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using SharpOpenNat;
@@ -50,7 +50,10 @@ public static class NatChecks
             ev["本机网关"] = string.Join(" | ",
                 HealthChecks.RealAdapters().Where(a => a.HasDefaultGateway)
                     .Select(a => $"{a.Name}={a.PrimaryIPv4} → {string.Join("/", a.Gateways.Select(g => g.ToString()))}"));
-            ev["本机 TCP 38810"] = NetworkInventory.IsListening(ProbePort) ? "在监听" : "没在监听";
+            var (localPorts, _) = await NetworkInventory.ObserveVdPortsAsync([ProbePort], ct).ConfigureAwait(false);
+            ev["本机 TCP 38810"] = localPorts[0].State == PortState.Free
+                ? "没有任何套接字"
+                : localPorts[0].State + "（" + localPorts[0].Owner + "）";
 
             var devices = await DiscoverAsync(ct).ConfigureAwait(false);
             ev["发现耗时"] = $"{sw.ElapsedMilliseconds} ms（预算 {DiscoveryBudget.TotalMilliseconds:F0} ms，"

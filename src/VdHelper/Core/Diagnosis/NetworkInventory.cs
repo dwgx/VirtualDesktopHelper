@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 
@@ -41,6 +41,11 @@ public sealed record AdapterView(
 /// Reads adapters in-process. Name heuristics are deliberately conservative: they exist to explain
 /// a check result, never to mutate anything.
 /// </summary>
+/// <summary>What a socket on a VD port is doing right now.</summary>
+public enum PortState { Free, Bound, Listen, Established }
+
+public sealed record PortView(int Port, PortState State, string Owner, string Peer);
+
 public static class NetworkInventory
 {
     private static readonly string[] VirtualHints =
@@ -102,44 +107,55 @@ public static class NetworkInventory
 
     public static IReadOnlyList<int> VdPorts { get; } = [38810, 38820, 38830, 38840];
 
-    /// <summary>True when nothing can bind the port, i.e. something already listens on it.</summary>
-    public static bool IsListening(int port)
-    {
-        try
-        {
-            using var probe = new TcpListener(IPAddress.Loopback, port);
-            probe.Start();
-            probe.Stop();
-            return false;
-        }
-        catch (SocketException)
-        {
-            return true;
-        }
-    }
-
     /// <summary>
-    /// Owner process for busy ports. Spawns one PowerShell query and is only called when at least
-    /// one port is already busy — the common case stays in-process.
+    /// One snapshot of every socket on the VD ports, in ANY state.
+    /// <para>
+    /// The earlier version filtered to <c>-State Listen</c> and therefore reported all four
+    /// ports as free while the Streamer was actually holding them as Bound sockets and had a
+    /// live session up. Binding a probe socket was worse: it fails with WSAEACCES whenever the
+    /// port is held at all, which reads exactly like "the port is busy" but cannot tell who holds
+    /// it. So: ask Windows once, look at every state, and report the state rather than guessing.
+    /// </para>
     /// </summary>
-    public static async Task<IReadOnlyDictionary<int, string>> BusyPortOwnersAsync(
+    public static async Task<(IReadOnlyList<PortView> Ports, string Raw)> ObserveVdPortsAsync(
         IEnumerable<int> ports, CancellationToken ct = default)
     {
-        var list = string.Join(",", ports);
-        var script = $"Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | "
-            + $"Where-Object {{ $_.LocalPort -in @({list}) }} | ForEach-Object {{ "
-            + "'$($_.LocalPort)|' + (Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName }}";
+        var wanted = ports.ToHashSet();
+        var script =
+            "Get-NetTCPConnection -ErrorAction SilentlyContinue | "
+            + "Where-Object { $_.LocalPort -in @(" + string.Join(",", wanted) + ") } | "
+            + "ForEach-Object { \"$($_.LocalPort)|$($_.State)|$($_.OwningProcess)|\" "
+            + "+ \"$($_.RemoteAddress):$($_.RemotePort)|\" "
+            + "+ (Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName }";
+
         var lines = await Checks.PowerShellRunner.LinesAsync(script, ct).ConfigureAwait(false);
-        var map = new Dictionary<int, string>();
+        var views = new List<PortView>();
         foreach (var line in lines)
         {
-            var parts = line.Split('|', 2);
-            if (parts.Length == 2 && int.TryParse(parts[0], out var port))
-                map[port] = string.IsNullOrWhiteSpace(parts[1]) ? "未知进程" : parts[1] + ".exe";
+            var parts = line.Split('|');
+            if (parts.Length < 5 || !int.TryParse(parts[0].Trim(), out var port)) continue;
+            var state = parts[1].Trim() switch
+            {
+                "Established" => PortState.Established,
+                "Listen" => PortState.Listen,
+                "Bound" => PortState.Bound,
+                _ => PortState.Bound,
+            };
+            views.Add(new PortView(port, state, parts[4].Trim(), parts[3].Trim()));
         }
-        return map;
-    }
 
+        // One row per port: an Established session outranks a Bind socket on the same port.
+        var merged = new List<PortView>();
+        foreach (var port in wanted)
+        {
+            var forPort = views.Where(v => v.Port == port).ToList();
+            merged.Add(forPort.FirstOrDefault(v => v.State == PortState.Established)
+                       ?? forPort.FirstOrDefault(v => v.State == PortState.Listen)
+                       ?? forPort.FirstOrDefault(v => v.State == PortState.Bound)
+                       ?? new PortView(port, PortState.Free, "-", "-"));
+        }
+        return (merged, string.Join(" ;; ", lines));
+    }
 
     public static string? ResolveProcessName(int pid)
     {

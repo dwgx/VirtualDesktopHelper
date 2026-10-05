@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using VdHelper.Core.Checks;
 using VdHelper.Core.Diagnosis;
 using VdHelper.Core.Model;
@@ -135,32 +135,57 @@ public static class HealthChecks
 
     private static ICheck VdPortCheck() =>
         CheckFactory.Delegate(
-            new("port-vd", "VD 端口", "38810/20/30/40 有没有被别的程序占着？", "端口"),
+            new("port-vd", "VD 端口", "38810/20/30/40 现在被谁占着、处在什么状态？", "端口"),
             async ct =>
             {
-                var probed = NetworkInventory.VdPorts
-                    .Select(p => (Port: p, Listening: NetworkInventory.IsListening(p)))
-                    .ToList();
-                var busy = probed.Where(p => p.Listening).ToList();
-                var ev = probed.ToDictionary(p => p.Port.ToString(), p => p.Listening ? "被监听" : "空闲");
-                if (busy.Count == 0)
-                    return new CheckResult("port-vd", CheckStatus.Pass, "四个 VD 端口都空闲",
-                        "没有冲突。", ev, Array.Empty<FixAction>());
-
-                var owners = await NetworkInventory.BusyPortOwnersAsync(busy.Select(b => b.Port), ct)
+                // Windows is asked once, about every socket state. Binding a probe socket instead
+                // fails with WSAEACCES whenever the port is held at all, which cannot tell a
+                // healthy Streamer from a foreign squatter — and it reported all four ports free
+                // while a live session was up (see notes/2026-10-05-port-state-finding.md).
+                var (ports, raw) = await NetworkInventory.ObserveVdPortsAsync(NetworkInventory.VdPorts, ct)
                     .ConfigureAwait(false);
-                foreach (var p in busy)
-                    ev[p.Port.ToString()] = owners.TryGetValue(p.Port, out var owner)
-                        ? $"被监听: {owner}"
-                        : "被监听: 未能识别占用进程";
 
-                var isVd = busy.Any(b => owners.GetValueOrDefault(b.Port, "")
-                    .Contains("VirtualDesktop", StringComparison.OrdinalIgnoreCase));
-                return new CheckResult("port-vd", CheckStatus.Pass,
-                    $"{busy.Count} 个端口被监听：{string.Join("、", busy.Select(b => b.Port + "(" + owners.GetValueOrDefault(b.Port, "未知") + ")"))}",
-                    isVd
-                        ? "监听者是 Virtual Desktop 本身，说明串流服务正常在听。"
-                        : "监听者不是 Virtual Desktop：可能是上次未退出的 Streamer，也可能是端口冲突。",
+                var ev = new Dictionary<string, string>
+                {
+                    ["采样时间"] = DateTime.Now.ToString("HH:mm:ss"),
+                    ["查询原文"] = string.IsNullOrWhiteSpace(raw) ? "(这四个端口上没有任何套接字)" : raw,
+                };
+                foreach (var v in ports)
+                    ev[v.Port.ToString()] = v.State switch
+                    {
+                        PortState.Established => $"已建立会话 → {v.Peer}（占用 {v.Owner}）",
+                        PortState.Listen => $"在监听（{v.Owner}）",
+                        PortState.Bound => $"已绑定未监听（{v.Owner}）",
+                        _ => "空闲",
+                    };
+
+                static bool IsVd(string owner) =>
+                    owner.Contains("VirtualDesktop", StringComparison.OrdinalIgnoreCase);
+
+                var established = ports.Where(p => p.State == PortState.Established).ToList();
+                if (established.Count > 0)
+                    return new CheckResult("port-vd", CheckStatus.Pass,
+                        $"{established.Count} 个端口上有活动会话：{string.Join("、", established.Select(p => p.Port.ToString()))}",
+                        "PC 侧串流通道是通的。如果这时候头显说连不上，问题在头显侧或账号侧，不在这台电脑。",
+                        ev, Array.Empty<FixAction>());
+
+                var foreign = ports.Where(p => p.State != PortState.Free && !IsVd(p.Owner)).ToList();
+                if (foreign.Count > 0)
+                    return new CheckResult("port-vd", CheckStatus.Warn,
+                        $"{foreign.Count} 个端口被非 VD 程序占着：{string.Join("、", foreign.Select(p => p.Port + "(" + p.Owner + ")"))}",
+                        "别的程序占住了 VD 的端口，Streamer 绑不上，表现为连上就断或根本连不上。",
+                        ev, Array.Empty<FixAction>(),
+                        "先确认那是什么程序（展开「查询原文」看进程名），关掉它再重测；不要直接杀进程。");
+
+                var heldByVd = ports.Where(p => p.State != PortState.Free).ToList();
+                if (heldByVd.Count > 0)
+                    return new CheckResult("port-vd", CheckStatus.Pass,
+                        $"{heldByVd.Count} 个端口被 Virtual Desktop 正常持有（无活动会话）",
+                        "Streamer 已经把这几个端口拿下了，正在等头显来连。这是正常待机状态。",
+                        ev, Array.Empty<FixAction>());
+
+                return new CheckResult("port-vd", CheckStatus.Pass, "四个 VD 端口当前没有任何套接字",
+                    "端口空着通常意味着 Streamer 没在跑，或者它刚刚退出。看 streamer-proc 那项确认。",
                     ev, Array.Empty<FixAction>());
             });
 
