@@ -246,11 +246,13 @@ public static class ApplyFix
         var report = await HealthEngine.RunAsync(CancellationToken.None);
         var wanted = args[index + 1];
         var wantedList = wanted == "--list";
+        var matched = 0;
 
         foreach (var result in report.Results)
         foreach (var fix in result.Fixes)
         {
             if (!wantedList && !fix.Id.Equals(wanted, StringComparison.OrdinalIgnoreCase)) continue;
+            matched++;
             if (wantedList)
             {
                 Console.WriteLine($"{fix.Id}\t[{fix.Risk}]\t{result.Id}\t{fix.Title}");
@@ -266,6 +268,19 @@ public static class ApplyFix
                 ? $"  结果：成功 — {outcome.Message}"
                 : $"  结果：失败 — {outcome.Message}");
             if (!outcome.Success) return 6;
+        }
+
+        // A typo'd fix id used to fall through the loop, print the verdict and exit 0 — the tool
+        // reporting success for doing nothing. A fix that is offered only when its condition is
+        // present legitimately matches nothing, so say which ones exist and return a distinct code.
+        if (!wantedList && matched == 0)
+        {
+            var available = report.Results.SelectMany(r => r.Fixes).Select(f => f.Id).ToList();
+            Console.WriteLine($"没有匹配的修复项：{wanted}");
+            Console.WriteLine(available.Count == 0
+                ? "当前这轮体检没有提供任何可自动修复的项（用 --apply --list 查看条件）。"
+                : $"本轮可用的修复项：{string.Join("、", available)}");
+            return 9;
         }
 
         if (!wantedList)
