@@ -157,7 +157,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\check-symptom-map.ps1 
 ```
 AGENTS.md        主脑规则（自动加载）      WORKFLOW.md   派发与验收
 src/VdHelper     工具本体（WPF, net10.0-windows）
-research/        14 个主题的调研落盘区（结论带 file:line / 命令输出 / URL 证据）
+research/        15 个主题的调研落盘区（结论带 file:line / 命令输出 / URL 证据）
 notes/           长期笔记：本机基线、ADR
 handoff/         跨会话交接
 docs/            三段式文档站（index / checks / faq），由脚本生成，数字不会和代码脱节

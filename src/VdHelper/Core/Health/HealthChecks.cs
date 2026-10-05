@@ -298,16 +298,25 @@ public static class HealthChecks
                         + (relay.Count > 0 ? "（同时还有云端中继连接，那不算串流。）" : ""),
                         ev, Array.Empty<FixAction>());
 
-                // Only LAN sockets can be a leftover headset session. A relay socket that has not
-                // aged out is a live cloud connection, not something to tell the user to clear.
+                // Only LAN sockets can belong to a headset at all. A socket pointing at Virtual
+                // Desktop's servers is that, not a stream.
                 var staleLan = stale.Where(IsLan).ToList();
                 if (staleLan.Count > 0)
-                    return new CheckResult("session-stale", CheckStatus.Block,
-                        $"{staleLan.Count} 个通道是残留套接字（最早建立于 {staleLan.Min(p => DescribeAge(p.Since!.Value))}）",
-                        "Windows 只有在对端发 FIN 或超时之后才改状态。头显早就退出了、这边套接字还挂着时，"
-                        + "表现就是「界面上像连着、实际什么都不发生」。重启 Streamer 能立刻清掉。",
-                        ev, Fixes.RestartStreamer(),
-                        "先确认头显此刻是不是真的在串流；如果早就退出了，重启 Streamer 即可，别去动路由器。");
+                {
+                    var oldest = staleLan.Min(p => DescribeAge(p.Since!.Value));
+                    var peers = staleLan.Select(p => p.Peer).Distinct().Take(3);
+                    ev["通道对端"] = string.Join(" ;; ", peers);
+                    return new CheckResult("session-stale", CheckStatus.Warn,
+                        $"{staleLan.Count} 个到头显的通道仍是已建立状态（最早建立于 {oldest}）",
+                        "**这不等于串流已经断了。**Windows 只有在对端发 FIN 或 TCP 超时之后才改变状态，"
+                        + "所以一次跑了半小时的正常串流，和一次头显早已退出的残留套接字，在这一张表里长得一模一样。"
+                        + "**只看套接字年龄分辨不出来。**",
+                        ev, Array.Empty<FixAction>(),
+                        "看头显那一侧：画面在动就是在串流，这一项可以忽略。"
+                        + "只有当头显那边明确显示断开了、这边套接字还挂着时，才需要重启 Streamer 清掉；"
+                        + "那种情况下用 --apply streamer-restart，或手工结束进程再启动。"
+                        + "不要仅因为这一项就重启——那会掐断正在进行的串流。");
+                }
 
                 // Reached only when stale sockets exist and none are on the LAN. Saying "也没有残留
                 // 套接字" here was wrong on every idle machine: the Streamer keeps that outbound

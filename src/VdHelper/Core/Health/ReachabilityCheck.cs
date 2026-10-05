@@ -42,10 +42,29 @@ public static class ReachabilityCheck
                         ev, Array.Empty<FixAction>(),
                         "填了 IP 之后，这一项会直接告诉你「网络层到底通不通」，把「看不见」和「连不上」分开。");
 
+
                 if (!IPAddress.TryParse(ip, out var address))
                     return new CheckResult("lan-reach", CheckStatus.Unknown,
-                        "填的头显 IP 不是合法地址", ip, ev, Array.Empty<FixAction>(),
+                        "填的头显 IP 不是地址", ip, ev, Array.Empty<FixAction>(),
                         "例如 192.168.11.23。");
+
+                // If the address we hold does not answer, do not stop there. A changed DHCP lease
+                // is one of the most common causes this project documents, so sweep the local
+                // subnet once and name whatever answers. Reported, never acted on: only the user
+                // knows which device is the headset, and silently retargeting would be worse than
+                // not knowing.
+                if (!await PingOnceAsync(address, ct).ConfigureAwait(false))
+                {
+                    var candidates = await DiscoverHostsAsync(local, ct).ConfigureAwait(false);
+                    ev["扫到的候选主机"] = candidates.Count > 0
+                        ? string.Join(" ;; ", candidates)
+                        : "(同网段内除网关与本机外，没有其它主机应答)";
+                    ev["说明"] = candidates.Count > 0
+                        ? "上面那个 IP 不应答；以下是同网段内应答的主机。挑出头显那台，改掉配置里的"
+                          + " headsetIp 再跑一次。工具不会替你猜哪台是头显。"
+                        : "网络层这一段是空的：头显可能没连这个 Wi-Fi、连了访客网络，或者地址变了。"
+                          + "先在头显里确认它连的是哪一个网络。";
+                }
 
                 // Windows' own neighbour cache is better evidence than our guess: if the ARP entry
                 // is absent the device is not on this link at all (as opposed to "firewalled").
@@ -156,4 +175,51 @@ public static class ReachabilityCheck
             return false;
         }
     }
+
+    /// <summary>One ping, short timeout. Used as a liveness probe, never as a latency measure.</summary>
+    private static async Task<bool> PingOnceAsync(IPAddress target, CancellationToken ct)
+    {
+        using var ping = new Ping();
+        try
+        {
+            var reply = await ping.SendPingAsync(target, 800).WaitAsync(ct).ConfigureAwait(false);
+            return reply.Status == IPStatus.Success;
+        }
+        catch (Exception ex) when (ex is PingException or OperationCanceledException) { return false; }
+    }
+
+    /// <summary>
+    /// Hosts on the same /24 that answer a ping, excluding this machine and the gateway. Bounded:
+    /// at most ~250 pings fired in parallel with a single deadline, so it cannot hang a pass.
+    /// </summary>
+    private static async Task<IReadOnlyList<string>> DiscoverHostsAsync(
+        AdapterView? local, CancellationToken ct)
+    {
+        if (local?.PrimaryIPv4 is null) return Array.Empty<string>();
+        var prefix = local.PrimaryIPv4!.GetAddressBytes().Take(3).ToArray();
+        if (prefix.Length != 3) return Array.Empty<string>();
+        var self = local.PrimaryIPv4!.ToString();
+        var gateway = local.Gateways.FirstOrDefault()?.ToString();
+        var gate = new SemaphoreSlim(64);
+        var found = new List<string>();
+
+        var probes = Enumerable.Range(1, 254).Select(async i =>
+        {
+            if (!await gate.WaitAsync(0, ct).ConfigureAwait(false)) return;
+            try
+            {
+                var ip = new IPAddress(prefix.Concat(new byte[] { (byte)i }).ToArray());
+                if (ip.ToString() == self || ip.ToString() == gateway) return;
+                using var ping = new Ping();
+                var reply = await ping.SendPingAsync(ip, 500).ConfigureAwait(false);
+                if (reply.Status == IPStatus.Success) lock (found) found.Add(ip + "  (" + reply.RoundtripTime + " ms)");
+            }
+            catch (PingException) { /* not there, or blocked */ }
+            finally { gate.Release(); }
+        });
+
+        await Task.WhenAll(probes).WaitAsync(TimeSpan.FromSeconds(6), ct).ConfigureAwait(false);
+        return found;
+    }
+
 }
