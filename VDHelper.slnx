@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/VdHelper/VdHelper.csproj" />
+  </Folder>
+</Solution>

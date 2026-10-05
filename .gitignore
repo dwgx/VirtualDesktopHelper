@@ -17,4 +17,6 @@ artifacts/
 *.jks
 # adb / 抓取产物
 _logs/
-_capture/
+_capture/_selftest.txt
+_gui.log
+_shot.png

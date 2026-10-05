@@ -1,0 +1,1036 @@
+<!--
+  02-shell.xaml — VDHelper 主窗口视觉基线骨架
+  ─────────────────────────────────────────────────────────────────────────────
+  逆向自官方 VirtualDesktop.Streamer（MetroDark 主题）。逐条证据见
+  research/05-ui-reverse/01-ui-spec.md。
+
+  复刻要点（全部有 file:line 证据，见 spec §4）：
+    · 三层近黑灰  #1D1D1D(标题/状态栏) / #151515(内容外底) / #101010(tab 内容)
+    · 字体 Verdana，正文 14.667，小节 Label Bold 14，tab 标题 Bold 16
+    · 控件统一高度 30；Button 按下边框 #2E79BD；图标按钮 35%→75% 不透明度
+    · 自绘窗口：WindowStyle=None + AllowsTransparency + WindowChrome
+      CaptionHeight=0 / CornerRadius=0 / GlassFrameThickness=0 / ResizeBorderThickness=8
+    · 导航 = TabControl TabStripPlacement="Left"，160×48，标题栏 48 + 状态栏 48
+    · tab 顺序照抄官方：ACCOUNTS / BINDINGS / OPTIONS / ADVANCED / MEDIA / ABOUT
+
+  本文件为纯 XAML 骨架：不引用官方程序集、不引用 Xceed、不引用图片资源，
+  因此可独立 dotnet build。所有转换器用 WPF 内置 BooleanToVisibilityConverter。
+
+  构建验证方式见同目录 build/README.md。
+-->
+<Window
+    x:Class="VDHelper.Shell.ShellWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="VirtualDesktopHelper"
+    Width="700"
+    MinWidth="700"
+    Height="516"
+    MinHeight="516"
+    WindowStartupLocation="CenterScreen"
+    WindowStyle="None"
+    AllowsTransparency="True"
+    Background="#00FFFFFF"
+    FontFamily="Verdana"
+    Foreground="#F0F0F0"
+    ResizeMode="CanResize"
+    UseLayoutRounding="True"
+    SnapsToDevicePixels="True">
+
+    <Window.Style>
+        <Style TargetType="{x:Type Window}">
+            <Setter Property="WindowChrome.WindowChrome">
+                <Setter.Value>
+                    <WindowChrome CaptionHeight="0"
+                                  CornerRadius="0"
+                                  GlassFrameThickness="0"
+                                  ResizeBorderThickness="8" />
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Style>
+
+    <Window.Resources>
+        <ResourceDictionary>
+
+            <!-- ═══ 色板（官方 Theme.Colors.xaml 子集）═══════════════════════ -->
+            <SolidColorBrush x:Key="NormalBrush"        Color="White" />
+            <SolidColorBrush x:Key="SecondaryBrush"      Color="Gray" />
+            <SolidColorBrush x:Key="LinkBrush"           Color="#2E79BD" />
+            <SolidColorBrush x:Key="BorderBrush"         Color="#AA444444" />
+            <SolidColorBrush x:Key="ForegroundBrush"     Color="#BABABA" />
+            <SolidColorBrush x:Key="TitleBarBrush"       Color="#1D1D1D" />
+            <SolidColorBrush x:Key="ContentBackBrush"    Color="#151515" />
+            <SolidColorBrush x:Key="PageBrush"           Color="#101010" />
+            <SolidColorBrush x:Key="MutedBrush"          Color="#808080" />
+            <SolidColorBrush x:Key="TabInactiveBrush"    Color="#808080" />
+            <SolidColorBrush x:Key="TabStripBrush"       Color="#101010" />
+
+            <!-- ═══ 尺寸常量（spec §2 / §4.4）════════════════════════════ -->
+            <sys:Double xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Key="BaseFontSize">14.667</sys:Double>
+            <sys:Double xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Key="ControlFontSize">13.333</sys:Double>
+            <sys:Double xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Key="ControlHeight">30</sys:Double>
+            <sys:Double xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Key="BarHeight">48</sys:Double>
+            <sys:Double xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Key="TabWidth">160</sys:Double>
+
+            <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+            <DropShadowEffect x:Key="DropShadowText" ShadowDepth="2" RenderingBias="Performance" />
+
+            <!-- ═══ 图标按钮：官方 ImageButtonStyle 复刻 ═══════════════════ -->
+            <TranslateTransform x:Key="OffsetTransform" X="1" Y="1" />
+
+            <Style x:Key="ImageButtonStyle" TargetType="{x:Type Button}">
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Background" Value="#00FFFFFF" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Focusable" Value="False" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type Button}">
+                            <Border x:Name="Bd"
+                                    Background="{TemplateBinding Control.Background}"
+                                    SnapsToDevicePixels="True">
+                                <ContentPresenter x:Name="Content"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  Opacity="0.35" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="UIElement.IsMouseOver" Value="True">
+                                    <Setter TargetName="Content" Property="UIElement.Opacity" Value="0.75" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Bd" Property="RenderTransform" Value="{StaticResource OffsetTransform}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- ═══ 窗口按钮（32×32 图标位）══════════════════════════════ -->
+            <Style x:Key="ChromeButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource ImageButtonStyle}">
+                <Setter Property="Width" Value="40" />
+                <Setter Property="Height" Value="32" />
+                <Setter Property="Margin" Value="0 0 4 0" />
+            </Style>
+
+            <!-- ═══ 标准按钮：渐变底 + 按下蓝边，MinHeight 30 ════════════ -->
+            <Style x:Key="PrimaryButtonStyle" TargetType="{x:Type Button}">
+                <Setter Property="FontFamily" Value="Verdana" />
+                <Setter Property="FontSize" Value="{StaticResource BaseFontSize}" />
+                <Setter Property="Foreground" Value="{StaticResource NormalBrush}" />
+                <Setter Property="MinHeight" Value="{StaticResource ControlHeight}" />
+                <Setter Property="Padding" Value="10,0,10,2" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type Button}">
+                            <Border x:Name="Bd"
+                                    MinHeight="{TemplateBinding Control.MinHeight}"
+                                    Padding="{TemplateBinding Control.Padding}"
+                                    BorderThickness="1"
+                                    SnapsToDevicePixels="True">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#FF202020" Offset="0.0" />
+                                        <GradientStop Color="#FF000000" Offset="1.0" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <Border.BorderBrush>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#AA444444" Offset="0.0" />
+                                        <GradientStop Color="#AA444444" Offset="1.0" />
+                                    </LinearGradientBrush>
+                                </Border.BorderBrush>
+                                <ContentPresenter x:Name="Cp"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="UIElement.IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="BorderBrush">
+                                        <Setter.Value>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                <GradientStop Color="#FF747474" Offset="0.0" />
+                                                <GradientStop Color="#FF575757" Offset="1.0" />
+                                            </LinearGradientBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="#FF151515" />
+                                    <Setter TargetName="Bd" Property="BorderBrush" Value="#FF2E79BD" />
+                                </Trigger>
+                                <Trigger Property="UIElement.IsEnabled" Value="False">
+                                    <Setter TargetName="Cp" Property="Opacity" Value="0.4" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="LinkButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource PrimaryButtonStyle}">
+                <Setter Property="Foreground" Value="{StaticResource LinkBrush}" />
+            </Style>
+
+            <!-- ═══ 文本 / 标签 ════════════════════════════════════════════ -->
+            <Style x:Key="NormalTextBlock" TargetType="{x:Type TextBlock}">
+                <Setter Property="FontFamily" Value="Verdana" />
+                <Setter Property="FontSize" Value="{StaticResource BaseFontSize}" />
+                <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+            </Style>
+
+            <Style x:Key="MutedTextBlock" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource NormalTextBlock}">
+                <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            </Style>
+
+            <!-- ABOUT 页「标签-值」左列：官方 AboutTextBlock 复刻 -->
+            <Style x:Key="AboutTextBlock" TargetType="{x:Type TextBlock}">
+                <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+                <Setter Property="Margin" Value="3" />
+                <Setter Property="HorizontalAlignment" Value="Right" />
+            </Style>
+
+            <!-- 小节标题：官方 Bold 14 复刻 -->
+            <Style x:Key="SectionLabel" TargetType="{x:Type Label}">
+                <Setter Property="FontFamily" Value="Verdana" />
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="FontWeight" Value="Bold" />
+                <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="IsTabStop" Value="False" />
+            </Style>
+
+            <!-- 次级标签：官方 #BABABA 14 复刻（MEDIA / ACCOUNTS 行内） -->
+            <Style x:Key="FolderLabel" TargetType="{x:Type Label}">
+                <Setter Property="FontFamily" Value="Verdana" />
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+
+            <!-- ═══ Tab 标题样式：Bold 16（官方 TabTextBlock）══════════════ -->
+            <Style x:Key="TabTextBlock" TargetType="{x:Type TextBlock}">
+                <Setter Property="FontWeight" Value="Bold" />
+                <Setter Property="FontSize" Value="16" />
+            </Style>
+
+            <!-- ═══ TabItem：左侧竖排导航，160×48，灰→白两态 ═══════════════ -->
+            <Style x:Key="SideTabItemStyle" TargetType="{x:Type TabItem}">
+                <Setter Property="Foreground" Value="{StaticResource TabInactiveBrush}" />
+                <Setter Property="Background" Value="#151515" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Width" Value="{StaticResource TabWidth}" />
+                <Setter Property="Height" Value="{StaticResource BarHeight}" />
+                <Setter Property="Padding" Value="16" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Stretch" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type TabItem}">
+                            <Grid SnapsToDevicePixels="True">
+                                <Border x:Name="HeaderBorder"
+                                        BorderThickness="0"
+                                        Background="#151515"
+                                        Padding="{Binding Path=Padding, RelativeSource={RelativeSource AncestorType={x:Type TabItem}}}">
+                                    <ContentPresenter x:Name="Content"
+                                                      ContentSource="Header"
+                                                      HorizontalAlignment="Left"
+                                                      VerticalAlignment="Center" />
+                                </Border>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <MultiTrigger>
+                                    <MultiTrigger.Conditions>
+                                        <Condition Property="UIElement.IsMouseOver" Value="True" />
+                                        <Condition Property="TabItem.IsSelected" Value="False" />
+                                    </MultiTrigger.Conditions>
+                                    <Setter Property="Foreground" Value="#FFFFFFFF" />
+                                </MultiTrigger>
+                                <Trigger Property="TabItem.IsSelected" Value="True">
+                                    <Setter Property="Foreground" Value="#FFFFFFFF" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style TargetType="{x:Type TabControl}">
+                <Setter Property="Background" Value="{StaticResource TabStripBrush}" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="ItemContainerStyle" Value="{StaticResource SideTabItemStyle}" />
+            </Style>
+
+            <!-- ═══ 输入控件：MinHeight 30，黑底，焦点蓝 ══════════════════ -->
+            <Style x:Key="ShellTextBox" TargetType="{x:Type TextBox}">
+                <Setter Property="FontFamily" Value="Verdana" />
+                <Setter Property="FontSize" Value="{StaticResource ControlFontSize}" />
+                <Setter Property="MinHeight" Value="{StaticResource ControlHeight}" />
+                <Setter Property="Padding" Value="6,1,6,3" />
+                <Setter Property="Foreground" Value="{StaticResource NormalBrush}" />
+                <Setter Property="Background" Value="#FF000000" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+                <Setter Property="CaretBrush" Value="{StaticResource LinkBrush}" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type TextBox}">
+                            <Border x:Name="Bd"
+                                    Background="{TemplateBinding Control.Background}"
+                                    BorderBrush="{TemplateBinding Control.BorderBrush}"
+                                    BorderThickness="{TemplateBinding Control.BorderThickness}"
+                                    SnapsToDevicePixels="True">
+                                <ScrollViewer x:Name="PART_ContentHost"
+                                              Margin="{TemplateBinding Control.Padding}"
+                                              VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="UIElement.IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="BorderBrush" Value="#FF747474" />
+                                </Trigger>
+                                <Trigger Property="UIElement.IsKeyboardFocusWithin" Value="True">
+                                    <Setter TargetName="Bd" Property="BorderBrush" Value="#FF2E79BD" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="ShellComboBox" TargetType="{x:Type ComboBox}">
+                <Setter Property="FontFamily" Value="Verdana" />
+                <Setter Property="FontSize" Value="{StaticResource ControlFontSize}" />
+                <Setter Property="MinHeight" Value="{StaticResource ControlHeight}" />
+                <Setter Property="Padding" Value="6,1,6,3" />
+                <Setter Property="Foreground" Value="{StaticResource NormalBrush}" />
+                <Setter Property="Background" Value="#FF000000" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+            </Style>
+
+            <Style x:Key="ShellCheckBox" TargetType="{x:Type CheckBox}">
+                <Setter Property="FontFamily" Value="Verdana" />
+                <Setter Property="FontSize" Value="{StaticResource ControlFontSize}" />
+                <Setter Property="Foreground" Value="{StaticResource NormalBrush}" />
+                <Setter Property="MinHeight" Value="{StaticResource ControlHeight}" />
+                <!-- 官方统一 Margin="-5 0 0 0"，把勾选框拉到文字基线对齐 -->
+                <Setter Property="Margin" Value="-5,0,0,0" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type CheckBox}">
+                            <Grid Background="Transparent">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="Box"
+                                        Width="16" Height="16"
+                                        VerticalAlignment="Center"
+                                        Background="#FF000000"
+                                        BorderBrush="#AA444444"
+                                        BorderThickness="1"
+                                        SnapsToDevicePixels="True">
+                                    <TextBlock x:Name="CheckMark"
+                                               Text="&#x2713;"
+                                               FontSize="11"
+                                               Foreground="#2E79BD"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Visibility="Collapsed" />
+                                </Border>
+                                <ContentPresenter Grid.Column="1"
+                                                  Margin="8,0,0,0"
+                                                  VerticalAlignment="Center"
+                                                  RecognizesAccessKey="True" />
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="CheckMark" Property="Visibility" Value="Visible" />
+                                    <Setter TargetName="Box" Property="BorderBrush" Value="#2E79BD" />
+                                </Trigger>
+                                <Trigger Property="UIElement.IsMouseOver" Value="True">
+                                    <Setter TargetName="Box" Property="BorderBrush" Value="#FF747474" />
+                                </Trigger>
+                                <Trigger Property="UIElement.IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.4" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- ═══ 滑块：ADVANCED 页「Label + Slider 160 + 数值」三件套 ══ -->
+            <Style x:Key="ShellSlider" TargetType="{x:Type Slider}">
+                <Setter Property="Width" Value="160" />
+                <Setter Property="IsSnapToTickEnabled" Value="False" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type Slider}">
+                            <Grid VerticalAlignment="Center">
+                                <Border Height="4"
+                                        Background="#FF333333"
+                                        VerticalAlignment="Center" />
+                                <Track x:Name="PART_Track">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+                                            <RepeatButton.Template>
+                                                <ControlTemplate TargetType="{x:Type RepeatButton}">
+                                                    <Border Background="#FF2E79BD" />
+                                                </ControlTemplate>
+                                            </RepeatButton.Template>
+                                        </RepeatButton>
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+                                            <RepeatButton.Template>
+                                                <ControlTemplate TargetType="{x:Type RepeatButton}">
+                                                    <Border Background="Transparent" />
+                                                </ControlTemplate>
+                                            </RepeatButton.Template>
+                                        </RepeatButton>
+                                    </Track.IncreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb x:Name="Thumb" Width="10" Height="18" Focusable="False">
+                                            <Thumb.Template>
+                                                <ControlTemplate TargetType="{x:Type Thumb}">
+                                                    <Border Background="#FFBABABA"
+                                                            BorderBrush="#FF565656"
+                                                            BorderThickness="1" />
+                                                </ControlTemplate>
+                                            </Thumb.Template>
+                                        </Thumb>
+                                    </Track.Thumb>
+                                </Track>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="UIElement.IsMouseOver" Value="True">
+                                    <Setter TargetName="Thumb" Property="Background" Value="#FFFFFFFF" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.4" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- ═══ 页内容统一底：官方 Margin="24 8 8 8" ═══════════════════ -->
+            <Style x:Key="PageGrid" TargetType="{x:Type Grid}">
+                <Setter Property="Background" Value="{StaticResource PageBrush}" />
+                <Setter Property="Margin" Value="24,8,8,8" />
+            </Style>
+
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         三行骨架：48 标题栏 / * 内容 / 48 状态栏（官方 MainWindow.xaml:260-268）
+         ══════════════════════════════════════════════════════════════ -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="48" />
+        </Grid.RowDefinitions>
+
+        <!-- ─── 行 0：标题栏（官方 MainWindow.xaml:270-305）───────────── -->
+        <Border Grid.Row="0"
+                Background="{StaticResource TitleBarBrush}"
+                CornerRadius="8,8,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="320" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- logo 位：官方 300×48 Stretch="None"；此处留同尺寸占位 -->
+                <Border Grid.Column="0"
+                        Width="300" Height="48"
+                        Margin="8,0,0,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="Virtual Desktop Helper"
+                               FontFamily="Verdana"
+                               FontSize="17"
+                               Foreground="{StaticResource NormalBrush}"
+                               VerticalAlignment="Center" />
+                </Border>
+
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Margin="0,4,4,0">
+                    <!-- 官方只有最小化 + 关闭，没有最大化 -->
+                    <Button Style="{StaticResource ChromeButtonStyle}"
+                            Content="&#x2013;"
+                            FontSize="18"
+                            ToolTip="Minimize" />
+                    <Button Style="{StaticResource ChromeButtonStyle}"
+                            Content="&#x2715;"
+                            FontSize="14"
+                            ToolTip="Close"
+                            Margin="0" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ─── 行 1：内容区（官方 MainWindow.xaml:306-315）──────────── -->
+        <Grid Grid.Row="1" Background="{StaticResource ContentBackBrush}">
+            <TabControl TabStripPlacement="Left">
+
+                <!-- ═══ Tab 0 — ACCOUNTS ══════════════════════════════════ -->
+                <TabItem>
+                    <TabItem.Header>
+                        <TextBlock Text="ACCOUNTS" Style="{StaticResource TabTextBlock}" />
+                    </TabItem.Header>
+                    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                                  VerticalScrollBarVisibility="Auto">
+                        <StackPanel Orientation="Vertical">
+                            <!-- 官方平台账号卡片：WrapPanel 排布 -->
+                            <ItemsControl>
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Background="{StaticResource PageBrush}"
+                                                   Margin="24,8,8,8" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="240" />
+                                                <ColumnDefinition Width="500" />
+                                            </Grid.ColumnDefinitions>
+                                            <!-- 平台图标 16×16 + 平台名 Bold 14 -->
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                <Border Width="16" Height="16"
+                                                        Margin="4,0,0,0"
+                                                        Background="{StaticResource MutedBrush}" />
+                                                <Label Style="{StaticResource FolderLabel}"
+                                                       FontWeight="Bold"
+                                                       Content="Platform" />
+                                            </StackPanel>
+                                            <!-- 账号行：灰字 + 右侧 20×20 移除按钮 -->
+                                            <Grid Grid.Column="1">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0"
+                                                           Style="{StaticResource NormalTextBlock}"
+                                                           Foreground="#FF808080"
+                                                           Padding="4,0,6,6"
+                                                           Text="account@provider.example" />
+                                                <Button Grid.Column="1"
+                                                        Style="{StaticResource ImageButtonStyle}"
+                                                        Width="20" Height="20"
+                                                        Margin="4,-5,0,0"
+                                                        Content="&#x2715;"
+                                                        FontSize="9"
+                                                        ToolTip="Remove" />
+                                            </Grid>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- 「Add account」下拉：ToggleButton + ▾ + ContextMenu -->
+                            <ToggleButton Width="240"
+                                          Height="{StaticResource ControlHeight}"
+                                          Margin="24,8,8,8"
+                                          HorizontalAlignment="Left"
+                                          Style="{StaticResource PrimaryButtonStyle}"
+                                          Content="Add account">
+                                <ToggleButton.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Platform A" />
+                                        <MenuItem Header="Platform B" />
+                                        <MenuItem Header="Platform C" />
+                                    </ContextMenu>
+                                </ToggleButton.ContextMenu>
+                            </ToggleButton>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- ═══ Tab 1 — BINDINGS ══════════════════════════════════ -->
+                <TabItem>
+                    <TabItem.Header>
+                        <TextBlock Text="BINDINGS" Style="{StaticResource TabTextBlock}" />
+                    </TabItem.Header>
+                    <Grid Style="{StaticResource PageGrid}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Label Grid.Row="0"
+                               Style="{StaticResource SectionLabel}"
+                               Content="Keyboard shortcuts" />
+
+                        <ScrollViewer Grid.Row="1"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Label Grid.Column="0" Style="{StaticResource FolderLabel}"
+                                           Content="Connect / Disconnect" />
+                                    <TextBox Grid.Column="1"
+                                             Style="{StaticResource ShellTextBox}"
+                                             Width="170" Margin="8,0,0,0"
+                                             IsReadOnly="True"
+                                             Text="Ctrl + Alt + C" />
+                                </Grid>
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Label Grid.Column="0" Style="{StaticResource FolderLabel}"
+                                           Content="Show Streamer window" />
+                                    <TextBox Grid.Column="1"
+                                             Style="{StaticResource ShellTextBox}"
+                                             Width="170" Margin="8,0,0,0"
+                                             IsReadOnly="True"
+                                             Text="Ctrl + Alt + S" />
+                                </Grid>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <Button Grid.Row="2"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Content="Reset to Defaults"
+                                HorizontalAlignment="Right"
+                                Margin="0,14,0,0" />
+                    </Grid>
+                </TabItem>
+
+                <!-- ═══ Tab 2 — OPTIONS（两列 246 / *）═══════════════════ -->
+                <TabItem>
+                    <TabItem.Header>
+                        <TextBlock Text="OPTIONS" Style="{StaticResource TabTextBlock}" />
+                    </TabItem.Header>
+                    <Grid Style="{StaticResource PageGrid}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="246" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 左列：Label(Bold 14) + 控件 -->
+                        <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Vertical">
+                            <Label Style="{StaticResource SectionLabel}" Content="Preferred Codec" />
+                            <ComboBox Style="{StaticResource ShellComboBox}"
+                                      Width="180"
+                                      HorizontalContentAlignment="Left" />
+                            <CheckBox Style="{StaticResource ShellCheckBox}" Margin="-5,8,0,0"
+                                      Content="Adaptive quantization" />
+                            <TextBlock Style="{StaticResource MutedTextBlock}"
+                                       Margin="20,0,0,2" FontSize="11"
+                                       Text="Reduces compression artifacts in dark scenes" />
+                            <CheckBox Style="{StaticResource ShellCheckBox}" Margin="-5,8,0,0"
+                                      Content="4:4:4 Chroma subsampling" />
+                            <TextBlock Style="{StaticResource MutedTextBlock}"
+                                       Margin="20,0,0,2" FontSize="11"
+                                       Text="Improves color accuracy for desktop and games" />
+                            <Label Style="{StaticResource SectionLabel}" Margin="0,8,0,0"
+                                   Content="Audio Streaming" />
+                            <ComboBox Style="{StaticResource ShellComboBox}"
+                                      Width="210"
+                                      HorizontalContentAlignment="Left" />
+                        </StackPanel>
+
+                        <!-- 右列：纯 CheckBox 开关列 -->
+                        <StackPanel Grid.Row="0" Grid.Column="1"
+                                    Orientation="Vertical"
+                                    VerticalAlignment="Top">
+                            <CheckBox Style="{StaticResource ShellCheckBox}"
+                                      Content="Show pairing requests" />
+                            <CheckBox Style="{StaticResource ShellCheckBox}"
+                                      Content="Automatically adjust bitrate" />
+                            <TextBlock Style="{StaticResource MutedTextBlock}"
+                                       Margin="20,0,0,2" FontSize="11"
+                                       Text="Adjusts the video bitrate based on the available bandwidth" />
+                            <CheckBox Style="{StaticResource ShellCheckBox}"
+                                      Content="Start with Windows" />
+                            <CheckBox Style="{StaticResource ShellCheckBox}"
+                                      Content="Start minimized in tray" />
+                            <CheckBox Style="{StaticResource ShellCheckBox}"
+                                      Content="Lock computer on disconnect" />
+                        </StackPanel>
+
+                        <Button Grid.Row="1" Grid.ColumnSpan="2"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Content="Reset to Defaults"
+                                HorizontalAlignment="Right"
+                                Margin="0,14,0,0" />
+                    </Grid>
+                </TabItem>
+
+                <!-- ═══ Tab 3 — ADVANCED（Slider 排版）═════════════════════ -->
+                <TabItem>
+                    <TabItem.Header>
+                        <TextBlock Text="ADVANCED" Style="{StaticResource TabTextBlock}" />
+                    </TabItem.Header>
+                    <Grid Style="{StaticResource PageGrid}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="236" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 行 0：黄色说明条（官方 Info.png + 灰字） -->
+                        <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Orientation="Horizontal">
+                            <Border Width="16" Height="16"
+                                    Margin="4,0,0,0"
+                                    VerticalAlignment="Center"
+                                    Background="#FFFCA910" />
+                            <TextBlock Style="{StaticResource MutedTextBlock}"
+                                       Margin="4,0,0,0"
+                                       Text="Do NOT change the settings below unless you know what you are doing" />
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="1" Grid.ColumnSpan="2"
+                                   Style="{StaticResource MutedTextBlock}"
+                                   Margin="20,0,0,0"
+                                   Text="Requires restart of game / SteamVR to take effect" />
+
+                        <!-- 行 2：Label(Bold 14) + Slider 160 + 数值 -->
+                        <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Vertical">
+                            <Label Style="{StaticResource SectionLabel}" Content="Horizontal FOV Tangent" />
+                            <StackPanel Orientation="Horizontal">
+                                <Slider Style="{StaticResource ShellSlider}"
+                                        Minimum="0.4" Maximum="1.0"
+                                        Value="0.8" />
+                                <TextBlock Style="{StaticResource NormalTextBlock}"
+                                           Margin="5,0,0,0" FontSize="12"
+                                           HorizontalAlignment="Right"
+                                           Text="0.80" />
+                            </StackPanel>
+
+                            <Label Style="{StaticResource SectionLabel}" Margin="0,10,0,0"
+                                   Content="Vertical FOV Tangent" />
+                            <StackPanel Orientation="Horizontal">
+                                <Slider Style="{StaticResource ShellSlider}"
+                                        Minimum="0.4" Maximum="1.0"
+                                        Value="0.8" />
+                                <TextBlock Style="{StaticResource NormalTextBlock}"
+                                           Margin="5,0,0,0" FontSize="12"
+                                           HorizontalAlignment="Right"
+                                           Text="0.80" />
+                            </StackPanel>
+
+                            <Label Style="{StaticResource SectionLabel}" Margin="0,10,0,0"
+                                   Content="Render Resolution" />
+                            <StackPanel Orientation="Horizontal">
+                                <Slider Style="{StaticResource ShellSlider}"
+                                        Minimum="0.5" Maximum="2.0"
+                                        Value="1.0" />
+                                <TextBlock Style="{StaticResource NormalTextBlock}"
+                                           Margin="5,0,0,0" FontSize="12"
+                                           HorizontalAlignment="Right"
+                                           Text="1.00" />
+                            </StackPanel>
+
+                            <CheckBox Style="{StaticResource ShellCheckBox}" Margin="-5,10,0,0"
+                                      Content="Additional sharpening" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="2" Grid.Column="1"
+                                    Orientation="Vertical"
+                                    VerticalAlignment="Top">
+                            <CheckBox Style="{StaticResource ShellCheckBox}"
+                                      Content="Use Fov Stencil" />
+                            <TextBlock Style="{StaticResource MutedTextBlock}"
+                                       Margin="20,0,0,2" FontSize="11"
+                                       Text="Optimizes rendering by not drawing the corners" />
+                            <CheckBox Style="{StaticResource ShellCheckBox}"
+                                      Content="Boost game priority" />
+                            <TextBlock Style="{StaticResource MutedTextBlock}"
+                                       Margin="20,0,0,2" FontSize="11"
+                                       Text="Increases the GPU priority of games" />
+                        </StackPanel>
+
+                        <Button Grid.Row="3" Grid.ColumnSpan="2"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Content="Reset to Defaults"
+                                HorizontalAlignment="Right"
+                                Margin="0,14,0,0" />
+                    </Grid>
+                </TabItem>
+
+                <!-- ═══ Tab 4 — MEDIA ═════════════════════════════════════ -->
+                <TabItem>
+                    <TabItem.Header>
+                        <TextBlock Text="MEDIA" Style="{StaticResource TabTextBlock}" />
+                    </TabItem.Header>
+                    <Grid Background="{StaticResource PageBrush}" Margin="24,8,0,8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="16" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Screenshots 区块 -->
+                        <StackPanel Grid.Row="0" Orientation="Horizontal">
+                            <Border Width="16" Height="16" Margin="4,0,0,0"
+                                    VerticalAlignment="Center"
+                                    Background="{StaticResource MutedBrush}" />
+                            <Label Style="{StaticResource FolderLabel}" Content="Screenshots" />
+                        </StackPanel>
+                        <TextBlock Grid.Row="0" Grid.Column="1"
+                                   Style="{StaticResource MutedTextBlock}"
+                                   Margin="8,0,0,0"
+                                   TextTrimming="CharacterEllipsis"
+                                   Text="C:\Users\Public\Pictures\Virtual Desktop" />
+                        <Button Grid.Row="0" Grid.Column="2"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Content="Change location..."
+                                Margin="8,0,16,0" />
+                        <TextBlock Grid.Row="1" Grid.ColumnSpan="3"
+                                   Style="{StaticResource MutedTextBlock}"
+                                   Margin="24,2,0,0" FontSize="11"
+                                   Text="Screenshots taken in VR will be copied to this folder" />
+
+                        <!-- Videos 区块 -->
+                        <StackPanel Grid.Row="3" Orientation="Horizontal">
+                            <Border Width="16" Height="16" Margin="4,0,0,0"
+                                    VerticalAlignment="Center"
+                                    Background="{StaticResource MutedBrush}" />
+                            <Label Style="{StaticResource FolderLabel}" Content="Videos" />
+                        </StackPanel>
+                        <TextBlock Grid.Row="3" Grid.Column="1"
+                                   Style="{StaticResource MutedTextBlock}"
+                                   Margin="8,0,0,0"
+                                   TextTrimming="CharacterEllipsis"
+                                   Text="D:\Videos" />
+                        <Button Grid.Row="3" Grid.Column="2"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Content="Change location..."
+                                Margin="8,0,16,0" />
+                        <TextBlock Grid.Row="4" Grid.ColumnSpan="3"
+                                   Style="{StaticResource MutedTextBlock}"
+                                   Margin="24,2,0,0" FontSize="11"
+                                   Text="Videos from this location will be accessible in VR" />
+
+                        <!-- 视频文件夹列表：列 Auto / Auto(90) / * / Auto -->
+                        <ScrollViewer Grid.Row="5" Grid.ColumnSpan="3"
+                                      VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="8,8,8,0">
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" MinWidth="90" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="16" Height="16"
+                                            Margin="4" VerticalAlignment="Center"
+                                            Background="{StaticResource MutedBrush}" />
+                                    <Label Grid.Column="0" Style="{StaticResource FolderLabel}"
+                                           Margin="24,0,0,0"
+                                           Content="Folder" />
+                                    <TextBlock Grid.Column="1"
+                                               Style="{StaticResource MutedTextBlock}"
+                                               Margin="4"
+                                               TextTrimming="CharacterEllipsis"
+                                               Text="D:\Videos\Captures" />
+                                    <Button Grid.Column="2"
+                                            Style="{StaticResource PrimaryButtonStyle}"
+                                            Content="Remove"
+                                            Margin="8,0,16,0" />
+                                </Grid>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <Button Grid.Row="6" Grid.ColumnSpan="3"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Content="Add video folder..."
+                                HorizontalAlignment="Left"
+                                Margin="0,10,0,10" />
+                    </Grid>
+                </TabItem>
+
+                <!-- ═══ Tab 5 — ABOUT（检测项「标签-值」表）═══════════════ -->
+                <TabItem>
+                    <TabItem.Header>
+                        <TextBlock Text="ABOUT" Style="{StaticResource TabTextBlock}" />
+                    </TabItem.Header>
+                    <Grid Style="{StaticResource PageGrid}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 网络与串流链路诊断项 —— 官方同款视觉语言 -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource AboutTextBlock}"
+                                   Text="Graphics Card:" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" Style="{StaticResource NormalTextBlock}"
+                                   Margin="3" Text="—" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource AboutTextBlock}"
+                                   Text="Headset:" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Style="{StaticResource NormalTextBlock}"
+                                   Margin="3" Text="—" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource AboutTextBlock}"
+                                   Text="Codec:" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" Style="{StaticResource NormalTextBlock}"
+                                   Margin="3" Text="—" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource AboutTextBlock}"
+                                   Text="Latency:" />
+                        <TextBlock Grid.Row="3" Grid.Column="1" Style="{StaticResource NormalTextBlock}"
+                                   Margin="3" Text="—" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource AboutTextBlock}"
+                                   Text="PC Ethernet:" />
+                        <TextBlock Grid.Row="4" Grid.Column="1" Style="{StaticResource NormalTextBlock}"
+                                   Margin="3" Text="—" />
+
+                        <TextBlock Grid.Row="5" Grid.Column="0" Style="{StaticResource AboutTextBlock}"
+                                   Text="Remote Routing:" />
+                        <TextBlock Grid.Row="5" Grid.Column="1" Style="{StaticResource NormalTextBlock}"
+                                   Margin="3" Text="—" />
+
+                        <TextBlock Grid.Row="6" Grid.Column="0" Style="{StaticResource AboutTextBlock}"
+                                   Text="Router Settings:" />
+                        <TextBlock Grid.Row="6" Grid.Column="1" Style="{StaticResource NormalTextBlock}"
+                                   Margin="3">
+                            <Hyperlink NavigateUri="https://www.vrdesktop.net"
+                                       Foreground="#2e79bd">www.vrdesktop.net</Hyperlink>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="7" Grid.Column="0" Style="{StaticResource AboutTextBlock}"
+                                   Text="Secure Boot:" />
+                        <TextBlock Grid.Row="7" Grid.Column="1" Style="{StaticResource NormalTextBlock}"
+                                   Margin="3" Text="—" />
+
+                        <!-- 按钮行：照官方 ABOUT 底部三个动作 -->
+                        <StackPanel Grid.Row="9" Grid.ColumnSpan="2"
+                                    Orientation="Horizontal"
+                                    VerticalAlignment="Top">
+                            <Button Style="{StaticResource PrimaryButtonStyle}"
+                                    Content="Run diagnostics..."
+                                    Margin="0,10,10,0" />
+                            <Button Style="{StaticResource PrimaryButtonStyle}"
+                                    Content="Repair..."
+                                    Margin="0,10,10,0" />
+                            <Button Style="{StaticResource PrimaryButtonStyle}"
+                                    Content="Show logs"
+                                    Margin="0,10,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </TabItem>
+
+            </TabControl>
+        </Grid>
+
+        <!-- ─── 行 2：状态栏（官方 MainWindow.xaml:1368-1458）─────────── -->
+        <Border Grid.Row="2"
+                Background="{StaticResource TitleBarBrush}"
+                CornerRadius="0,0,8,8">
+            <Grid VerticalAlignment="Center" Margin="12,0,12,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" MinWidth="60" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           VerticalAlignment="Center"
+                           Foreground="#808080"
+                           Margin="4"
+                           Text="Version:" />
+                <TextBlock Grid.Column="1"
+                           VerticalAlignment="Center"
+                           Foreground="#A0A0A0"
+                           Margin="4"
+                           Text="0.1.0" />
+
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
+                            Margin="12,0,12,0">
+                    <!-- 官方状态栏按钮：图标 16×16 + 文字间距 8 -->
+                    <Button Style="{StaticResource PrimaryButtonStyle}"
+                            Padding="10,0"
+                            HorizontalAlignment="Right"
+                            ToolTip="Copy diagnostics report to clipboard">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="16" Height="16"
+                                    Background="{StaticResource LinkBrush}" />
+                            <TextBlock Margin="8,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Text="Copy report" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- 下载进度区：官方 Width=260 + ProgressBar Height=6 -->
+                    <StackPanel Width="260"
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Stretch"
+                                Margin="12,0"
+                                Visibility="Collapsed">
+                        <TextBlock Style="{StaticResource NormalTextBlock}"
+                                   FontSize="12"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,2,0,0"
+                                   Text="Downloading" />
+                        <ProgressBar Height="6"
+                                     Margin="0,3"
+                                     Background="#00FFFFFF"
+                                     BorderThickness="1"
+                                     BorderBrush="{StaticResource BorderBrush}"
+                                     Value="40" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

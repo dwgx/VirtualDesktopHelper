@@ -1,0 +1,72 @@
+# 03-build-proof —— 02-shell.xaml 编译验证真实输出
+
+> 生成时间: 2026-10-05 / agent: 反向工程子任务
+> 环境: dotnet SDK `10.0.400`（C:\Program Files\dotnet\sdk），WindowsDesktop 运行时 `Microsoft.WindowsDesktop.App 10.0.11`
+> 验证目标: `research/05-ui-reverse/02-shell.xaml` 能否被 WPF XAML 编译器接受
+
+```
+$ cd D:/Project/VirtualDesktopHelper/research/05-ui-reverse/build
+$ dotnet build ShellProof.csproj -v minimal
+
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  ShellProof -> D:\Project\VirtualDesktopHelper\research\05-ui-reverse\build\bin\Debug\net10.0-windows\VDHelper.ShellProof.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.93
+```
+
+---
+
+## 补充证据：XAML 确实被编译成 BAML（不是被跳过）
+
+`dotnet build` 通过只说明编译器没报错；WPF 有可能因为 glob 没匹配到文件而「空跑」。
+下面三条证明 `02-shell.xaml` 被真实编译并嵌入程序集。
+
+```
+$ ls -la obj/Debug/net10.0-windows/02-shell.baml \
+         bin/Debug/net10.0-windows/VDHelper.ShellProof.dll \
+         obj/Debug/net10.0-windows/VDHelper.ShellProof.g.resources
+
+-rwxrwxrwx ...  26548  02-shell.baml                     ← MarkupCompilePass2 产物
+-rwxrwxrwx ...  26772  VDHelper.ShellProof.g.resources    ← 打包进程序集的 BAML 容器
+-rwxrwxrwx ...  32256  VDHelper.ShellProof.dll            ← 最终程序集
+```
+
+`02-shell.baml`（26.5 KB）与 `02-shell.xaml`（63 KB 源码，含大量注释与缩进）体积相当，
+说明整棵树都通过了 BAML 序列化，而不是被静默跳过。
+
+```
+$ grep -nE 'namespace|partial class|InitializeComponent' obj/Debug/net10.0-windows/02-shell.g.cs
+
+34:namespace VDHelper.Shell {
+40:    public partial class ShellWindow : System.Windows.Window, System.Windows.Markup.IComponentConnector {
+49:        public void InitializeComponent() {
+```
+
+生成的 `.g.cs` 证实 `x:Class="VDHelper.Streamer.ShellWindow"` 的类型已按 WPF 规则构造。
+
+## 过程中修掉的 3 个真实编译错误（均为可复现的坑）
+
+| # | 错误 | 原因 | 修法 |
+|---|---|---|---|
+| 1 | `NETSDK1013: The TargetFramework value '' was not recognized` | 编辑 csproj 时误把 `TargetFramework` 行覆盖成了 `RootNamespace`，导致重复属性 | 恢复 `<TargetFramework>net10.0-windows</TargetFramework>` 并删掉重复 `RootNamespace` |
+| 2 | `MC3072: The property 'Content' does not exist ... Line 948` | `Hyperlink` 继承自 `Span`（有 `Text`），**没有** `Content` 属性 | 改成元素体 `<Hyperlink ...>www.vrdesktop.net</Hyperlink>` |
+| 3 | `CS0103: The name 'InitializeComponent' does not exist` | 手写的 code-behind 命名空间与 MSBuild 生成的 `.g.cs` 命名空间不一致（`VDHelper.Streamer` vs `VDHelper.Shell`） | 把 code-behind 命名空间改成 `VDHelper.Shell` |
+
+坑 3 值得记一笔：**`RootNamespace` 只影响自动生成的 `.g.cs` 命名空间，不影响 `x:Class` 里写的名字**，
+两者不一致时编译期只在调用 `InitializeComponent()` 的那行报 `CS0103`，看不出根因。
+另外 SDK 默认 glob 会排除 `*.g.cs`，手写 code-behind 若命名成 `X.g.cs` 会被静默忽略 —— 已改名为 `ShellWindow.CodeBehind.cs`。
+
+## 复现方式
+
+```
+cd D:/Project/VirtualDesktopHelper/research/05-ui-reverse/build
+dotnet build ShellProof.csproj
+```
+
+详见 `build/README.md`。工程为 `OutputType=Library` + `net10.0-windows` + `UseWPF=true`，
+引用上层 `../02-shell.xaml`（**不复制**，改骨架后重新 build 即刻验证），全程不启动任何 GUI 进程。

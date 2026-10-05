@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShellProof.csproj — 02-shell.xaml 的编译验证工程
+    用途：在不启动任何 GUI 的前提下，验证 02-shell.xaml 是语法/结构合法的 WPF 标记，
+          并让 MSBuild 的 MarkupCompilePass 真正跑一遍 XAML 编译。
+    临时性质：本工程只为 build proof 存在，可以随时整个删掉，不进 src/。
+  -->
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+    <AssemblyName>VDHelper.ShellProof</AssemblyName>
+    <RootNamespace>VDHelper.Streamer</RootNamespace>
+    <!-- XAML 里以 /Resources/ 之类的 pack URI 出现的能力不需要真实资源 -->
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 被验证的骨架：直接引用上层目录的真实文件，不复制 -->
+    <Page Include="..\02-shell.xaml">
+      <Link>02-shell.xaml</Link>
+    </Page>
+  </ItemGroup>
+
+</Project>
