@@ -22,6 +22,40 @@ public static class StreamerChecks
     public const string StreamerLog = ProgramData + @"\StreamerLog.txt";
     public const string StreamerExe = @"C:\Program Files\Virtual Desktop Streamer\VirtualDesktop.Streamer.exe";
 
+    /// <summary>
+    /// Where the Streamer actually is on this machine.
+    /// <para>
+    /// The constant is only the default install location. If VD was installed elsewhere, every
+    /// "restart the Streamer" and every firewall rule built from this path points at a file that is
+    /// not there, and streamer-proc would report "未安装" while the process is plainly running. So
+    /// when it is running, ask the process where it lives.
+    /// </para>
+    /// <para>
+    /// Reading MainModule of a process owned by another account or running elevated throws, hence
+    /// the fallback: a hard failure here would be worse than a wrong-but-working default.
+    /// </para>
+    /// </summary>
+    public static string ResolveStreamerExe()
+    {
+        Process[] running;
+        try { running = Process.GetProcessesByName("VirtualDesktop.Streamer"); }
+        catch { return StreamerExe; }
+        try
+        {
+            foreach (var p in running)
+            {
+                try
+                {
+                    var path = p.MainModule?.FileName;
+                    if (!string.IsNullOrWhiteSpace(path) && File.Exists(path)) return path;
+                }
+                catch { /* elevated or another account — try the next one, else fall back */ }
+            }
+        }
+        finally { foreach (var p in running) p.Dispose(); }
+        return StreamerExe;
+    }
+
     /// <summary>PIDs of every running Streamer process; empty when it is not running.</summary>
     public static IReadOnlyList<int> StreamerProcessIds()
     {
@@ -84,7 +118,8 @@ public static class StreamerChecks
                     ["进程"] = running.Length > 0
                         ? string.Join(", ", running.Select(p => p.Id.ToString()))
                         : "未运行",
-                    ["可执行文件"] = File.Exists(StreamerExe) ? StreamerExe : "未安装（" + StreamerExe + "）",
+                    ["可执行文件"] = ResolveStreamerExe()
+                        + (File.Exists(StreamerExe) ? "" : "（默认路径下没有；上面是正在运行的那个进程的实际位置）"),
                 };
                 foreach (var p in running) p.Dispose();
 

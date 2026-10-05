@@ -115,7 +115,7 @@ public static class Fixes
         var before = Before();
         var script =
             "Get-Process -Name 'VirtualDesktop.Streamer' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction Stop; "
-            + "Start-Sleep -Seconds 2; Start-Process '" + StreamerChecks.StreamerExe + "'";
+            + "Start-Sleep -Seconds 2; Start-Process '" + StreamerChecks.ResolveStreamerExe() + "'";
 
         var (ok, detail) = await ElevatedAsync(script, ct).ConfigureAwait(false);
         if (!ok)
@@ -266,11 +266,11 @@ public static class Fixes
         new FixAction(
             "streamer-launch",
             "启动 Virtual Desktop Streamer",
-            $"Start-Process '{StreamerChecks.StreamerExe}'",
+            $"Start-Process '{StreamerChecks.ResolveStreamerExe()}'",
             "只启动进程，不改任何配置。",
             "Stop-Process -Name 'VirtualDesktop.Streamer' -Force",
             FixRisk.Low,
-            ct => RunPsAsync($"Start-Process '{StreamerChecks.StreamerExe}'", "Virtual Desktop Streamer", ct)),
+            ct => RunPsAsync($"Start-Process '{StreamerChecks.ResolveStreamerExe()}'", "Virtual Desktop Streamer", ct)),
     ];
 
     /// <summary>

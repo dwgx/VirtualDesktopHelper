@@ -179,7 +179,7 @@ public static class MachineStateChecks
             new("cfg-version", "Streamer 版本", "PC 端装的是哪个版本？", "配置"),
             ct =>
             {
-                var exe = StreamerChecks.StreamerExe;
+                var exe = StreamerChecks.ResolveStreamerExe();
                 var ev = new Dictionary<string, string> { ["可执行文件"] = exe };
                 if (!File.Exists(exe))
                     return Task.FromResult(new CheckResult("cfg-version", CheckStatus.Unknown,
