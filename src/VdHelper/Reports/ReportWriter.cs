@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using VdHelper.Core.Health;
@@ -454,6 +454,24 @@ public static class ReportWriter
 
         private static string E(string s) => WebUtility.HtmlEncode(s);
 
+        /// <summary>
+        /// Escapes, then renders the small Markdown subset that check text actually uses:
+        /// **bold**, `code`, and blank-line paragraph breaks.
+        /// <para>
+        /// The HTML report previously escaped only, so every "**为什么**" line in a shareable
+        /// report shipped to a GitHub issue showed raw asterisks — while the CSS right next to it
+        /// styled a &lt;b&gt; that was never emitted. Order matters: escape first, then substitute,
+        /// so a literal &lt; in the text can never become markup.
+        /// </para>
+        /// </summary>
+        private static string Em(string s)
+        {
+            var h = WebUtility.HtmlEncode(s ?? "");
+            h = System.Text.RegularExpressions.Regex.Replace(h, @"\*\*(.+?)\*\*", "<strong>$1</strong>");
+            h = System.Text.RegularExpressions.Regex.Replace(h, @"`([^`]+)`", "<code>$1</code>");
+            return h.Replace("\r\n", "\n").Replace("\n\n", "</p><p>").Replace("\n", "<br>");
+        }
+
         public static string Head(Meta m) => $"""
             <!DOCTYPE html>
             <html lang="zh-CN">
@@ -517,20 +535,20 @@ public static class ReportWriter
             var sb = new StringBuilder();
             var title = item.Definition is null ? "" : $" — {E(item.Definition.Title)}";
             sb.AppendLine($"<h4>{item.Number}. <span class=\"badge b-{cls}\">{Badge(r.Status)}</span> <code>{E(r.Id)}</code>{title}</h4>");
-            sb.AppendLine($"<p class=\"sum\">{E(Redact(r.Summary))}</p>");
+            sb.AppendLine($"<p class=\"sum\">{Em(Redact(r.Summary))}</p>");
             if (!string.IsNullOrWhiteSpace(r.Detail))
-                sb.AppendLine($"<div class=\"why\"><b>为什么</b>{E(Redact(r.Detail))}</div>");
+                sb.AppendLine($"<div class=\"why\"><b>为什么</b><p>{Em(Redact(r.Detail))}</p></div>");
             if (r.Fixes.Count > 0)
             {
                 sb.AppendLine("<div class=\"why\"><b>可以做的修复</b><ul>");
                 foreach (var f in r.Fixes)
-                    sb.AppendLine($"<li><code>{E(f.Id)}</code>（风险 {f.Risk}）{E(f.Title)} — {E(Redact(f.What))}"
-                        + $"<br>备份：{E(Redact(f.Backup))}　回滚：{E(Redact(f.Rollback))}"
+                    sb.AppendLine($"<li><code>{E(f.Id)}</code>（风险 {f.Risk}）{Em(f.Title)} — {Em(Redact(f.What))}"
+                        + $"<br>备份：{Em(Redact(f.Backup))}　回滚：{Em(Redact(f.Rollback))}"
                         + (f.NeedsElevation ? "<br>会弹 UAC，需要你点确认。" : "") + "</li>");
                 sb.AppendLine("</ul></div>");
             }
             if (!string.IsNullOrWhiteSpace(r.Guidance))
-                sb.AppendLine($"<div class=\"why\"><b>只能指引、不能自动做的事</b>{E(Redact(r.Guidance))}</div>");
+                sb.AppendLine($"<div class=\"why\"><b>只能指引、不能自动做的事</b><p>{Em(Redact(r.Guidance))}</p></div>");
             var evidence = Reportable(r);
             if (evidence.Count > 0)
                 sb.AppendLine("<details><summary>原始输出（点击展开）</summary><pre>"

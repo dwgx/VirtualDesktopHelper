@@ -1,0 +1,17 @@
+fix: the shareable HTML report showed raw ** instead of bold text
+
+Same lesson as the docs CSS, applied to the other artifact nobody had rendered: the report had
+only ever been verified by extracting its text, which looked fine because the text was fine.
+
+The HTML path escaped but never converted, so every check's 为什么 paragraph shipped raw asterisks
+into a file whose whole purpose is to be pasted into a GitHub issue. The CSS even styles a <b> in
+.why that the writer never emitted. Blank lines inside that text also ran together as one paragraph.
+
+Em() now escapes first, then renders the subset check text actually uses: **bold**, `code`, and
+blank-line paragraph breaks. Escaping happens before substitution so a literal < in check text can
+never become markup. Applied to the same prose fields — Summary, Guidance, What, Backup, Rollback —
+while ids and enums stay escape-only.
+
+Verified by rendering the report: literal ** count is now 0 across the whole file, 15 <strong> tags
+emitted, and the paragraph split renders. Markdown export unaffected (70 为什么 headers, DPAPI
+redaction still 0 hits).
