@@ -24,7 +24,7 @@
 | 警告 | **cfg-streamer** | ShowPairingRequests=false：靠弹窗配对新头显会被静默忽略（靠名字在客户端选则不受影响）；DontWarnApps 含 NetworkProfile：官方自己的网络告警被屏蔽了；AutoAdjustBitrate=false：自动调码率已关，卡在「measuring bandwidth」时社区的首选解法就是把它打开 |
 | 警告 | **ics** | SharedAccess(ICS)：Running |
 | 通过 | **fw-outbound** | 出站策略：Domain          NotConfigured / Private         NotConfigured / Public          NotConfigured |
-| 通过 | **av** | 已注册杀软：Windows Defender :: 397568 |
+| 通过 | **av** | 已注册杀软：Windows Defender（productState 原值见下方原始输出，未解码：那是各版本含义不一的位掩码） |
 | 通过 | **route-metric** | 有线网卡优先级 10，没有虚拟网卡排在它前面 |
 | 通过 | **link-type** | PC 走有线（Ethernet） |
 | 阻断 | **lan-reach** | 头显 192.168.11.14 ping 不通（ARP 缓存里也没有它） |
@@ -36,12 +36,12 @@
 | 通过 | **accounts-persisted** | 配对信息已落盘（OculusQuest 1 条、Oculus 3 条），设备名 Meta Quest 3 |
 | 警告 | **fw-profile-inbound** | profile 默认入站：Domain     True        NotConfigured / Private   False        NotConfigured / Public    False        NotConfigured |
 | 警告 | **gpu-pick** | Virtual Desktop Monitor |
-| 警告 | **proc-tuner** | 硬件调校类命中 6 个（占 CPU、抢主线程） |
+| 警告 | **proc-tuner** | 按进程名命中硬件调校类 6 个（未测 CPU 占用或线程优先级，只按名字匹配） |
 | Unknown | **nic-powersave** | 读不到网卡电源管理属性 |
 | 警告 | **display-inventory** | Virtual Desktop Monitor(Error) |
 | 通过 | **cfg-version** | Streamer 版本 1.34.22.0 |
 | 通过 | **gpu-encoder** | 硬件编码器空闲（当前 0 个编码会话） |
-| 警告 | **gpu-throttle** | GPU 跑在最高频率的 76%（2355/3090 MHz），温度只有 55°C |
+| 警告 | **gpu-throttle** | GPU 跑在最高频率的 77%（2377/3090 MHz），温度只有 55°C |
 | Unknown | **wifi-quality** | 无线未连接（disconnected），这一项没有测到任何链路数据 |
 | 警告 | **net-loss** | 头显 192.168.11.14 完全不应答（0 收到） |
 

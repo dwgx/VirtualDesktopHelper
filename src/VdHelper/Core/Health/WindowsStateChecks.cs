@@ -169,7 +169,14 @@ public static class WindowsStateChecks
             CheckStatus.Warn,
             e => HealthChecks.Lines(e).Count == 0
                  || HealthChecks.Lines(e).All(l => l.Contains("Windows Defender", StringComparison.OrdinalIgnoreCase)),
-            e => "已注册杀软：" + (HealthChecks.Lines(e).Count == 0 ? "(读不到 SecurityCenter2)" : string.Join(" ;; ", HealthChecks.Lines(e))),
+            e =>
+            {
+                var lines = HealthChecks.Lines(e);
+                if (lines.Count == 0) return "已注册杀软：(读不到 SecurityCenter2)";
+                var names = lines.Select(l => l.Split(" :: ")[0].Trim()).Where(s => s.Length > 0);
+                return "已注册杀软：" + string.Join(" ;; ", names)
+                     + "（productState 原值见下方原始输出，未解码：那是各版本含义不一的位掩码）";
+            },
             _ => "官方 FAQ 点名：McAfee/Norton 需禁用或加例外；Avast/AVG 需把网络配置文件设为 Private。",
             Array.Empty<FixAction>(),
             "自动禁用杀软是绝对禁止的：工具只报名称，指引用户在该软件里放行 Virtual Desktop Streamer 与其服务。");

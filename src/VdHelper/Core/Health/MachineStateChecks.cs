@@ -93,7 +93,7 @@ public static class MachineStateChecks
                 if (boosters.Count > 0)
                     parts.Add($"网络加速类命中 {boosters.Count} 个（会改网络路径）");
                 if (tuners.Count > 0)
-                    parts.Add($"硬件调校类命中 {tuners.Count} 个（占 CPU、抢主线程）");
+                    parts.Add($"按进程名命中硬件调校类 {tuners.Count} 个（未测 CPU 占用或线程优先级，只按名字匹配）");
                 return new CheckResult("proc-tuner", CheckStatus.Warn, string.Join("；", parts),
                     "这不是它们一定有问题，而是**排查这类症状时应该第一个排除的对象**："
                     + "先临时停用再测一次，如果症状消失就是它。这是诊断手段，不是永久建议。",
