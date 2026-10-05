@@ -47,9 +47,15 @@ public sealed class HeadsetProbe(AdbClient adb)
 
         var devices = await adb.RunAsync(["devices", "-l"], 8000, ct);
         ev["adb devices"] = string.Join(" ;; ", devices.Lines);
+        // adb separates serial and state with a TAB, not a space. Splitting on ' ' produced
+        // "2G0YC5ZHBD01XF<TAB>device" as the serial, adb rejected every -s call with
+        // "device ... not found", pidof then failed, and this check reported Block — "the client is
+        // installed but no process is running" — pointing the user at the client's Kill paths for a
+        // reason that had nothing to do with them. HeadsetDeepProbe.ParseDevices already split on
+        // any whitespace; two parsers for one input, one right and one wrong.
         var serials = devices.Lines
             .Skip(1)
-            .Select(l => l.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault())
+            .Select(l => l.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault())
             .Where(s => !string.IsNullOrEmpty(s))
             .ToList();
 

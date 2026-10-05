@@ -98,7 +98,7 @@
 | Expander | — | `CornerRadius="3"` `BorderThickness="1"` `Padding="2"`；header 是 `ToggleButton` | `Metrodark.Mscontrols.Core.Implicit.xaml:1611-1679` |
 | Slider thumb | — | `Ellipse 16×16`，聚焦时叠一个 `Ellipse StrokeThickness="2" Opacity=0` | 同上 `:212-223` |
 | TabItem | 48（首项 56） | `Width="160"` `Padding="16"` | `MainWindow.xaml:110-121, 316-319` |
-| 对话框按钮 | — | `Width="80"`，间距 `Margin="10 0 0 0"` | `S/VirtualDesktop/UI/MessageBoxWindow.xaml` 按钮行 |
+| 对话框按钮 | — | `Width="80"`（三个 `PART_Button1/2/3`），间距 `Margin="10 0 0 0"` | `S/VirtualDesktop/UI/MessageBoxWindow.xaml:141, 146, 152` |
 
 ### 1.6 排版层级（字号）
 
@@ -119,7 +119,8 @@
 
 ### 1.7 调色板：官方**没有语义色**
 
-`S/Themes/Metrodark/Theme.Colors.xaml:1-149` 定义了 76 个色键，但**实际被引用的只有 12 个**
+`S/Themes/Metrodark/Theme.Colors.xaml:1-149` 定义了 **64 个** `Color_*` 色键（`grep -c 'x:Key="Color_'` 实测）
+加 5 个 `Brush0*`（`:6-20`），但**实际被引用的只有 12 个**
 （`grep -rc "StaticResource Color_0NN}" --include=*.xaml` 逐键计数）：
 
 | 色键 | 值 | 被引用次数 | 用途 |
@@ -216,7 +217,7 @@ ABOUT 页的「潜在问题」按钮用 `Piracy.png`（`MainWindow.xaml:1360-136
 **三个必须点名的事实**：
 
 1. **`PassBrush` / `WarnBrush` / `BlockBrush` 三个键定义在 `App.xaml:25-27`，但引用次数是 0**
-   （`grep -rc "StaticResource PassBrush}" R/src/VdHelper` = 0）。真正生效的是
+   （`grep -rc --include=*.xaml --include=*.cs "StaticResource PassBrush}" R/src/VdHelper` = 0）。真正生效的是
    `StatusConverters.cs:14-20` 里**另外一套**硬编码色值。两套并存、其中一套是死的。
 2. **`LineBrush`（`#2E2E2E`）被引用 7 次，是全 App 引用最多的色键**，而官方的全局边框是
    `Color_006 = #AA444444`（`S/Themes/Generic.xaml:17-19`）。我们的边框比官方更暗。
