@@ -332,7 +332,7 @@ public static class ApplyFix
         }
 
         if (!wantedList)
-            Console.WriteLine(report.VerdictText);
+            Console.WriteLine("（上面这句判定是修复之前算的。重跑一次 --selftest 看现在的状态。）" + report.VerdictText);
         return 0;
     }
 }
