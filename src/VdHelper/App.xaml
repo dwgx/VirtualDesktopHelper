@@ -9,26 +9,19 @@
         Source: research/05-ui-reverse/01-ui-spec.md
     -->
     <Application.Resources>
+        <ResourceDictionary>
+        <ResourceDictionary.MergedDictionaries>
+            <!-- Expander / ScrollBar / ScrollViewer / TextBox. Without these WPF paints its own:
+                 a white disc on every check row and a 17px white bar beside every list. -->
+            <ResourceDictionary Source="Resources/Theme.Palette.xaml" />
+            <ResourceDictionary Source="Resources/Theme.Controls.xaml" />
+        </ResourceDictionary.MergedDictionaries>
+
         <local:StatusToBrushConverter x:Key="StatusBrush" />
         <local:StatusToTextConverter x:Key="StatusText" />
         <local:StringToVisibilityConverter x:Key="StringToVisible" />
         <BooleanToVisibilityConverter x:Key="BoolToVisible" />
 
-        <SolidColorBrush x:Key="TitleBrush" Color="#1D1D1D" />
-        <SolidColorBrush x:Key="BodyBrush" Color="#151515" />
-        <SolidColorBrush x:Key="ContentBrush" Color="#101010" />
-        <SolidColorBrush x:Key="InkBrush" Color="#E8E8E8" />
-        <SolidColorBrush x:Key="MutedBrush" Color="#9A9A9A" />
-        <SolidColorBrush x:Key="AccentBrush" Color="#2E79BD" />
-        <SolidColorBrush x:Key="HoverBrush" Color="#262626" />
-        <SolidColorBrush x:Key="LineBrush" Color="#2E2E2E" />
-        <SolidColorBrush x:Key="PassBrush" Color="#5BC85B" />
-        <SolidColorBrush x:Key="WarnBrush" Color="#E0A030" />
-        <SolidColorBrush x:Key="BlockBrush" Color="#E05B5B" />
-        <SolidColorBrush x:Key="UnknownBrush" Color="#8A8F98" />
-
-        <FontFamily x:Key="UiFont">Verdana</FontFamily>
-        <sys:Double x:Key="BodySize" xmlns:sys="clr-namespace:System;assembly=mscorlib">14.667</sys:Double>
 
         <Style x:Key="ChromeText" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
@@ -140,5 +133,5 @@
                 </Setter.Value>
             </Setter>
         </Style>
-    </Application.Resources>
+        </ResourceDictionary>    </Application.Resources>
 </Application>
