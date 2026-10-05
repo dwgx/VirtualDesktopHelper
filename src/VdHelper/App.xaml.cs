@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿using System.Text.Json;
+﻿﻿﻿﻿﻿﻿﻿﻿﻿using System.Text.Json;
 using VdHelper.Core.Config;
 using VdHelper.Core.Model;
 using System.Runtime.InteropServices;
@@ -398,7 +398,7 @@ public static class SetParam
             p.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
         if (info is null)
         {
-            Console.WriteLine($"未知参数 {key}（不是调研表里的 111 个键之一）");
+            Console.WriteLine($"未知参数 {key}（不是调研表里的 {Core.Config.ParameterCatalog.All.Count} 个键之一）");
             return 2;
         }
         if (info.ReadOnly)
@@ -436,6 +436,22 @@ public static class SetParam
         try
         {
             var value = JsonDocument.Parse(literal).RootElement.Clone();
+        // The catalog carries Type, Range and Caution, and until now --set-param read none of them:
+            // ParameterInfo was consulted for Key, ReadOnly, Secret and LivesOnPc only. So the range
+            // column was documentation with no reader — `--set-param VideoRootPath "C:\Windows\System32"`
+            // went in verbatim, an enum took 999, a float ignored its stated slider range. Refuse what the
+            // catalog itself says is out of range, rather than writing it and finding out later.
+            if (!ParameterValues.IsAcceptable(info, value, out var why))
+            {
+                Console.WriteLine($"{key} 的取值「{value}」不合要求：{why}");
+                Console.WriteLine($"  目录写的类型：{info.Type}"
+                    + (info.Range.Length > 0 && info.Range != "(无)" ? $"；取值范围：{info.Range}" : ""));
+                Console.WriteLine("  没有写入任何东西。");
+                return 7;
+            }
+            if (info.Caution)
+                Console.WriteLine($"注意：{key} 在调研表里标了 caution —— {info.Effect}");
+
             var result = Core.Config.StreamerConfigWriter.Write(
                 Core.Config.StreamerSettings.DefaultPath, key, value);
             if (!result.Success)
