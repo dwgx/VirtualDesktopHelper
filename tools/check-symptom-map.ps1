@@ -57,7 +57,25 @@ if ($unreachable) {
     $unreachable | ForEach-Object { Write-Host ("     " + $_) -ForegroundColor Red }
 }
 
-if ($dangling -or $unreachable) { exit 1 }
+# README 里手写的检测项数量必须与实际一致。这个数字已经漂过两次（工具涨到 27 项时、
+# 34 项时都没跟上），所以把它变成一条会失败的检查，而不是靠记性。
+$readmePath = Join-Path $root 'README.md'
+$readmeStale = $false
+if (Test-Path -LiteralPath $readmePath) {
+    $readme = [System.IO.File]::ReadAllText($readmePath, [System.Text.Encoding]::UTF8)
+    foreach ($m in [regex]::Matches($readme, '(\d+)\s*项')) {
+        if ([int]$m.Groups[1].Value -ne $real.Count) {
+            Write-Host ""
+            Write-Host ("FAIL README 写的『" + $m.Value + "』与实际 " + $real.Count + " 项检测不符") -ForegroundColor Red
+            $readmeStale = $true
+        }
+    }
+    if (-not $readmeStale) {
+        Write-Host ("README 声明项数    : " + $real.Count + "（一致）")
+    }
+}
+
+if ($dangling -or $unreachable -or $readmeStale) { exit 1 }
 Write-Host ""
-Write-Host "OK  症状表与检测项一一对应" -ForegroundColor Green
+Write-Host "OK  症状表与检测项一一对应，README 计数同步" -ForegroundColor Green
 exit 0
