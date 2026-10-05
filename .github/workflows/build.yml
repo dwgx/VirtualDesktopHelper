@@ -51,6 +51,14 @@ jobs:
         shell: pwsh
         run: python tools/check-citations.py
 
+      # The issue template was silently invalid for a while: it had the legacy front-matter shape
+      # with no `body:` key, which a YAML issue form requires. Nothing in the build noticed.
+      - name: Issue form gate
+        shell: pwsh
+        run: |
+          python -m pip install --quiet pyyaml
+          python tools/check-issue-form.py
+
       - name: Publish
         run: dotnet publish src/VdHelper/VdHelper.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o out
 
