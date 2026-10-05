@@ -24,6 +24,12 @@
                       S/Themes/Metrodark/Styles.Wpf.xaml:509-547
           TextBox     MinHeight=30 Padding="6,3"
                       S/Themes/Metrodark/Styles.Wpf.xaml:1414-1419
+
+    All three are now verified by render. The TextBox lives in HeadsetView.xaml:31 and was
+    the last of them; captured on the third screen, it shows the dark 30px rounded field
+    this template draws rather than the stock control. Note that HeadsetView sets
+    Background and Padding locally, so it keeps its own values and only takes the
+    template's shape.
     -->
 
     <!-- 1px hairline in the chrome colour. A 1px border without this snaps to half-pixels and
