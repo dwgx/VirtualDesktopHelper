@@ -127,27 +127,43 @@ public static class WifiQualityCheck
                 ev["协商速率"] = $"收 {rx} / 发 {tx} Mbps";
                 ev["信号"] = signal.Length == 0 ? "(读不到)" : signal;
 
+                // Two lists. `warnings` means something is wrong and can cost you frames; `notes`
+                // is just what was measured. The 5 GHz high-channel line used to go into this one
+                // list while reading "通常是较空闲的选择" — a compliment filed as a warning, so the
+                // verdict said 无线链路有可疑之处 about the best channel available and the guidance
+                // three lines below recommended that same channel.
+                var warnings = new List<string>();
                 var notes = new List<string>();
                 if (signal.EndsWith('%') && int.TryParse(signal.TrimEnd('%'), out var pct) && pct < 60)
-                    notes.Add($"信号只有 {pct}%，弱信号下丢包与重传都会上升，而视频流对这两者最敏感。");
+                    warnings.Add($"信号只有 {pct}%，弱信号下丢包与重传都会上升，而视频流对这两者最敏感。");
 
                 var channelNum = int.TryParse(channel, out var ch) ? ch : 0;
                 if (channelNum > 0 && channelNum is >= 1 and <= 14 && rx.Length > 0
                     && double.TryParse(rx, out var r) && r > 100)
-                    notes.Add("连的是 2.4 GHz 频段但协商速率却高于 100 Mbps，数值自相矛盾，请以实际频段为准。");
+                    warnings.Add("连的是 2.4 GHz 频段但协商速率却高于 100 Mbps，数值自相矛盾，请以实际频段为准。");
                 if (channelNum is >= 36 and <= 48)
-                    notes.Add("信道 " + channelNum + " 属于 DFS 频段，部分路由器上会因雷达检测而短暂静默，表现为周期性卡顿。");
+                    warnings.Add("信道 " + channelNum + " 属于 DFS 频段，部分路由器上会因雷达检测而短暂静默，表现为周期性卡顿。");
                 if (channelNum is >= 149 and <= 177)
-                    notes.Add("信道 " + channelNum + " 在 5 GHz 高信道段，通常是较空闲的选择。");
+                    notes.Add("信道 " + channelNum + " 在 5 GHz 高信道段，通常是较空闲的选择（这不是问题）。");
+                // 2.4 GHz is worth its own warning even with a good signal: it is the crowded band,
+                // and the old pass path said 无线链路正常 on a 2.4 GHz link at 90% signal.
+                if (channelNum is >= 1 and <= 14)
+                    warnings.Add($"连的是 2.4 GHz（信道 {channelNum}）。这个频段在住宅环境里通常最拥挤，"
+                        + "吞吐会高、干扰也多；头显在这种链路上更容易出现卡顿。");
 
-                if (notes.Count == 0)
+                var detail = notes.Count > 0 ? string.Join("；", notes) : "";
+
+                if (warnings.Count == 0)
                     return new CheckResult("wifi-quality", CheckStatus.Pass,
                         $"无线链路正常（{band}，信道 {channel}，信号 {signal}）",
-                        "这几项没有明显的丢包来源。", ev, Array.Empty<FixAction>());
+                        "这几项没有明显的丢包来源。" + detail
+                        + "**但这一项没有测过丢包**——它只读了频段/信道/信号/协商速率。"
+                        + "真要区分丢包，跑「深度探测」（--deep）跑 20 次。",
+                        ev, Array.Empty<FixAction>());
 
                 return new CheckResult("wifi-quality", CheckStatus.Warn,
                     $"无线链路有可疑之处：{band}，信道 {channel}，信号 {signal}",
-                    string.Join("；", notes),
+                    string.Join("；", warnings) + (detail.Length > 0 ? "。" + detail : ""),
                     ev, Array.Empty<FixAction>(),
                     "画面卡顿但有线指标全绿时，无线链路是下一站。"
                     + "换到 5 GHz 的高信道段（149/153/157/161）通常能避开拥挤频段；"
