@@ -1,7 +1,10 @@
-# 01 — 回溯：头显上线之前，这个工具到底是什么
+# 01 — 回溯：头显上线前后，这个工具到底是什么
 
-> 目的：给一个决定提供依据——**头显马上要接上来了，接下来五件事做哪五件**。
+> 目的：给一个决定提供依据——**头显接上来之后，接下来五件事做哪五件**。
 > 本文只做一件事：把当前代码里**已经被证据支持的**、**只在纸面上成立的**、和**从来没被执行过**的三类东西分开。
+>
+> **写作期间头显上线了**：本文读完所有文件之后、写到一半时，`a2fa03a` 这个提交落地并改掉了 4 个文件。
+> 全部影响、两处被调整的 `file:line`、以及对结论的影响，逐条写在 **§7**。
 >
 > 方法：通读 `AGENTS.md` / `WORKFLOW.md` / `README.md` / `notes/`（10 篇）/ `handoff/`（8 篇）/
 > `research/09-failure-corpus/02-symptom-to-rootcause.md` / `research/06-adb-headset/`（3 篇）/
@@ -39,16 +42,26 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "[Console]::OutputEncodin
 两条都通过。**第一条的数字（157）与 `handoff/NOW.md:4` 写的「156 处」不一致**——NOW.md 是最新一篇
 交接，写错了；`docs/RELEASE-0.5.0.md:57` 的 157 才是对的。
 
-### 0.2 本机当前体检基线（读 `%AppData%\VirtualDesktopHelper\history\run-20261006-050838.json`）
+### 0.2 本机体检基线（读 `%AppData%\VirtualDesktopHelper\history\run-20261006-050838.json`）
+
+> **⚠️ 本文写作期间仓库动了。** 本文第一遍读取这些文件时，`HEAD` 是 `3264adf`；写作过程中
+> 新的提交 `a2fa03a`（2026-10-06 05:29 +09:00）落地，把 `session-stale` 从 Block 改成 Warn 并去掉了修复项，
+> 给 `lan-reach` 加了本段 /24 主机发现，同时改了 `README.md:160`（调研主题 14 → 15）。
+> 本文所有 `file:line` 引用**已按 `a2fa03a` 之后的代码重新核对**；受影响的只有两处，见文末 §7。
 
 ```
+（a2fa03a 之前，读自 run-20261006-050838.json）
 verdict=Blocked  logic=2  headline=阻断：有检查项失败，串流很可能起不来
 35 项：Pass 20 / Warn 12 / Block 1 / Unknown 2
 唯一 Block：lan-reach（头显 192.168.11.14 ping 不通，ARP 缓存里也没有它）
 两个 Unknown：nic-powersave、wifi-quality
 ```
 
-与 `handoff/NOW.md:4` 自述的「20 pass / 12 warn / 1 block / 2 unknown / 35 total」一致。
+`a2fa03a` 的提交信息自报：**21 pass / 12 warn / 0 block / 2 unknown，exit 3**，
+并写明「不是机器变好了，是工具不再凭空造故障」——该提交把「跑了半小时的正常串流」与
+「头显早已退出的残留套接字」判成同一个状态，改成 Warn + 不给修复项（现 `HealthChecks.cs:303-319`）。
+`docs/checks.md` 与 `docs/index.html` 是**已提交的生成物，仍停留在改动前的那一份数据**，本文引用它们时按原样注明。
+
 历史目录里 `run-*.json` 恰好 40 个，与 `Core/Health/HealthHistory.cs:18` 的 `MaxRuns = 40` 一致，保留策略在正常工作。
 
 配置现状（`%AppData%\VirtualDesktopHelper\config.json`）：
@@ -67,7 +80,7 @@ verdict=Blocked  logic=2  headline=阻断：有检查项失败，串流很可能
 
 ## 1. 这个工具今天到底是什么
 
-### 1.1 形状：一个数据驱动的检查项表 + 六个修复动作 + 三个界面
+### 1.1 形状：一个数据驱动的检查项表 + 七个修复动作 + 三个界面
 
 | 部件 | 事实 | 位置 |
 | --- | --- | --- |
@@ -75,7 +88,7 @@ verdict=Blocked  logic=2  headline=阻断：有检查项失败，串流很可能
 | 第三屏额外 | `HeadsetProbe`（结果 id `adb`）+ `HeadsetDeepProbe`（结果 id `headset-deep`） | `Views/HeadsetViewModel.cs:99-112` |
 | 判定 | Block → Blocked；否则 Warn → AtRisk；否则「测到的必须多于没测到的」才 Streamable | `Core/Model/Health.cs:88-100` |
 | 并发 | `MaxConcurrency = 8` 的信号量，**无全局超时** | `Core/Health/HealthEngine.cs:14` |
-| 修复动作 | 5 个会被任何检查产出：`streamer-launch` / `streamer-restart` / `svc-start` / `svc-repair` / `fw-restore-vd` / `enable-pairing-requests` / `headset-grant` | `Core/Health/Fixes.cs`、`Core/Health/WindowsStateChecks.cs:101-136`、`Core/Adb/HeadsetProbe.cs:148-159` |
+| 修复动作 | **7 个**会被任何检查产出：`streamer-launch` / `enable-pairing-requests` / `svc-start` / `streamer-restart` / `fw-restore-vd` / `svc-repair` / `headset-grant`（第 8 个 `disable-adapter:<name>` 已不可达，见 §6.1 第 4 条） | `Core/Health/Fixes.cs`、`Core/Health/WindowsStateChecks.cs:101-136`、`Core/Adb/HeadsetProbe.cs:148-159` |
 | 历史 | 每次体检写 `run-<ts>.json`，保留 40 次，带 `LogicVersion = 2` | `Core/Health/HealthHistory.cs:18,56` |
 
 ### 1.2 它能证明什么（每条都有一次真实运行或一次真实命令背书）
@@ -85,7 +98,7 @@ verdict=Blocked  logic=2  headline=阻断：有检查项失败，串流很可能
 | Streamer 进程在不在、它的 exe 真的在哪 | 进程表 + `MainModule` 回退默认路径 | `StreamerChecks.cs:110-136`、`:38-57` |
 | 38810/20/30/40 上**每一个套接字的状态、对端、持有进程** | 一次 `Get-NetTCPConnection` 全状态查询 | `HealthChecks.cs:167-214`（注释记录了此前「串流时报空闲」的 bug 与成因） |
 | 现在是不是**真在串流**，而不是连着官方服务器 | 判对端是否落在本机 /24；官方服务器端点是公网 IP | `HealthChecks.cs:256-292` |
-| 残留套接字有多老 | `Established` 且超过 2 分钟 | `HealthChecks.cs:154-155,303-310` |
+| 到头显的通道是否真的断了 | `Established` 拆成本网段 / 非本网段两组，再按 2 分钟分「刚建立」与「较旧」——**且较旧这一档现在只报 Warn、不给修复项**（`a2fa03a` 改的） | `HealthChecks.cs:154-155,246-247,303-319,321-334` |
 | UDP 38850/38860 现在有没有监听、**被谁占着** | `IPGlobalProperties` + 按 PID 反查 | `StreamerChecks.cs:204-246` |
 | 防火墙规则成对性 + 规则指向的 exe 是否还存在 | `Get-NetFirewallRule` + `Test-Path`（先展开环境变量） | `FirewallPairChecks.cs:34-41`、`:94-121` |
 | profile 默认入站是 Allow 还是 Block | `Get-NetFirewallProfile.DefaultInboundAction` | `PerformanceChecks.cs:40-50` |
@@ -423,7 +436,7 @@ verdict=Blocked  logic=2  headline=阻断：有检查项失败，串流很可能
 
 | | |
 | --- | --- |
-| **改什么** | ① `HeadsetProbe.cs:50-54` 的 `Warn "没有连着的头显"` 与 `HeadsetDeepProbe.cs:92-94` 的 `Unknown "没有连着的头显"` 口径不一致（一个 Warn 一个 Unknown），统一；② 给第三屏加一个显式的「我现在知道该做什么」区块——接线四步（`capture-discovery.ps1:435-439` 那套已经写好了，直接复用）；③ 把串号形态检测补上：串号形如 `<ip>:5555` 就弹无线 ADB 的明文通道警告（`03-symptom-decision-table.md:142` 的明确要求）；④ `HeadsetProbe.cs:56` 与 `HeadsetDeepProbe.cs:96` 的「静默取第一个设备」改成有第二台就要求选 |
+| **改什么** | ① `HeadsetProbe.cs:50-54` 的 `Warn "没有连着的头显"` 与 `HeadsetDeepProbe.cs:92-94` 的 `Unknown "没有连着的头显"` 口径不一致（一个 Warn 一个 Unknown），统一；② 给第三屏加一个显式的「我现在知道该做什么」区块——接线四步（`HeadsetDeepProbe.cs:435-439` 的 `WiringGuidance` 已经写好了，直接复用）；③ 把串号形态检测补上：串号形如 `<ip>:5555` 就弹无线 ADB 的明文通道警告（`03-symptom-decision-table.md:142` 的明确要求）；④ `HeadsetProbe.cs:56` 与 `HeadsetDeepProbe.cs:96` 的「静默取第一个设备」改成有第二台就要求选 |
 | **怎么用执行验证** | 拔掉/插上头显各跑一次第三屏，两种状态下的文案与退出码必须不同且都说得清「下一步做什么」。这是一次不需要新功能、只需要观察的验证 |
 | **风险** | 低。风险是把「Warn」改成「Unknown」之后，verdict 的证据比（`Health.cs:96-98`）被影响——但 `headset-deep` 根本不进 PC 侧 report，所以实际影响为零 |
 
@@ -447,7 +460,7 @@ verdict=Blocked  logic=2  headline=阻断：有检查项失败，串流很可能
 | 4 | **`Fixes.DisableAdapters(...)`** | `src/VdHelper/Core/Health/Fixes.cs:15-31` | 全仓库唯一调用点是 `Fixes.DisableUnusableAdapters()`（`HealthChecks.cs:87`），而那个函数 `:38-39` **明确返回空数组**并注释「Kept deliberately unused」。于是 `disable-adapter:<name>` 这个 fixId **今天不可能被任何检查产出**。<br>连带的后果：`docs/RELEASE-0.5.0.md:25-26` 把 `disable-adapter` 列为「三个需要管理员的修复不再一声不吭」之一——**发布说明在讲一个工具已经给不出来的动作** |
 | 5 | **`Fixes.DisableUnusableAdapters()` 这个空壳** | `Fixes.cs:38-39` | 它被调用（`HealthChecks.cs:87`），但恒返回 `Array.Empty<FixAction>()`。留着的价值只是让 `HealthChecks.cs:112-128` 那段长注释有个挂载点。**建议**：把注释移到 `net-apipa` 的定义处，直接删掉这个方法，调用点改成 `Array.Empty<FixAction>()` |
 | 6 | **`RuntimePermissions` 里的三条重复项** | `HeadsetProbe.cs:26,28,30` | 「同上（第二个授权位）」这种权限不存在；真正的第二个授权位是**另一个命名空间**的权限串（§2.3）。删掉重复，补上 `horizonos.permission.*` |
-| 7 | **`HeadsetViewModel.HeadsetIp` 的 setter 之外的…** — 不删 | — | 我本来想把整个 `HeadsetProbe` 拆掉（因为 `--adb` 跑不到它），但第 2 名动作已经把它接进 CLI 了，**方向相反**，故不列 |
+| 7 | ~~整个 `HeadsetProbe`~~ — **不删** | `Core/Adb/HeadsetProbe.cs` | 我本来想把它整个删掉（理由：`--adb` 跑不到它，见 §2.1/§2.2）。但第 1、2 名动作的方向恰恰相反——把它接进 CLI 并修好判据。**方向冲突，撤回这条** |
 
 ### 6.2 文档与数字
 
@@ -491,3 +504,51 @@ git status --porcelain / git log --oneline -15 / git ls-files | wc -l   # 干净
 理由见 `WORKFLOW.md:74-91` 与 `notes/2026-10-06-do-not-sweep-state-changing-commands.md`。
 `--selftest` 本身虽然只读，但它的耗时基线（4.84 秒）来自 `research/12-coverage-audit/02-next-additions.md:64-66`
 的既有实测，本文直接引用而没有重跑，以避免多写一份历史快照。
+
+---
+
+## 7. 写作期间仓库发生的变化（必须交代）
+
+本文第一遍读完所有文件时 `HEAD` = `3264adf`。写到一半时提交 **`a2fa03a`** 落地
+（2026-10-06 05:29 +09:00，作者 dwgx），提交信息自述「Found the moment the headset came online」。
+
+### 7.1 那个提交改了什么
+
+| 文件 | 改动 |
+| --- | --- |
+| `src/VdHelper/Core/Health/HealthChecks.cs` | `session-stale` 的「残留套接字」分支：`Block` + `Fixes.RestartStreamer()` → **`Warn` + 无修复项**，文案改成「这不等于串流已经断了……只看套接字年龄分辨不出来」。理由是 Windows 在对端发 FIN 或 TCP 超时之前不改状态，**一次跑了半小时的正常串流与一次残留套接字在这张表里长得一样** |
+| `src/VdHelper/Core/Health/ReachabilityCheck.cs` | `lan-reach` 加了**有界的本段 /24 主机发现**：配置的地址不应答时扫一遍、点名谁答了、明确拒绝替用户选；6 秒上限、64 个并发 ping、排除自己与网关 |
+| `README.md:160` | 调研主题数 14 → 15（因为本文这个目录出现了；提交信息说闸门自己抓到的） |
+
+判定从 `Blocked`（exit 4）变成 0 阻断（exit 3），21 pass / 12 warn / 0 block / 2 unknown。
+提交信息自己写了一句很准的话：**「不是机器变好了，是工具不再凭空造故障。」**
+这与本文 §2 全节的判断是同一条线。
+
+### 7.2 本文为此做的三处调整
+
+1. §0.2 的基线改为**明确标注两个时点**（`a2fa03a` 之前的 20/12/1/2 与之后的 21/12/0/2），
+   不把旧数字当作现状。
+2. §1.2 里 `session-stale` 那一行的 `file:line` 已从 `HealthChecks.cs:303-310` 改为
+   `HealthChecks.cs:303-319`（新代码块），并补上 `:321-334`（非本网段那一档）。
+3. §1.2 里 ` lan-reach` 相关的引用重新核对过：`ReachabilityCheck.cs:30`（读 `headsetIp`）与
+   `:38-43`（「还没填头显 IP」→ Unknown）**行号未变**，新增的主机发现在其后，本文未引用具体行号，
+   因此不受影响。
+
+**其余全部 `file:line` 引用不受影响**：`a2fa03a` 只碰了上述 4 个文件，而本文引用的
+`src/VdHelper/Core/Adb/`（3 个文件）、`App.xaml.cs`、`Core/Health/` 其余 12 个文件、
+`tools/`、`docs/`、`notes/`、`handoff/`、`research/` 全部未变（`git diff HEAD~1 HEAD --name-only` 只列出 4 个文件）。
+
+### 7.3 这对 §3（已知未验证）意味着什么
+
+`a2fa03a` 的提交信息说「the headset came online」。如果头显此刻真的在线并在串流，
+那么 §3.1 里第 1、2、3、4 条（头显侧 adb 的真实输出形态、`pm grant` 的三种返回、
+`dumpsys package` 的 `granted=true` 形态）**很可能已经不再需要物理动作就能验**——
+插一根 USB、点一次「允许 USB 调试」即可。
+
+**这恰好是本文第 1 名建议的价值所在**：那四条的判据（`pm list permissions` 子串包含、
+`pidof` 非空即活、`headset-grant` 空执行）**在真机上跑起来只会给出「看起来正常」的结果**，
+因为它们本来就是恒真的。先修判据、再接硬件，顺序反了就会把一次「跑通了」记成验证通过。
+
+另外，`docs/checks.md` 与 `docs/index.html` 是已提交的生成产物，**仍停留在 `a2fa03a` 之前的数据**
+（其中 `session-stale` 那行还写着旧的 Pass 文案）。§2.8 与 §2.10 引用它们时按原样注明，
+但这本身也是一条**漂移**：`tools/export-docs-site.ps1` 与 `tools/export-checks.ps1` 需要重跑一次。

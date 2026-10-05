@@ -90,8 +90,30 @@ public sealed class HeadsetDeepProbe(AdbClient adb)
         // 降级点 2：无设备是本屏最常见的路径，必须干净返回 Unknown 而不是空转或抛异常。
         var online = ParseDevices(devices.Lines);
         if (online.Count == 0)
-            return Unknown("没有连着的头显",
-                "`adb devices -l` 的设备列表是空的，三项子判定一个都跑不了。", ev, WiringGuidance);
+        {
+            var configured = ConfigFile.Read<string>(Health.ReachabilityCheck.IpKey);
+            var reachable = false;
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                try
+                {
+                    using var ping = new System.Net.NetworkInformation.Ping();
+                    reachable = (await ping.SendPingAsync(configured, 800).ConfigureAwait(false)).Status
+                        == System.Net.NetworkInformation.IPStatus.Success;
+                }
+                catch (System.Net.NetworkInformation.PingException) { reachable = false; }
+            }
+            ev["头显是否在网络上可达"] = string.IsNullOrWhiteSpace(configured)
+                ? "(没填 headsetIp，无法判断)"
+                : reachable ? $"是：{configured} ping 通" : $"否：{configured} ping 不通";
+            return Unknown(
+                reachable ? "头显在网络上，但 adb 连不上它" : "没有连着的头显",
+                reachable
+                    ? $"**网络这一段是通的**——{configured} ping 得到应答。所以这不是网络问题，是 adb 这一段没建立："
+                      + "要么没插 USB，要么头显里的「无线调试」没开。三项子判定一个都跑不了。"
+                    : "`adb devices -l` 的设备列表是空的，三项子判定一个都跑不了。",
+                ev, WiringGuidance);
+        }
 
         var target = string.IsNullOrWhiteSpace(serial) ? online.Keys.First() : serial.Trim();
         if (!online.TryGetValue(target, out var state))
