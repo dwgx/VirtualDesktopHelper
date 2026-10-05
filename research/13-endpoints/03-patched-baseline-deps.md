@@ -207,16 +207,28 @@ entry # 61 blob=d36c8bafb8fbe8cc len=  106496 | extracted\Xenko.Native.dll      
 entry # 81 blob=11896bef852a2ceb len=   35840 | extracted\System.ComponentModel.TypeConverter.dll =11896bef852a2ceb len=35840 | match=True
 ```
 
-**5/5 逐字节相同** ⇒ 盘上那 5 个文件就是 blob 里被补丁程序集的原像。
-本任务全部 Quest 侧结论都取自这 5 个条目 + 另外 3 个未被打补丁的条目，
-文件名只用来定位，内容一律以**反编译后读到的 namespace** 为准（§0 已逐个列出对照）。
+这 5 条 **match=True 本身不足以支撑结论**，因为 `extracted_assemblies\` 的文件名来自一张
+**错位 +11 的名表**（`DiscoveryProtocol` 用 md5 定位：`idx43`=OpenTK、`idx49`=VirtualDesktop.Core、
+真正的 `VirtualDesktop.Net` 是 **idx54**、真正的 `Xenko.OpenXR` 是 **idx60**）。
+拿错位文件名去对 blob，比的其实还是 blob 自己 —— 属循环验证。**所以 §3.3 的结论不建立在 v3 上。**
 
-在此基础上，`extracted\Xenko.dll` 与 `patched\Xenko.dll` 的 diff 只有 **130 字节、12 个区间**
-（`0xdea0`、`0xec43…0xec86`、`0xf2cc…0xf2fd`、`0x10ae9`、`0x13c4b…0x13c57`、
-`0x13eae…0x13ebc`、`0x36649…0x36688`、`0x37415…0x37445`），而两个常量分别落在
-**文件偏移 `0x318cc`（`UserSettings`）与 `0x13126`（`InputSystem..ctor`）**，都不在其中。
-（`DiscoveryProtocol` 跑的 `grep -rn "1778352230|GetHasValidIdentityAsync|HasValidIdentity"`
-在 `apk_patch\` 的 `.py/.md/.json` 里 0 命中，与此一致；我这边是多了一层二进制 diff。）
+**改用完全不经过文件名的比对**（§7 ④ `v4.py`）：直接从 blob 解 entry #52 原像，
+与 `patched_assemblies\Xenko.dll` 逐字节比 —— 后者就是 `binary_patch.py:265/572-575`
+从**同一个 entry #52** 写出的产物，所以这个比对的两端是「原始 blob」对「同一 blob 的补丁结果」，
+中间没有任何命名环节：
+
+```
+blob#52 len          = 529408
+patched\Xenko.dll len = 529408
+diff bytes blob#52 vs patched = 130   ranges = 38
+  offset 0x318cc (UserSettings 1778352230): inside-diff-range=False  blob=206680ff69 patched=206680ff69
+  offset 0x13126 (InputSystem..ctor 1778352252): inside-diff-range=False  blob=207c80ff69 patched=207c80ff69
+```
+
+两个签名常量所在偏移**不在任何改动区间内**，且两端字节逐字节相同
+（`20 66 80 ff 69` = `ldc.i4 0x69FF8066` = 1778352230；
+`20 7c 80 ff 69` = `ldc.i4 0x69FF807C` = 1778352252）。
+**⇒ 结论成立，且不依赖任何文件名。**
 
 这解释了为什么补丁基线**不会自杀**却可能**发现不到电脑**：
 
@@ -436,7 +448,40 @@ PY
 python v3.py
 ```
 
-①②③ 的实跑输出（本机跑过，未改 `F:\` 任何文件）：
+# ④ ★ 决定性证据：不经过任何文件名，直接比 blob 原像 vs 补丁产物
+cat > v4.py <<'PY'
+import struct, lz4.block
+BLOB = r'F:\Project\VirtualDesktop\analysis\apk_patch\libassemblies.arm64-v8a.blob.so'
+data = open(BLOB,'rb').read()
+xaba = data.find(b'XABA')
+isz = struct.unpack_from('<I', data, xaba+16)[0]
+ds  = xaba + 20 + isz
+xz, off = [], xaba
+while True:
+    p = data.find(b'XALZ', off)
+    if p == -1: break
+    xz.append((p, struct.unpack_from('<I', data, p+4)[0], struct.unpack_from('<I', data, p+8)[0])); off = p+4
+def entry(i):
+    p, idx, un = xz[i]
+    dsz = struct.unpack_from('<I', data, ds + i*28 + 8)[0]
+    return lz4.block.decompress(data[p+12 : p+12+(dsz-12)], uncompressed_size=un)
+e52 = entry(52)                                    # 原始 blob 里的 entry #52
+pat = open(r'F:\Project\VirtualDesktop\analysis\apk_patch\patched_assemblies\Xenko.dll','rb').read()
+d = [i for i in range(len(e52)) if e52[i] != pat[i]]
+rs = []
+for i in d:
+    if rs and i == rs[-1][1]+1: rs[-1][1] = i
+    else: rs.append([i,i])
+print('blob#52 len =', len(e52), ' patched len =', len(pat))
+print('diff bytes =', len(d), ' ranges =', len(rs))
+for o, name in ((0x318cc,'UserSettings 1778352230'), (0x13126,'InputSystem..ctor 1778352252')):
+    inside = any(a <= o <= b for a,b in rs)
+    print(f'  offset {hex(o)} ({name}): inside-diff-range={inside} '
+          f'blob={e52[o:o+5].hex()} patched={pat[o:o+5].hex()}')
+PY
+python v4.py
+```
+①②③④ 的实跑输出（本机跑过，未改 `F:\` 任何文件）：
 
 ```
 diff bytes: 130
@@ -457,6 +502,12 @@ entry # 49 blob=c6228aefe3ce0e8d len=   40448 | match=True
 entry # 43 blob=c02d86c5389c0b60 len=2126336 | match=True
 entry # 61 blob=d36c8bafb8fbe8cc len=  106496 | match=True
 entry # 81 blob=11896bef852a2ceb len=   35840 | match=True
+
+--- ④ 决定性证据（blob 原像 vs 补丁产物，不经文件名）---
+blob#52 len = 529408  patched len = 529408
+diff bytes = 130   ranges = 38
+  offset 0x318cc (UserSettings 1778352230): inside-diff-range=False blob=206680ff69 patched=206680ff69
+  offset 0x13126 (InputSystem..ctor 1778352252): inside-diff-range=False blob=207c80ff69 patched=207c80ff69
 ```
 
 ---

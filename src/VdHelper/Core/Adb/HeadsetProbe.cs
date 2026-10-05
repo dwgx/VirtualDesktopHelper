@@ -81,21 +81,50 @@ public sealed class HeadsetProbe(AdbClient adb)
             ev["权限 " + perm] = Granted ? "granted" : "未授予";
 
         var missing = granted.Where(g => !g.Granted).Select(g => g.Permission).Distinct().ToList();
+        var running = new List<string>();
+        if (installed.Count > 0)
+            foreach (var pkg in installed)
+            {
+                var pid = await adb.RunAsync(["-s", serial, "shell", "pidof", pkg], 8000, ct);
+                var pidText = pid.Ok ? pid.StdOut.Trim() : "";
+                if (pidText.Length > 0)
+                    running.Add($"{pkg} (pid {pidText})");
+                else
+                    ev["进程 " + pkg] = "未在运行";
+            }
+        ev["VD 进程存活数"] = $"{running.Count} / {installed.Count}";
+        if (running.Count > 0)
+            ev["存活的进程"] = string.Join(" ;; ", running);
 
         if (installed.Count == 0)
             return new CheckResult("adb", CheckStatus.Warn, "头显已连接，但没找到 Virtual Desktop 客户端",
                 $"查了 {PackageNames.Length} 个可能包名都没有。", ev, Array.Empty<FixAction>(),
                 "头显里打开 Virtual Desktop 应用确认装的是哪个包；补丁基线的包名与官方不同。");
 
+        // Liveness outranks permissions in the headline. "The app is not running" and "the app is
+        // running but the list is empty" point at completely different fixes, and from the PC side
+        // both look like "no computer found". Say which one this is.
+        var notRunning = installed.Count > 0 && running.Count == 0;
+        if (notRunning)
+            return new CheckResult("adb", CheckStatus.Block,
+                "客户端装了，但没有进程在运行",
+                "**这是「列表空」和「网络不通」的分水岭。**客户端在取不到账号身份时会自己杀掉进程"
+                + "（NetworkManager.cs:184-186 与 :212-214 两条 Kill 路径）；补丁把那处 Kill NOP 成了 ret"
+                + "（binary_patch.py:226-254），于是补丁基线不闪退，只是安静地列出零台电脑。"
+                + "进程不在 = 先查应用本身，别去动路由器。",
+                ev, Array.Empty<FixAction>(),
+                "先在头显里手动打开 Virtual Desktop 看着它启动：秒退说明客户端自己退了，"
+                + "那是补丁/账号层面的问题，不在 VDHelper 的网络检测范围内。");
+
         var status = missing.Count > 0 ? CheckStatus.Block : CheckStatus.Pass;
         var summary = missing.Count > 0
-            ? $"{installed.Count} 个客户端包，缺 {missing.Count} 项运行时权限"
-            : $"{installed.Count} 个客户端包，{granted.Count} 项权限齐全";
+            ? $"{installed.Count} 个客户端包在运行，缺 {missing.Count} 项运行时权限"
+            : $"{installed.Count} 个客户端包在运行，{granted.Count} 项权限齐全";
         return new CheckResult("adb", status, summary,
             "权限缺失的表现：30 秒后 VR 焦点被系统收回、注视点串流被自动关闭、面部追踪分支不执行。",
             ev,
             missing.Count > 0 ? HeadsetFixes.GrantPermissions(missing) : Array.Empty<FixAction>(),
-            missing.Count > 0 ? null : "权限齐全时若仍连不上，问题基本在 PC 侧（看第一屏）。");
+            missing.Count > 0 ? null : "进程在跑、权限齐全，若头显里仍列不出这台 PC，才轮到看 PC 侧（第一屏）。");
     }
 
     private async Task<List<(string Permission, bool Granted)>> ReadPermissionsAsync(
