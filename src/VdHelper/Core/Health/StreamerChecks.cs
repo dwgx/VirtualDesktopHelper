@@ -242,9 +242,7 @@ public static class StreamerChecks
                         "顺序永远是先开 PC 上的 Streamer，再在头显里点搜索。"
                         + "补丁基线的交接笔记里也记着同一条：先开 Quest VD 后开 PC Streamer 可能搜不到。\n\n"
                         + "要在本机分辨「包没来」还是「包来了没回」，以管理员身份跑：\n"
-                        + "  pktmon start --capture --pkt-size 0 --comp nics ; "
-                        + "在头显里点一次搜索 ; pktmon stop ; pktmon etl2txt out.etl -o out.txt\n"
-                        + "然后在 out.txt 里找 UDP 目的端口 38850。");
+                        + "  直接跑 tools/capture-discovery.ps1（仓库里，管理员权限）：它会抓 60 秒、转成文本、筛出 38850 并区分是不是广播，省掉手工拼这一串。底层就是 pktmon start --capture --pkt-size 0 --comp nics 然后在 out.txt 里找 UDP 目的端口 38850。");
 
                 if (live.Count > 0)
                     return new CheckResult("udp-discovery", CheckStatus.Pass,
