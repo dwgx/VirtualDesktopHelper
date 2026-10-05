@@ -21,10 +21,16 @@ foreach ($f in Get-ChildItem $healthDir -Filter *.cs) {
     foreach ($m in [regex]::Matches($t, 'new\("([a-z][a-z0-9-]+)"')) { [void]$real.Add($m.Groups[1].Value) }
     foreach ($m in [regex]::Matches($t, 'PsCheck\.Create\("([a-z][a-z0-9-]+)"')) { [void]$real.Add($m.Groups[1].Value) }
 }
+$adbIds = New-Object 'System.Collections.Generic.HashSet[string]'
 foreach ($f in Get-ChildItem $adbDir -Filter *.cs) {
     $t = Get-Content -Raw -Encoding UTF8 $f.FullName
-    foreach ($m in [regex]::Matches($t, 'Id = "([a-z][a-z0-9-]+)"')) { [void]$real.Add($m.Groups[1].Value) }
+    foreach ($m in [regex]::Matches($t, 'Id = "([a-z][a-z0-9-]+)"')) { [void]$real.Add($m.Groups[1].Value); [void]$adbIds.Add($m.Groups[1].Value) }
+    foreach ($m in [regex]::Matches($t, 'new CheckResult\("([a-z][a-z0-9-]+)"')) { [void]$real.Add($m.Groups[1].Value); [void]$adbIds.Add($m.Groups[1].Value) }
 }
+
+# 1b) The PC-side subset: these decide the verdict. The two the third screen runs (adb, headset-deep)
+# are registered but do not feed it, which is why README states two numbers rather than one.
+$pcCount = $real.Count - $adbIds.Count
 
 # 2) ids referenced by the symptom map.
 # SymptomClass is constructed positionally: new("S1", "title", [userPhrases], [checkIds], "firstLook")
@@ -40,7 +46,10 @@ foreach ($m in $matched) {
 }
 
 $dangling  = $referenced | Where-Object { -not $real.Contains($_) } | Sort-Object
-$unreachable = $real | Where-Object { -not $referenced.Contains($_) } | Sort-Object
+# Third-screen-only checks, and the reason they are not expected to appear in a symptom class.
+$thirdScreen = @('adb', 'headset-deep')
+$unreachable = $real | Where-Object { -not $referenced.Contains($_) -and $thirdScreen -notcontains $_ } | Sort-Object
+$thirdOnly = $real | Where-Object { $thirdScreen -contains $_ } | Sort-Object
 
 Write-Host ("real checks      : " + $real.Count + "  (体检屏 + 头显屏；headset-deep 只在头显屏跑)")
 Write-Host ("referenced by S* : " + $referenced.Count)
@@ -50,6 +59,10 @@ if ($dangling) {
     Write-Host ""
     Write-Host "FAIL 症状表引用了不存在的检测项：" -ForegroundColor Red
     $dangling | ForEach-Object { Write-Host ("     " + $_) -ForegroundColor Red }
+}
+if ($thirdOnly) {
+    Write-Host ""
+    Write-Host ("第三屏专用（不参与症状筛选，PC 侧体检也不会跑它们）：" + ($thirdOnly -join "、"))
 }
 if ($unreachable) {
     Write-Host ""
@@ -63,10 +76,24 @@ $readmePath = Join-Path $root 'README.md'
 $readmeStale = $false
 if (Test-Path -LiteralPath $readmePath) {
     $readme = [System.IO.File]::ReadAllText($readmePath, [System.Text.Encoding]::UTF8)
-    foreach ($m in [regex]::Matches($readme, '(\d+)\s*项')) {
-        if ([int]$m.Groups[1].Value -ne $real.Count) {
+    # README legitimately states two different numbers: the checks the verdict is computed from
+    # (PC side) and every registered check (including the two the third screen runs). Scanning
+    # every "N 项" forced them to be equal, which is not true. Both now carry an anchor.
+    $anchors = @(
+        @{ Pattern = '判定项\s*\*\*(\d+)\s*项\*\*'; Actual = $pcCount; What = '判定项' },
+        @{ Pattern = '共注册\s*\*{0,2}\s*(\d+)\s*项'; Actual = $real.Count; What = '共注册' }
+    )
+    foreach ($a in $anchors) {
+        $m = [regex]::Match($readme, $a.Pattern)
+        if (-not $m.Success) {
             Write-Host ""
-            Write-Host ("FAIL README 写的『" + $m.Value + "』与实际 " + $real.Count + " 项检测不符") -ForegroundColor Red
+            Write-Host ("FAIL README 里找不到「" + $a.What + " **N 项**」这个标注") -ForegroundColor Red
+            $readmeStale = $true
+            continue
+        }
+        if ([int]$m.Groups[1].Value -ne $a.Actual) {
+            Write-Host ""
+            Write-Host ("FAIL README 写的「" + $a.What + " " + $m.Groups[1].Value + "」与实际 " + $a.Actual + " 项不符") -ForegroundColor Red
             $readmeStale = $true
         }
     }

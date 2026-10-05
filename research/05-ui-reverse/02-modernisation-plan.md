@@ -207,8 +207,11 @@ ABOUT 页的「潜在问题」按钮用 `Piracy.png`（`MainWindow.xaml:1360-136
 
 我们没有资源字典分层，全部塞在一个 `Application.Resources` 里（`R/src/VdHelper/App.xaml:11-142`）：
 
+- 11 个色键：`TitleBrush #1D1D1D` / `BodyBrush #151515` / `ContentBrush #101010` / `InkBrush #E8E8E8` /
   `MutedBrush #9A9A9A` / `AccentBrush #2E79BD` / `HoverBrush #262626` / `LineBrush #2E2E2E` /
   `PassBrush #5BC85B` / `WarnBrush #E0A030` / `BlockBrush #E05B5B`（`App.xaml:17-27`）。
+- 4 个文字样式：`ChromeText` / `H1` / `Muted` / `Mono`（`App.xaml:32-53`）。
+- 3 个 ControlTemplate：Button（`:66-88`）、NavTab/TabItem（`:96-118`）、TabControl（`:123-139`）。
 
 **三个必须点名的事实**：
 
@@ -270,11 +273,248 @@ ABOUT 页的「潜在问题」按钮用 `Piracy.png`（`MainWindow.xaml:1360-136
 | 8 | 状态冗余编码 | 用**图标**（`AppsCheckerWindow.xaml:23-28, 47-67`）| **只有颜色 + 一个 2 字徽标**（`HealthView.xaml:131-136`）| 色觉障碍用户无法区分通过/警告/阻断 |
 | 9 | 列表控件 | `ScrollViewer > ItemsControl`（`MainWindow.xaml:325-330`）| `ListView` + 全模板覆盖 `ListViewItem`（`HealthView.xaml:107-121`）| 我们多了一层虚拟化（36 行值得），但**也丢了选中态与焦点态**（模板里只有 `ContentPresenter`）|
 | 10 | 焦点反馈 | **也没有**（`FocusVisualStyle="{x:Null}"`，`Styles.Wpf.xaml:923-925`；`FocusStates` 空组，`Styles.Shared.xaml:1867-1873`）| **也没有**（`App.xaml:75-85` Button 模板无 focus 触发器）| **这一项官方不能抄**（见 §4）|
-| 11 | 键盘 | 只有 `Ctrl+V`（`MainWindow.xaml:254-259`）| **一个都没有**（`grep -rn "KeyBinding\|AccessKey" R/src/VdHelper` = 0）| 症状芯片是 `TextBlock` + `MouseBinding`（`HealthView.xaml:73-76`），**键盘完全不可达** |
+| 11 | 键盘 | 只有 `Ctrl+V`（`MainWindow.xaml:254-259`）| **一个都没有**（`grep -rn --include=*.xaml --include=*.cs "KeyBinding\|AccessKey" R/src/VdHelper` = 0 命中）| 症状芯片是 `TextBlock` + `MouseBinding`（`HealthView.xaml:73-76`），**键盘完全不可达** |
 | 12 | 自动化 | 10 个 `AutomationId`，0 个 `Name`（`Styles.Wpf.xaml:525, 537, 592, 605, 646, 701, 715, 771, 783`）| **0 个** | 屏幕阅读器读不出任何东西 |
-| 13 | ToolTip 样式 | `ToolTipStyle` `Padding="10,7"` + 投影（`Metrodark.Mscontrols.Core.Implicit.xaml:1181-1245`）| 无 ToolTip 样式，且**一处 ToolTip 都没用**（`grep -c ToolTip R/src/VdHelper` = 0）| 官方用 ToolTip 承载副文本（`MainWindow.xaml:580, 585-586, 590-591`），我们把说明全写在正文里 |
+| 13 | ToolTip 样式 | `ToolTipStyle` `Padding="10,7"` + 投影（`Metrodark.Mscontrols.Core.Implicit.xaml:1181-1245`）| 无 ToolTip 样式，且**一处 ToolTip 都没用**（`grep -rn --include=*.xaml --include=*.cs ToolTip R/src/VdHelper` = 0 命中）| 官方用 ToolTip 承载副文本（`MainWindow.xaml:580, 585-586, 590-591`），我们把说明全写在正文里 |
 | 14 | 窗口圆角 | 8px | 无（`ShellWindow.xaml:11` 缺 `AllowsTransparency`）| 实测 `(0,0)` 无圆角 |
 | 15 | 标题栏按钮 | `ImageButtonStyle`，透明底 + `Opacity 0.35→0.75` + 按下 1px 位移（`Styles.Shared.xaml:1904-1955`）| 普通 `Button` + 文字 `—` / `✕`（`ShellWindow.xaml:39-40`）| 官方靠图标淡入淡出，我们靠字符 |
 | 16 | 导航选中反馈 | 仅前景色 `#808080`→`#FFFFFF`（`MainWindow.xaml:144-164`）| **加了官方没有的东西**：背景 `#262626` + 3px 蓝色指示条（`App.xaml:104-114`）| **这一项我们比官方好，不要「改回去」**（见 §4）|
 
+
+---
+
+## 3. 现代化计划（按顺序，每项点名文件与可见变化）
+
+**排序原则**：先做「渲染出来就扎眼」的（P0），再做「读起来累」的（P1），最后做可选的（P2）。
+理由见 §2.4 —— 默认主题漏出来的东西比设计缺陷更影响第一印象。
+
+### 3.1 P0 — 把 WPF 默认主题堵上（Expander / ScrollBar / ScrollViewer / TextBox）
+
+**为什么排第一**：`_shot3.png` 上每一行一个纯白圆点，`_shot4.png` 上一条 17px 纯白竖条。
+这不是审美问题，是「`App.xaml` 只写了 3 个 ControlTemplate」的遗漏（§2.4）。
+
+| 项 | 改哪个文件 | 可见变化 |
+| --- | --- | --- |
+| P0-1 | 新建 `R/src/VdHelper/Resources/Theme.Controls.xaml` | 收编 4 个 ControlTemplate：`Expander`（`CornerRadius=3` `BorderThickness=1` `Padding=2`，照 `S/Themes/Metrodark/Metrodark.Mscontrols.Core.Implicit.xaml:1611-1679`）、`ScrollBar`（`Width=7 MinWidth=7 BorderThickness=0`，照 `S/Themes/Metrodark/Styles.Wpf.xaml:321-332, 384-390`）、`ScrollViewer`（复用官方 `PART_VerticalScrollBar` 模板，`S/Themes/Metrodark/Styles.Wpf.xaml:509-547`）、`TextBox`（`MinHeight=30 Padding="6,3"`，照 `S/Themes/Metrodark/Styles.Wpf.xaml:1414-1419`）|
+| P0-2 | `R/src/VdHelper/App.xaml` | 在 `<Application.Resources>`（`:11`）里加 `<ResourceDictionary.MergedDictionaries>` 引入上面那个字典；现有 3 个 ControlTemplate（`:66-88, 96-118, 123-139`）一并搬进去 |
+| P0-3 | `R/src/VdHelper/App.xaml:25-27` | 删掉 `PassBrush` / `WarnBrush` / `BlockBrush` 三个**引用数为 0 的死键**，值统一由 P0-4 提供 |
+
+### 3.2 P0 — 一套语义色 token（Pass / Warn / Block / Unknown），在**实际发布的暗色**上可达
+
+**为什么必须自造**：§1.7 已证明官方色板里的绿/琥珀**引用数为 0**，没有先例可抄。
+
+**为什么现在的值不行**：现状是 `StatusConverters.cs:14-20` 的硬编码色，
+在 `_shot3.png` 实测到的徽标底 `#1E1E1E` 上的对比度（WCAG 2.x 相对亮度公式逐项计算）：
+
+| 状态 | 现值 | 在 `#1E1E1E` 徽标底 | 在 `#101010` 列表底 | WCAG AA 正文（4.5:1）|
+| --- | --- | --- | --- | --- |
+| Pass | `#2E7D32` | **3.25:1** | 3.71:1 | ❌ |
+| Warn | `#B26A00` | **3.93:1** | 4.49:1 | ❌ |
+| Block | `#C62828` | **2.97:1** | 3.38:1 | ❌ |
+| Unknown | `#6A737C` | **3.46:1** | 3.95:1 | ❌ |
+| 对照 `InkBrush #E8E8E8` | | 13.61:1 | 15.53:1 | ✅（说明计算本身没问题）|
+
+**四个全部不达标**，Block 最差（2.97:1）。
+另注：`App.xaml:25-27` 那套死键（`#5BC85B` / `#E0A030` / `#E05B5B`）实测在 `#101010` 上是
+8.93 / 8.37 / 5.27，**都达标** —— 但它没被任何地方引用（§2.3）。
+
+| 项 | 改哪个文件 | 可见变化 |
+| --- | --- | --- |
+| P0-4 | `R/src/VdHelper/App.xaml:17-27` | 定义 8 个语义 token：`PassInk` / `WarnInk` / `BlockInk` / `UnknownInk`（徽标文字色）+ `PassSurface` / `WarnSurface` / `BlockSurface` / `UnknownSurface`（徽标底色）。Ink 直接采纳现在那套已达标但没人用的 `#5BC85B` / `#E0A030` / `#E05B5B`，Unknown 取 `#98A2B3`（在 `#101010` 上 7.39:1）；Surface 取比 `#1E1E1E` 略深的一档，保证 1px 字形也看得见 |
+| P0-5 | `R/src/VdHelper/StatusConverters.cs:12-21, 26` | `StatusToBrushConverter` 改为查 `{StaticResource}`，**不再用 `ColorConverter.ConvertFromString`**；删掉 `:26` 的 `Brush(string hex)` 私有方法 |
+| P0-6 | `R/src/VdHelper/App.xaml:12-15` | 配套加 `StatusToSurfaceConverter`（返回徽标底色），供 P0-9 使用 |
+| P0-7 | `R/src/VdHelper/Views/HealthViewModel.cs:285-287` | `NextActionRow.Accent` 的三个裸色 `#FF5B6E` / `#FFCC66` / `#8B93A8` 改为 token。三者在 `#141414` 上实测 6.12 / 12.35 / 6.00，**本身达标**；问题是绕过 token 体系，且 `#FF5B6E` 是纯红、与 Block 语义撞车 |
+
+### 3.3 P0 — 状态不只用颜色（无障碍）
+
+**现状**：`HealthView.xaml:131-136` 里状态 = 2 字中文（通过/警告/阻断）+ 颜色。
+颜色是唯一的**快速**通道，而四个状态色对比度都在 3–4:1（§3.2），低视力用户读不出。
+官方靠**图标**（`S/VirtualDesktop/Streamer/AppsCheckerWindow.xaml:23-28, 47-67`：Warning.png / Error.png 16×16 + `DataTrigger`），
+**但官方只有两档图标，我们有四档状态**，字形得自造。
+
+| 项 | 改哪个文件 | 可见变化 |
+| --- | --- | --- |
+| P0-8 | 新建 `R/src/VdHelper/Resources/Theme.xaml` | 加 4 个 16×16 单色字形（用 `Geometry` / `Path`，不引 PNG，`R/src/VdHelper/Resources/` 目前无任何图片）：通过=实心圆、警告=实心三角、阻断=实心方块、未知=空心圆。**形状在灰度与色觉障碍下仍可区分** |
+| P0-9 | `R/src/VdHelper/Views/HealthView.xaml:131-136` | 徽标从「纯文字」改成「字形 + 文字」`StackPanel`：16×16 字形 + 2 字标签，底色用 P0-6 的 `StatusToSurfaceConverter`。**行的整体高度不变** |
+| P0-10 | `R/src/VdHelper/Views/HealthView.xaml:126-140`、`R/src/VdHelper/Views/ShellWindow.xaml:35-38` | 给每个检测行与标题栏总判定加 `AutomationProperties.Name`。官方全树 0 个 `Name`（§2.5 第 12 行），**这一项我们必须比官方做得好** |
+| P0-11 | `R/src/VdHelper/Views/HeadsetView.xaml:21-23`、`R/src/VdHelper/Views/ParametersView.xaml` 各状态 `TextBlock` | 同一个 `StatusToTextConverter` 的输出已有文字，改为与徽标同套字形，避免「列表有、参数页没有」的不一致 |
+
+### 3.4 P1 — 排版与间距：7 档字号收敛成 5 档，控件高度统一 30
+
+官方只有 6 档字号（§1.6），我们有 7 档（`grep -oE 'FontSize="[0-9.]+"' R/src/VdHelper/Views/*.xaml | sort | uniq -c` 实测：
+10.5×1 / 11×1 / 11.5×11 / 12×3 / 12.5×5 / 13×2 / 14×1），且 `App.xaml:30` 的 `BodySize` 只被用了 4 次。
+
+| 项 | 改哪个文件 | 可见变化 |
+| --- | --- | --- |
+| P1-1 | `R/src/VdHelper/App.xaml:32-53` | 把 `ChromeText`/`H1`/`Muted`/`Mono` 四个样式改为 5 个字号 token：`FsDisplay=16 Bold`（= 官方 Tab 标题档，`S/…/MainWindow.xaml:170-179`）、`FsSection=14 Bold`（= 官方小节 Label，`S/…/MainWindow.xaml:559-561`）、`FsBody=12.5`（行摘要）、`FsMeta=11.5`（副文本/来源/风险）、`FsMono=11 Consolas`（原始输出）|
+| P1-2 | `R/src/VdHelper/App.xaml:56-57` | Button 的 `Height="30"` 改 `MinHeight="30"`；`MinWidth="110"` 降为 `72`（官方是 30，`S/…/Styles.Shared.xaml:1777-1779`；我们文案是中文，比 30 宽一点合理）|
+| P1-3 | `R/src/VdHelper/Views/HealthView.xaml:94, 162`；`R/src/VdHelper/Views/ParametersView.xaml:58`；`R/src/VdHelper/Views/HeadsetView.xaml:68` | 删掉 4 处 `Height="24"` 与 `MinWidth` 字面量，改由 P1-2 的隐式样式给。**可见变化：四个「执行/切换/深度探测」按钮从 24px 变 30px，行高随之变化** |
+| P1-4 | `R/src/VdHelper/App.xaml:1-4, 29` | `Application` 加 `Language="zh-CN"`；`UiFont` 改成 `"Verdana, Microsoft YaHei UI"`（采纳 01 §4.3 的建议）。**可见变化：中文不再靠系统随机回退，与拉丁字符基线对齐** |
+| P1-5 | `R/src/VdHelper/App.xaml` + 三个 `Views/*.xaml` | 新增 4 个间距 token `GapTight=6` / `GapRow=10` / `GapBlock=18` / `PadCard=10`。现在视图里 `Margin`/`Padding` 是二十多个不同字面量（`18,14,18,10`、`0,0,0,10`、`0,0,0,8`、`10,7`、`10,4`、`74,4,0,10` …）|
+
+### 3.5 P1 — 密集证据列表的视觉层级
+
+**现状问题**（`_shot3.png` 可见）：34 行等权重、无分隔线、无选中态；展开后是
+`Detail`（灰字）→ `Fixes` 卡片 → `Guidance` → `Evidence`（等宽）四段，**四段视觉权重几乎一样**。
+更要紧的是：`CheckRow.Title`（= 检测项 id，如 `lan-reach`）**在列表里根本没显示** ——
+`HealthView.xaml` 里 `Title` 只出现在 `:39`（NextAction）与 `:157`（FixRow），列表行只绑了 `Summary`（`:139`），
+用户无法把界面上某一行和 `--report` 输出、issue 里的 `lan-reach` 对上号。
+
+| 项 | 改哪个文件 | 可见变化 |
+| --- | --- | --- |
+| P1-6 | `R/src/VdHelper/Views/HealthView.xaml:126-140` | 行头 Grid 由 2 列（`64 / *`）改 3 列（`72 / 96 / *`）：徽标 / **检测项 id（`{Binding Title}`，`FsMono FsMeta`）** / 摘要。**可见变化：每行多了可与报告对号的 id** |
+| P1-7 | `R/src/VdHelper/Views/HealthView.xaml:110` | 行间分隔从纯间距（`Margin="0,0,0,6"`）改成 1px 线（`Border BorderThickness="0,1,0,0"` + `LineBrush`）。官方 AppsChecker 就是这么做的：`S/VirtualDesktop/Streamer/AppsCheckerWindow.xaml:42-46`（`BorderThickness="0 1 0 0" Margin="0 -1 0 0"`）|
+| P1-8 | `R/src/VdHelper/Views/HealthView.xaml:142-187` | 展开区四段分级：`Detail`（`:143`）改 `FsBody InkBrush`（现为 `Muted`）；`Guidance`（`:181-183`）保持 `FsMeta MutedBrush`；**`Evidence`（`:185-186`）改为默认折叠**，标题写「原始输出（N 行）· 点击展开」。**可见变化：一屏可见行数从 ~17 增加到 ~28** |
+| P1-9 | `R/src/VdHelper/Views/HealthView.xaml:113-119` | `ListViewItem` 模板（现在只有一个 `ContentPresenter`，没有选中态也没有焦点态）补 `IsSelected` 与 `IsKeyboardFocusWithin` 视觉：`#1F2E79BD` 底 + `#A82E79BD` 边（官方 ListViewItem 选中色，`S/Themes/Metrodark/Styles.Shared.xaml:255-262, 1199-1204`）|
+
+> **P1-8 的取舍要写明白**：现在原始输出默认展开，这是 ADR-002（`notes/decisions.md:14-24`）
+> 「检测项是数据记录，展开看命令与原始输出」的直接实现。折叠**不删内容**，只改默认态；
+ `--report-html` 里也已经是 `<details>` 折叠（`R/src/VdHelper/Reports/ReportWriter.cs`），
+ 所以这一步是让界面与已发布的报告格式一致，不是新发明。
+>
+> **P1-6 要注意一个真实风险**：徽标列 `64` + id 列 `96` 会吃掉 160px，
+> 窗口 `MinWidth="840"`（`ShellWindow.xaml:6`）减去导航列 160 后内容区只剩 680。
+> 这一项**必须**配合截图确认窄窗口下摘要不出现难看的截断（P1-6 的验证项见 §5.2）。
+
+### 3.6 P1 — 键盘与焦点
+
+**现状实测**：`grep -rn --include=*.xaml --include=*.cs "KeyBinding\|AccessKey" R/src/VdHelper` = **0 命中**
+（不加 `--include` 会命中 `bin/` 下 WPF 程序集里的字符串，那是噪声）。
+`App.xaml:75-85` 的 Button 模板触发器只有 `IsMouseOver` / `IsPressed` / `IsEnabled`，**没有 focus**。
+症状芯片是 `Border > TextBlock` + `MouseBinding`（`HealthView.xaml:58-79`），**不是控件，键盘到不了**。
+
+| 项 | 改哪个文件 | 可见变化 |
+| --- | --- | --- |
+| P1-10 | `R/src/VdHelper/App.xaml:75-85` | Button 模板加 `Trigger IsKeyboardFocusWithin=True` → `BorderBrush = AccentBrush`。**官方没有这个**（`FocusVisualStyle="{x:Null}"`，`S/…/Styles.Wpf.xaml:923-925`；Button 的 `FocusStates` 两个 VisualState 都空，`S/…/Styles.Shared.xaml:1867-1873`）—— **我们必须补上，见 §4.3** |
+| P1-11 | `R/src/VdHelper/Views/HealthView.xaml:58-79` | 症状芯片从 `Border + MouseBinding` 改成 `ToggleButton`（或 `RadioButton` + `GroupName="Symptom"`）。**可见变化：芯片获得焦点环、可 Tab 到、可 Space 切换** |
+| P1-12 | `R/src/VdHelper/Views/ShellWindow.xaml:44-55` | `TabControl` 加 `KeyboardNavigation.TabNavigation="Cycle"`，三个 `TabItem` 加 `AccessKey`（`本机体检`/`串流参数`/`头显诊断`）|
+| P1-13 | `R/src/VdHelper/Views/ShellWindow.xaml:11-15, 24, 57` | 窗口加 `AllowsTransparency="True"`，标题栏/状态栏 Border 补 `CornerRadius="8 8 0 0"` / `"0 0 8 8"`（对齐官方 `S/…/MainWindow.xaml:273, 1371`）。**注意：这会关掉 DWM 硬件加速，拖拽与滚动性能需实测**（见 §5.2）|
+| P1-14 | `R/src/VdHelper/Views/ShellWindow.xaml:39-40` + `R/src/VdHelper/App.xaml` | 标题栏两个按钮改 `ImageButtonStyle` 式样：透明底 + 常态 `Opacity=0.45` → 悬停 `0.9`（照 `S/Themes/Metrodark/Styles.Shared.xaml:1904-1955`）。**可见变化：字符 `—`/`✕` 由实心变淡，悬停才亮** |
+
+### 3.7 P2 — 可选，且我明确不建议做：把说明挪进 ToolTip
+
+官方把长解释放 `ToolTip`（`S/…/MainWindow.xaml:580, 585-586, 590-591`），
+我们的对应物是 `ParametersView.xaml:15` 那一大段说明文字。
+**标为 P2 且不建议做**：ADR-004（`notes/decisions.md:37-46`）要求「读不到的值要显示来源说明」，
+把来源藏进 ToolTip 是**反 ADR** 的方向。若要做，只能对纯解释性的补充文案做，
+正文里的来源/风险必须留在正文（`ParametersView.xaml:50-53`）。
+
+---
+
+## 4. 不要改的东西（写下来给下一轮）
+
+### 4.1 ADR 与代码注释里写了理由的
+
+| 不可改 | 证据 | 为什么不能「顺手现代化」|
+| --- | --- | --- |
+| **首屏必须是「接下来做什么」且不设条数上限** | `R/src/VdHelper/Views/HealthView.xaml:15-17` 注释：「A verdict alone is not actionable, and the first thing people do with a long list is close the window. **No cap**: an earlier version showed the top six and that silently hid the most informative finding.」| 注释记着一次**已经犯过并回滚**的错误。「只显示前 N 条」看着像现代化，实际是信息损失 |
+| **症状筛选不得改变 verdict** | `R/notes/2026-10-05-symptom-entry.md:22-25`：「筛选不允许改变判定结果。它只决定『先看哪几行』，不决定 verdict」| 任何「筛选后重算结论」的 UI 改动，都是把一种骗人的修法做成产品功能 |
+| **不做假开关** | `R/notes/decisions.md:37-46`（ADR-004）| 参数页「切换」按钮必须继续对只读项隐藏（`ParametersView.xaml:60` 的 `Visibility` 绑定）。改成永远可点、点了给提示是倒退 |
+| **修复必须先备份 + 可回滚** | `R/notes/decisions.md:26-35`（ADR-003）| 「执行」旁的三行「命令 / 备份 / 回滚」（`HealthView.xaml:166-171`）不能折叠、不能收进 ToolTip。改版式可以，改信息层级不行 |
+| **路由 / AP 隔离类只解释不改** | `R/notes/decisions.md:34`；`R/docs/product-spec.md:50` | UI 上不要给这些项任何「可修」的视觉暗示（不要用主色按钮）|
+| **技术栈 WPF，不回退 WinForms** | `R/notes/decisions.md:3-12`（ADR-001）| 「用 WinForms 重写控件更快」直接否 |
+| **PC 侧优先，ADB 是第二屏** | `R/notes/decisions.md:48-55`（ADR-005）| 不要因为「头显诊断更直观」而调换 tab 顺序 |
+| **历史保留 40 次 + 报告里说变化** | `R/notes/decisions.md:56-69`（ADR-007）| 状态栏的「与上次相比」文案不要为了简洁删掉 |
+| **App.xaml 已定下的三层底色** | `R/src/VdHelper/App.xaml:17-19` + 实测 `_shot3.png`（标题栏 `#1D1D1D`、列表区 `#101010`、导航列 `#151515`）| 与官方 `S/…/MainWindow.xaml:272, 308, 314` 一致且**实测渲染正确**，不用动 |
+| **48px 标题栏 / 48px 状态栏 / 160×48 导航项 / 三行骨架** | 实测 `_shot3.png`：标题栏 y=0..47、导航项 y=56..103、状态栏 y=632..679、导航列 x=0..159 | 与官方 `S/…/MainWindow.xaml:261-268, 276-277, 112-115` 完全一致 |
+
+### 4.2 我们比官方做对、不要改回去的
+
+| 不可「改回官方」| 证据 | 理由 |
+| --- | --- | --- |
+| **导航选中态的蓝色指示条 + 背景** | `R/src/VdHelper/App.xaml:104-114`（`Border x:Name="Bar" Width="3"` + `#262626` 底）vs 官方 `S/…/MainWindow.xaml:144-164`（只有前景色变化、无指示条）| 官方纯灰→白在深色底上偏弱（`#808080` on `#101010` = 4.82:1，够正文但不够指示当前页）。我们的做法更好 |
+| **总判定常驻标题栏** | `R/src/VdHelper/Views/ShellWindow.xaml:35-38`；官方状态栏只有 `Version:` + 版本号（`S/…/MainWindow.xaml:1385-1396`）| 判定是本工具的主信息，不该藏在角落 |
+| **Expander 展开原始输出** | `R/src/VdHelper/Views/HealthView.xaml:185-186`；官方 AppsChecker 每行只有一句 `Description`（`S/…/AppsCheckerWindow.xaml:74-77`）| 我们卖的是证据链，不是摘要 |
+| **`--tab N` 的无头入口** | `R/src/VdHelper/App.xaml.cs:125-127`；`R/tools/capture-tab.ps1:29-33` | 它同时是「第三屏可命令行跑」的兑现（`README.md:16`）与截图工具的基础，别为了 UI 统一而删 |
+
+### 4.3 「官方也没有，所以不算落后」的三项 —— 但仍要做对
+
+| 项 | 官方现状 | 我们的现状 | 结论 |
+| --- | --- | --- | --- |
+| 焦点视觉 | `FocusVisualStyle="{x:Null}"`（`S/…/Styles.Wpf.xaml:923-925`）；Button 的 `FocusStates` 两个 VisualState 都空（`S/…/Styles.Shared.xaml:1867-1873`）| 同样没有 | **仍要做 P1-10**。官方没做对不构成我们不做对的理由 |
+| `AutomationProperties.Name` | 全树 0 个，只有 10 个 `AutomationId`（`S/…/Styles.Wpf.xaml:525, 537, 592, 605, 646, 701, 715, 771, 783`）| 0 个 | 做 P0-10 是净增益，不是「对齐官方」|
+| 语义色 Pass/Warn/Block | 色板里有绿/琥珀，**业务引用 0 次**（§1.7）| 有，但在 2.97–3.93:1（§3.2）| 官方没先例，P0-4 必须**自造并补一条 ADR** |
+
+---
+
+## 5. 每一条怎么验证（不靠猜）
+
+### 5.1 本项目已经踩过的坑 —— 它们决定了下面这套流程
+
+`R/notes/2026-10-05-ui-input-limits.md` 实测记录：
+- 合成鼠标输入（`SetCursorPos` + `mouse_event`）**到不了本窗口**（按钮无反应、症状芯片不高亮，`_deep2.png`/`_deep3.png` 的 SHA256 完全相同）；
+- `AutomationElement` 的 `Descendants` 里**只有标题栏 2 个按钮**，WPF 内容控件不进自动化树；
+- 但 **`PrintWindow` 截图正常** —— 「渲染没问题」不等于「渲染得**对**」。
+
+`R/tools/capture-window.ps1:1-6` 的注释记着另一条：用 `CopyFromScreen` 会被别的窗口遮挡而截到遮挡物，
+所以**截图一律走 `PrintWindow(PW_RENDERFULLCONTENT)`**（`capture-window.ps1:42`）。
+
+`R/notes/2026-10-06-do-not-sweep-state-changing-commands.md:38-44` 记着第三条：
+**验证一个命令不等于执行它**。UI 验证不得顺手触发会改机器状态的命令
+（`--quit-streamer` / `--apply <id>` / `--set-param` 写路径一律不进本清单）。
+
+### 5.2 逐项验证方法
+
+| 项 | 验证方式 | 具体命令 / 判据 |
+| --- | --- | --- |
+| P0-1 ~ P0-3 | **渲染像素采样**（不是看源码）| `dotnet build src/VdHelper/VdHelper.csproj -c Release` → `powershell -NoProfile -ExecutionPolicy Bypass -File tools/capture-tab.ps1 -Tab 0` → 用 Pillow 采样：(a) 展开箭头区域**不应出现 16px 的 `(255,255,255)` 圆**（现在 `_shot3.png` x=182..197 是纯白）；(b) 右侧滚动条**不应出现 `(240,240,240)`** 且宽度 ≤ 8px（现在 `_shot4.png` x=944..960 共 17px）|
+| P0-4 ~ P0-7 | **对比度计算 + 截图取色双向确认** | 先按 WCAG 相对亮度公式确认四色在 `#1E1E1E` 与 `#101010` 上均 ≥ 4.5:1；再截图采样徽标区域，**采样到的 RGB 必须等于 token 写入的值**。现有链路可作对照：现在采样得 `(46,125,50)`，与 `StatusConverters.cs:14` 的 `#2E7D32` 一致，说明「取色链路通」|
+| P0-8 ~ P0-11 | **灰度截图**（色觉 / 打印模拟）| 同一张 `_tab0.png` 转灰度（`PIL.Image.convert("L")`）后，四种状态仍能靠**形状**区分：实心圆 / 实心三角 / 实心方块 / 空心圆。`AutomationProperties.Name` 用 `grep -c 'AutomationProperties.Name' src/VdHelper/Views/*.xaml` ≥ 3 静态核对 |
+| P1-1、P1-5 | **静态计数闸门 + 截图** | `grep -oE 'FontSize="[0-9.]+"' src/VdHelper/Views/*.xaml \| sort -u` 的去重条目数应 **≤ 5**（现在 7 档）。建议把这条写成 `tools/` 下的检查脚本，否则会重新漂移 |
+| P1-2、P1-3 | **量像素高度** | 截图中量「深度探测丢包」按钮上下沿之差 = **30**（现在 `HealthView.xaml:94` 是 24）|
+| P1-4 | **截图目视 + 构建输出** | 同一行中英混排（如 `3 块离线网卡持有 APIPA 地址`）基线对齐；构建输出无字体回退警告 |
+| P1-6 | **截图 + 与报告对号** | 截图中每行可见 id；再用 `VdHelper.exe --selftest --out x.txt` 核对 `lan-reach` 等 id 能在界面上一一找到。**并额外截一张 `MinWidth=840` 的窄窗口图**，确认摘要列没有难看的截断 |
+| P1-7、P1-8 | **截图对比可见行数** | 折叠后一屏可见行数应从 ~17 增加到 ~28（按 `(680-48-48)/行高` 估，实测为准）。逐行**不含**任何原始输出文本 |
+| P1-9 | **截图 + 键盘** | 手动 `Tab` 到列表某行后截图，行底应出现 `#1F2E79BD` 调的行。**不能**用 `AutomationElement` 断言（§5.1 实测只有 2 个按钮进树）|
+| P1-10 | **键盘实测**（唯一可靠路径）| 手动 `Tab` 遍历并 `PrintWindow` 截图，应看到焦点环。合成键鼠输入在本机不可用（§5.1）|
+| P1-11 | **静态核对 + 键盘** | `grep -c MouseBinding src/VdHelper/Views/HealthView.xaml` 应为 **0**（现在 1，`HealthView.xaml:74`）；Tab 序能走到症状芯片 |
+| P1-12 | **键盘实测** | `Alt+1/2/3` 切 tab 并截图确认 |
+| P1-13 | **像素采样 + 两项功能回归** | 截图 `(0,0)` 应**不是** `#1D1D1D`（圆角处应透出下层）。回归：`AllowsTransparency=True` 会关掉 DWM 硬件加速，**必须实测标题栏拖拽是否跟手**；以及 `VdHelper.exe --selftest --out x.txt` 退出码不变（UI 改动不得动 CLI 契约）|
+| P1-14 | **像素采样** | 标题栏按钮区域常态最亮像素 < 150（半透明字符），悬停时 > 200。悬停态**无法自动触发**（合成输入不可用），需手动截图 |
+
+### 5.3 每轮必跑的固定项（与 `R/.github/workflows/build.yml` 对齐）
+
+```powershell
+dotnet build src/VdHelper/VdHelper.csproj -c Release
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/capture-tab.ps1 -Tab 0
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/capture-tab.ps1 -Tab 1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/capture-tab.ps1 -Tab 2
+./tools/check-symptom-map.ps1
+python tools/check-citations.py
+python tools/check-issue-form.py
+```
+
+**CI 里没有截图步骤**（`build.yml` 只做 build + `--selftest` + 三道闸门 + publish）。
+也就是说「UI 改完必须看渲染结果」这条纪律目前**只靠人记**。
+建议把 §5.2 里 P0-1 那两条像素判据写成 `tools/check-render.py` 挂进 CI，
+否则 §2.4 列的四个默认主题漏出物会再次以「源码里看不出」的形式回归。
+
+### 5.4 `[未验证]` 清单（本文自己没能确证的）
+
+- **官方从未在真实显示器上目检过**（沿用 01 §11 的 `[未验证]`）。本文所有官方结论都是反编译 XAML 的**静态事实**。
+- **官方控件模板的像素级细节**（CheckBox 方框边长、Slider 轨道粗细）**未验证**：反编译 XAML 丢了 `Thickness` 结构的记号展开（01 §11 已记）。
+- **`AllowsTransparency=True` 对本工具的性能影响未验证**：P1-13 的风险是**推断**，依据是官方在用该属性（`S/…/MainWindow.xaml:20`），不是本机实测。
+- **`_shot3/4/7/10.png` 与当前源码是否逐行对应，未逐一核对**：这四张图时间戳为 09:13–09:45（`ls --time-style=+%H:%M`），
+  而 §2.5 的行数结论来自当前源码的静态计数。若有出入，**以源码计数为准**。
+- **本轮未重跑渲染**：只读分析，未构建、未启动 GUI（遵守 Non-Conflict）。§2.4 的全部像素值来自上述既有截图。
+
+---
+
+## 6. 一页纸结论
+
+1. **外壳抄对了，控件皮肤没抄全。** 48/48/48 三行、160×48 导航、三档底色实测与官方一致；
+   但 `App.xaml` 只重写了 3 个 ControlTemplate，Expander / ScrollBar / ScrollViewer / TextBox 全落回 WPF 默认主题，
+   实拍图上是**每行一个纯白圆点**和**一条 17px 纯白滚动条**（§2.4）。这是第一优先（P0-1 ~ P0-3）。
+2. **语义色必须自造并定死。** 官方色板里的绿/琥珀**引用数为 0**，没有先例；
+   我们现有四个状态色在徽标底上实测 2.97–3.93:1，全部不达 WCAG AA；
+   而 `App.xaml:25-27` 有一套已达标但**引用数为 0** 的死键。合并成一套即可（P0-4 ~ P0-7）。
+3. **状态要有第二个通道。** 现在状态 = 颜色 + 两字中文，唯一的快速通道恰好是不达标的那个。
+   官方靠 16×16 图标（`AppsCheckerWindow.xaml:23-28`），我们有四档状态需要四枚字形（P0-8 ~ P0-11）。
+4. **别抄官方的两个坏样。** `FocusVisualStyle="{x:Null}"`、空的 `FocusStates`、零个 `AutomationProperties.Name` ——
+   这三样我们要**比官方做对**，不是对齐（P0-10、P1-10）。
+5. **有些东西是对的，别动。** 首屏「接下来做什么」不设上限、症状筛选不改 verdict、不做假开关、
+   修复的备份/回滚三行不折叠、导航指示条不回退官方 —— 都有 ADR 与代码注释背书，
+   且首条记着一次已回滚的错误（§4.1、§4.2）。
+6. **验证靠渲染，不靠源码。** 本项目已被「合成输入到不了窗口」和「PrintWindow 正常 ≠ 渲染正确」各咬过一次；
+   本文每条改动都给了像素判据或具体命令，并承认 CI 目前不查渲染（§5.3）。
 
