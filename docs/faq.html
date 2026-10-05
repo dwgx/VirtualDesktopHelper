@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>常见问题 · VDHelper</title>
+<meta name="description" content="症状分诊表、43 条症状→根因条目，以及社区常见的 10 个错误解法逐条纠偏（端口转发 / UPnP / 关防火墙 / DMZ / 改 BIOS 等），每条附真实用户原话。">
+<link rel="icon" href="data:,">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#05060a;--bg2:#080a11;--fg:#eef1f8;--mut:#8b93a8;--dim:#5a6172;
+  --line:#171a24;--line2:#232838;--card:#0c0e16;
+  --neon:#5b8cff;--neon2:#22d3a7;--warn:#ff5b6e;--gold:#ffcc66;
+  --mono:"Cascadia Mono",Consolas,"SF Mono",ui-monospace,Menlo,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Verdana,"PingFang SC","Microsoft YaHei",sans-serif;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.75;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+#prog{position:fixed;top:0;left:0;height:2px;width:0;z-index:9998;pointer-events:none;background:var(--neon2)}
+@media(prefers-reduced-motion:reduce){#prog{display:none}}
+a{color:var(--neon);text-decoration:none}
+a:hover{text-decoration:underline}
+strong,b{color:#fff}
+code{font-family:var(--mono);font-size:.92em;background:#10131d;border:1px solid var(--line2);border-radius:4px;padding:1px 5px;color:#bcd0ff;word-break:break-word}
+.wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+.topbar{position:sticky;top:0;z-index:999;background:rgba(5,6,10,.93);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;gap:18px;height:54px;flex-wrap:wrap}
+.topbar .brand{font:700 14px/1 var(--mono);color:#fff}
+.topbar .brand span{color:var(--neon2)}
+.topbar nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+.topbar nav a{font:600 13px/1 var(--sans);color:var(--mut);padding:8px 13px;border-radius:8px;border:1px solid transparent}
+.topbar nav a:hover{color:#fff;background:#0e111a;border-color:var(--line2);text-decoration:none}
+.topbar nav a.on{color:#04130d;background:var(--neon2);border-color:var(--neon2)}
+.hero{padding:56px 0 26px}
+.eyebrow{font:600 11.5px/1.6 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--neon2);margin-bottom:14px}
+h1{font-size:clamp(26px,4vw,42px);line-height:1.18;font-weight:800;letter-spacing:-.03em}
+h1 .grad{color:var(--neon2)}
+.lead{color:#b3bbcd;font-size:16px;line-height:1.85;margin-top:18px;max-width:780px}
+.lead strong{color:#e9edf5}
+.actions{display:flex;gap:11px;margin-top:26px;flex-wrap:wrap}
+.actions a{font:600 14px/1 var(--sans);padding:12px 20px;border-radius:10px;border:1px solid var(--line2);color:var(--fg);transition:.18s}
+.actions a.primary{background:var(--neon2);color:#04130d;border-color:var(--neon2)}
+.actions a.primary:hover{box-shadow:0 12px 30px -14px rgba(34,211,167,.75);text-decoration:none;transform:translateY(-1px)}
+.actions a.ghost:hover{border-color:var(--neon);color:#fff;text-decoration:none}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin:28px 0 6px}
+@media(max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:linear-gradient(180deg,var(--card),#090b12);border:1px solid var(--line);border-radius:14px;padding:20px 14px;text-align:center}
+.stat .n{font:800 34px/1 var(--mono);color:#cfe0ff}
+.stat .n.g{color:var(--neon2)}
+.stat .l{margin-top:8px;color:var(--mut);font-size:12.5px;line-height:1.5}
+section{padding:42px 0 44px;border-top:1px solid var(--line);margin-top:32px}
+h2{font-size:clamp(21px,3.2vw,28px);font-weight:800;letter-spacing:-.02em;line-height:1.3}
+h2::before{content:"\BB\00a0";color:var(--neon2);font-family:var(--mono);font-weight:700;opacity:.45}
+h3{font-size:16px;font-weight:700;color:#fff;margin:28px 0 8px}
+h3 .tag{font:600 11px/1 var(--mono);color:var(--neon2);border:1px solid rgba(34,211,167,.3);border-radius:5px;padding:3px 6px;margin-left:8px}
+.lead2{color:#c2c9d8;font-size:15px;margin:12px 0 0;max-width:840px}
+p{color:#c2c9d8;margin:10px 0}
+ul.plain{list-style:none;margin:14px 0 0;padding:0}
+ul.plain li{position:relative;padding-left:20px;margin:9px 0;color:#c2c9d8}
+ul.plain li::before{content:"";position:absolute;left:2px;top:.72em;width:6px;height:6px;border-radius:2px;background:var(--neon2)}
+.note{color:var(--dim);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-top:16px}
+.card.warn{border-color:rgba(255,204,102,.35);background:rgba(255,204,102,.05)}
+.tblwrap{overflow-x:auto;margin:16px 0 6px;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;vertical-align:top;padding:11px 13px;border-bottom:1px solid var(--line)}
+th{background:#0e111a;color:var(--mut);font:600 11.5px/1.5 var(--sans);letter-spacing:.03em;position:sticky;top:54px;z-index:2}
+tbody tr:nth-child(even){background:rgba(255,255,255,.014)}
+tbody tr:hover{background:rgba(91,140,255,.05)}
+tbody tr:last-child td{border-bottom:0}
+td.num{font-family:var(--mono);color:var(--gold);font-weight:700;white-space:nowrap;width:1%}
+tr:target{background:rgba(34,211,167,.1)}
+td code{white-space:pre-wrap;word-break:break-word;display:inline-block;background:none;border:0;padding:0;color:#bcd0ff}
+.badge{display:inline-block;font:700 11px/1 var(--mono);padding:4px 8px;border-radius:6px;white-space:nowrap}
+.badge.pass{color:#8ee9cf;background:rgba(34,211,167,.12);border:1px solid rgba(34,211,167,.35)}
+.badge.warn{color:#ffd98a;background:rgba(255,204,102,.12);border:1px solid rgba(255,204,102,.35)}
+.badge.block{color:#ff9aa6;background:rgba(255,91,110,.12);border:1px solid rgba(255,91,110,.35)}
+.badge.unknown{color:#a6aec2;background:rgba(255,255,255,.05);border:1px solid var(--line2)}
+.myth{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:12px;padding:18px 20px;margin-top:16px}
+.myth:target{border-color:var(--neon2);border-left-color:var(--neon2)}
+.myth .mh{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.myth .mh .no{font:700 12px/1.6 var(--mono);color:var(--warn);letter-spacing:.06em}
+.myth .mh h3{margin:0;font-size:16.5px}
+.flag{font:700 11.5px/1.6 var(--mono);padding:3px 8px;border-radius:6px;background:rgba(255,91,110,.13);border:1px solid rgba(255,91,110,.35);color:#ff9aa6}
+.myth h4{font:700 11.5px/1.6 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:16px 0 6px}
+.say{color:#c9d0de;margin:0}
+.myth blockquote{margin:6px 0 0;padding:8px 12px;border-left:2px solid var(--line2);color:#a9b1c4;font-size:13.5px}
+.myth blockquote p{margin:4px 0;color:inherit}
+.wrong{background:rgba(255,91,110,.06);border:1px solid rgba(255,91,110,.2);border-radius:10px;padding:12px 14px;margin-top:6px}
+.wrong h4{color:#ff9aa6;margin-top:0}
+.right{background:rgba(34,211,167,.06);border:1px solid rgba(34,211,167,.22);border-radius:10px;padding:12px 14px;margin-top:6px}
+.right h4{color:#8ee9cf;margin-top:0}
+.myth .xref{margin:12px 0 0;padding-top:10px;border-top:1px dashed var(--line2);color:var(--mut);font-size:13px}
+details{margin-top:18px;border:1px solid var(--line);border-radius:12px;background:#080a11}
+summary{cursor:pointer;padding:13px 16px;font:600 13px/1.6 var(--sans);color:var(--mut);list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"\25B8\00a0";color:var(--neon2)}
+details[open]>summary{color:#fff;border-bottom:1px solid var(--line)}
+details pre{margin:0;padding:14px 16px;overflow-x:auto;font:12.5px/1.65 var(--mono);color:#a9b1c4;white-space:pre}
+footer{border-top:1px solid var(--line);padding:28px 0 44px;color:var(--dim);font-size:12.5px}
+footer .wrap{display:flex;gap:16px;justify-content:space-between;flex-wrap:wrap}
+footer a{color:var(--mut)}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div id="prog"></div>
+<div class="topbar"><div class="wrap"><a class="brand" href="index.html">VD<span>Helper</span></a><nav><a href="index.html">首页</a><a href="checks.html">检测项全表</a><a href="faq.html" class="on">常见问题</a></nav></div></div>
+<div class="wrap">
+<header class="hero">
+  <div class="eyebrow">FAQ · 症状分诊 + 错解纠偏 · 逐条可溯源</div>
+  <h1>先排掉错解，<br><span class="grad">再谈修</span></h1>
+  <p class="lead">本页内容来自 96 条逐字引用的真实用户描述（79 个完整 Reddit 帖 + 官方 FAQ + 开发者公开回复）。引号里的话是原话，不做语法修正；每条结论后面的编号可回查 <code>research/09-failure-corpus/02-symptom-to-rootcause.md</code>。</p>
+</header>
+<section id="symptom">
+  <h2>症状词典：把你说的那句话翻译成状态</h2>
+  <p class="lead2">用户会说的词远多于症状。能归并出 <strong>7 个症状类 + 12 个子症状</strong>，剩下的才是工程问题。</p>
+  <div class="tblwrap"><table>
+<thead><tr><th>症状类</th><th>用户会怎么说（真实措辞）</th><th>判定信息（VDHelper 需要拿到的）</th></tr></thead><tbody>
+<tr><td><strong>S1 看不见电脑</strong></td><td>"no computer found" / "no computer detected" / "big yellow sign" / "doesn't see the PC" / "servers unreachable, only showing local computers"</td><td>头显端收到零个广播应答；PC 侧 UDP 38850 是否在发</td></tr>
+<tr><td><strong>S2 连不上</strong></td><td>"computer is unreachable" / "PC is unreachable" / "failed to see any computer at all" / "can't connect to a computer contact support"</td><td>收到了应答但后续 TCP 握手失败</td></tr>
+<tr><td><strong>S3 说不在同一网络</strong></td><td>"not on same network" / "not on same local network"</td><td>两端子网 / AP 隔离</td></tr>
+<tr><td><strong>S4 卡在测速</strong></td><td>"stuck on measuring bandwidth" / "won't get past "measuring bandwidth"" / "keeps measuring bandwidth"</td><td>带宽探测阶段超时</td></tr>
+<tr><td><strong>S5 有画面但黑 / 无画面</strong></td><td>"black screen" / "blank screen" / "I can hear audio, but no visuals" / "shows no display"</td><td>音视频分离 → 解码/显示器/编码器</td></tr>
+<tr><td><strong>S6 连上就掉 / 定时卡</strong></td><td>"keeps disconnecting" / "disconnects after 30 seconds" / "freezes exactly at 5-7 mins" / "60-Second Stutter" / "The first time I tried it, it worked perfectly for hours, hasn't worked since"</td><td>周期性 → 时序特征</td></tr>
+<tr><td><strong>S7 画面质量差 / 不跟手</strong></td><td>"choppy" / "stutter" / "bitrate only 60-70" / "black bars when turning my head" / "blurry"</td><td>抖动/丢包/解码耗时</td></tr>
+</tbody></table></div>
+</section>
+<section id="triage">
+  <h2>症状 → 根因分诊表</h2>
+  <p class="lead2">这 43 条根因条目按症状分组（S1 7 + S2 9 + S3 4 + S4 5 + S5 6 + S6 6 + S7 6）。S1/S2 两组带「现有 FAQ 是否覆盖」列，说明官方口径到哪一步就停了；标「未覆盖」不代表不重要，只代表现成的逐条打勾式清单到不了那里。</p>
+  <h3 id="s1">S1 看不见电脑（no computer found）—— 对应 7 种根因<span class="tag">7 个根因</span></h3>
+  <div class="tblwrap"><table>
+<thead><tr><th>#</th><th>工程根因</th><th>语料证据</th><th>现有 FAQ 是否覆盖</th><th>建议检测项</th></tr></thead><tbody>
+<tr><td class="num">A1</td><td><strong>用户名不匹配</strong></td><td>R04（开发者原话 "No computer found means that the entered Oculus username in the Streamer window doesn't match"）</td><td>❌ FAQ 完全不提</td><td>读 Streamer 配置文件中的账号名，与头显显示名程序化比对</td></tr>
+<tr><td class="num">A2</td><td><strong>填了但没点 Save</strong></td><td>R05 "I forgot to click Save at the bottom of the accounts window"</td><td>❌ 零覆盖</td><td>读<strong>生效配置值</strong>，并与 UI 显示值交叉验证；配置为空 → 阻断级告警</td></tr>
+<tr><td class="num">A3</td><td><strong>两端版本不匹配</strong>（头显商店版 vs PC 侧 beta）</td><td>R06（俄语用户：「версии чуток не совпали，我 потратил 5ч」）；R07 开发者要求两端都是 1.21.0</td><td>❌ FAQ 不要求比对版本</td><td>比对 Streamer 版本 ↔ 头显 app 版本，不一致直接报</td></tr>
+<tr><td class="num">A4</td><td><strong>Streamer 未真正就绪</strong>（灰图标）—— 出网做 entitlement check 失败</td><td>R15（"when I'm not connected to the internet the icon is grey"）；R16 "When you first start up Virtual Desktop, it will do an entitlement check on VD's servers"</td><td>❌ FAQ 只在远程场景提 UPnP</td><td>读 Streamer 就绪状态码；测出站连通性</td></tr>
+<tr><td class="num">A5</td><td><strong>头显侧 VPN</strong></td><td>R03 "i was using a VPN in my quest 2 ... when I disconnected the vpn the VD in the quest found my pc"</td><td>❌ FAQ 只说 "Make sure your PC isn't running VPN software"</td><td>明确区分 PC 侧 VPN / 头显侧 VPN 两个检测项</td></tr>
+<tr><td class="num">A6</td><td><strong>头显 MAC 随机化破坏绑定</strong></td><td>R17 多人复现："This was causing issues with binding because the MAC isn't the one the application expected to receive"</td><td>❌ 零覆盖</td><td>读取头显当前 MAC 与被记录 MAC 是否一致；提示关闭隐私/MAC 随机化</td></tr>
+<tr><td class="num">A7</td><td><strong>杀软/EDR 卸载或禁用了 VD 服务</strong></td><td>R64（官方弹窗 "disable anti virus and reinstall desktop streamer"，开发者明确说 "Windows Defender won't affect it so it has to be something else"）</td><td>⚠️ 官方错误文案直接误导用户</td><td>检测 <code>VirtualDesktop.Service</code> 的<strong>实际运行状态 + 安装身份 + 最后修改时间</strong></td></tr>
+</tbody></table></div>
+  <h3 id="s2">S2 连不上（computer unreachable）—— 对应 9 种根因<span class="tag">9 个根因</span></h3>
+  <div class="tblwrap"><table>
+<thead><tr><th>#</th><th>工程根因</th><th>语料证据</th><th>现有 FAQ 是否覆盖</th><th>建议检测项</th></tr></thead><tbody>
+<tr><td class="num">B1</td><td><strong>Windows 网络配置文件是 Public / NetworkProfile</strong></td><td>R60 Streamer 面板原文 "your network profile in windows isn't set to private which can prevent connecting to your comptuter"；R13 社区建议"改成 Public"（<strong>方向相反</strong>）</td><td>⚠️ 面板提了但用工程语言，用户读不懂（R61 "I'm not amazing at computers"）</td><td>读 <code>NLA</code> 策略/接口 profile，输出人话："Windows 把这个 WiFi 当公用网络"</td></tr>
+<tr><td class="num">B2</td><td><strong>防火墙缺出站规则（只有入站）</strong></td><td>R18 "I noticed that VD didn't have an outbound rule in windows firewall, only an inbound one, so I added one manually."</td><td>❌ FAQ 只会说"别挡防火墙"</td><td>枚举入站/出站规则，检测成对性，指出缺哪条</td></tr>
+<tr><td class="num">B3</td><td><strong>防火墙 profile 级别被整体改动</strong></td><td>R17 解决方式：高级安全里把 Domain/Private 的 Inbound Connections 改 ALLOW；R34 "Event Viewer doesn't record any blocked connections"（即拦截根本没发生，profile 层面才是问题）</td><td>❌ 零覆盖</td><td>检测 profile 级入站策略 + 事件日志无拦截记录的矛盾态</td></tr>
+<tr><td class="num">B4</td><td><strong>VPN 客户端后台仍在运行</strong>（退出 ≠ 未运行）</td><td>R19 "I thought that exiting NordVPN in taskbar and not connecting to it was the same but it was probably running some of that in the background"；点名关闭 "CyberSec" 和 "Invisibility on LAN"</td><td>❌ FAQ 措辞让人以为退出即可</td><td>检测<strong>进程存活</strong>而非连接状态；点名具体功能开关</td></tr>
+<tr><td class="num">B5</td><td><strong>第三方杀软（非 Defender）</strong></td><td>R21 Avast 排除规则；R60 开发者原话；R43 自述 "there was something hidden in the details tab in the Task Manager named NLSSRV32.EXE (Nalpeiron Licensing Service)"</td><td>⚠️ FAQ 提了 Avast/AVG/McAfee/Norton，但漏了"任意常驻后台进程"</td><td>用「同网线下笔记本正常/台式不行」的对比思路，扫可疑常驻进程</td></tr>
+<tr><td class="num">B6</td><td><strong>VirtualDesktop.Service 未运行 / 身份错</strong></td><td>本机实测基线：<code>ServiceLog.txt</code> 反复 <code>HRESULT -2147024891 configured identity is incorrect</code>；R64 官方弹窗同一现象</td><td>❌ FAQ 归因杀软，方向错误</td><td>直接读服务状态 + 启动失败码，把 -2147024891 翻译成"服务登录账号口令/权限不对"</td></tr>
+<tr><td class="num">B7</td><td><strong>两端版本不匹配（回归型）</strong></td><td>R63 "Happened to me after a VD update. Reinstall the streamer app on the PC"；R52 "It only recently started doing this too"</td><td>❌</td><td>与 A3 共用检测项，但需按"回归型故障"提级</td></tr>
+<tr><td class="num">B8</td><td><strong>远端场景下 DMZ 配置错误 / 端口未转发</strong></td><td>R21/R22/R23 三条互相矛盾的说法</td><td>⚠️ FAQ 给了端口号但没给场景边界</td><td>分诊：同网段 → 不需要端口转发；跨网 → 需要，且必须提示 DMZ 风险</td></tr>
+<tr><td class="num">B9</td><td><strong>官方远端发现服务不可达</strong></td><td>R08 "Virtual Desktop servers partially unreachable, some computers may not appear"；R09 开发者 "It's back up now for remote connections"</td><td>❌</td><td>内置官方状态源，命中时直接告知"非本机问题"</td></tr>
+</tbody></table></div>
+  <h3 id="s3">S3 说不在同一网络（not on same network）—— 对应 4 种根因<span class="tag">4 个根因</span></h3>
+  <div class="tblwrap"><table>
+<thead><tr><th>#</th><th>工程根因</th><th>语料证据</th><th>建议检测项</th></tr></thead><tbody>
+<tr><td class="num">C1</td><td><strong>头显在 Guest 网络</strong></td><td>R10 开发者："disable Guest networks and any AP isolation options"；R11 "you have some other settings on your router to isolate WiFi traffic from wired/ethernet traffic"</td><td>读头显 BSSID/网关 → 与 PC 网关比对；不等网关直接判不同网段</td></tr>
+<tr><td class="num">C2</td><td><strong>AP / 客户端隔离（无线↔有线不通）</strong></td><td>同 R11</td><td><strong>主动探测</strong>：PC → 头显 IP 发包，收不到即判隔离。这是社区唯一共识诊断法</td></tr>
+<tr><td class="num">C3</td><td><strong>真不同子网</strong></td><td>R12 "If your Quest has a different first 3 octets of the IP address..."</td><td>比对 IP/掩码/网关三元组</td></tr>
+<tr><td class="num">C4</td><td><strong>第二台路由器/AP 模式配错导致与 PC 不同段</strong></td><td>R02「tplink 路由器当 access point」+ 回复 "They should have same subnet eg. 192.168.1.1xx ... your access point may not be setup right"</td><td>检测是否存在二级路由（PC 与头显网关不同）</td></tr>
+</tbody></table></div>
+  <h3 id="s4">S4 卡在测速（measuring bandwidth）—— 对应 5 种根因<span class="tag">5 个根因</span></h3>
+  <div class="tblwrap"><table>
+<thead><tr><th>#</th><th>工程根因</th><th>语料证据</th><th>建议检测项</th></tr></thead><tbody>
+<tr><td class="num">D1</td><td><strong>笔记本厂商网络加速（Lenovo Vantage network boost）</strong></td><td>R40 开发者唯一回复即此；R41 "Literally just did that 10 minutes ago and was about to come post here that it's working again"；R42 同答案</td><td>扫 Lenovo Vantage / 厂商网络增强进程</td></tr>
+<tr><td class="num">D2</td><td><strong>自动调码率在探测阶段失败</strong></td><td>R43 "I also have Automatically adjust bandwidth off because if that's enabled it will just get stuck on measuring bandwidth"；R30 同样成因</td><td>读 Streamer <code>AutomaticallyAdjustBitrate</code> 开关</td></tr>
+<tr><td class="num">D3</td><td><strong>云 PC 场景码率设得过高</strong>（Shadow 98Mbps）</td><td>R43 "You have Virtual Desktop set to 98Mbps when using Shadow? Unless you have fiber internet that's probably way too high."</td><td>识别目标为云服务时改用云场景判词与默认码率建议</td></tr>
+<tr><td class="num">D4</td><td><strong>网卡协商速率只有 100Mbps</strong></td><td>R46 "in vd stated "ethernet wired but not with gogabit ethernet" ... actually 100mbps"，最终发现是路由器 LAN 口只支持 10/100M</td><td><strong>读网卡协商速率</strong>，&lt;1Gbps 报阻断</td></tr>
+<tr><td class="num">D5</td><td><strong>路由器固件随机丢包</strong></td><td>R45 "turns out it was my router firmware, which seems to just drop packets randomly"（NETGEAR → OpenWRT）</td><td>多次主动探测取丢包率，&gt;0 即报，并点名固件方向</td></tr>
+</tbody></table></div>
+  <h3 id="s5">S5 有画面但黑 / 无画面 —— 对应 6 种根因<span class="tag">6 个根因</span></h3>
+  <div class="tblwrap"><table>
+<thead><tr><th>#</th><th>工程根因</th><th>语料证据</th><th>建议检测项</th></tr></thead><tbody>
+<tr><td class="num">E1</td><td><strong>无已启用且有信号的物理显示器</strong>（拔过线）</td><td>R51 "I unplugged the monitor ... I plugged the monitor back in and now my virtual desktop shows a blank black screen. I can see the cursor moving"</td><td>检测当前显示器枚举状态与信号状态</td></tr>
+<tr><td class="num">E2</td><td><strong>远程桌面会话独占显示器</strong></td><td>R50 "if you've got a connection established to your PC from another machine via Microsoft Remote Desktop, disconnect it before connecting with Virtual Desktop. I've found that a remote desktop connection will cause that monitor to appear black"</td><td><strong>检测是否存在活动 RDP 会话</strong> —— 这是社区孤例，但与 VD 第二显示器逻辑完全吻合</td></tr>
+<tr><td class="num">E3</td><td><strong>GPU 硬件编码器不可用 / 被禁用</strong></td><td>R49（Steam Deck："Valve have disabled the hardware video encoder which Virtual Desktop needs for multiple screens"）；R47 社区判 "Sounds to me like a rendering issue"</td><td>检测编码器存在性与是否被切换到软件编码</td></tr>
+<tr><td class="num">E4</td><td><strong>GPU 性能不足（非编码问题，是渲染能力）</strong></td><td>R47 Dell 笔记本，桌面模式正常、进 VR 就黑</td><td>检测 GPU 型号 + VR Ready 门槛，把"换硬件"与"改设置"分开说</td></tr>
+<tr><td class="num">E5</td><td><strong>多显卡选错（游戏跑在核显上）</strong></td><td>R48 "I found the problem, it had loaded on the wrong graphics card. After disableing the other one it worked 100%"</td><td>检测 SteamVR/游戏进程的 GPU 选择</td></tr>
+<tr><td class="num">E6</td><td><strong>驱动版本与 VD 冲突</strong></td><td>R54 开发者："Make sure you have the latest Streamer installed (1.34.14), that fixes a bug with latest Nvidia drivers (591 and later)"；R55 "solved by installing drivers that 2 months earlier"</td><td>检测 GPU 驱动版本 vs VD 推荐矩阵，<strong>"最新驱动"对 VD 是风险项</strong></td></tr>
+</tbody></table></div>
+  <h3 id="s6">S6 连上就掉 / 定时卡 —— 对应 6 种根因<span class="tag">6 个根因</span></h3>
+  <div class="tblwrap"><table>
+<thead><tr><th>#</th><th>工程根因</th><th>语料证据</th><th>建议检测项</th></tr></thead><tbody>
+<tr><td class="num">F1</td><td><strong>头显端手部/身体追踪</strong></td><td>R57 "The issue is related to hand tracking in the quest 3 settings ... I disabled it and the stutter is completely gone."（PC 侧 Game/Encode/Network/Decode 全部稳定）</td><td>⚠️ <strong>根因在头显设置里，PC 侧 18 项检测结构上无法发现</strong></td></tr>
+<tr><td class="num">F2</td><td><strong>头显解码器卡死</strong>（Decoding &gt;400ms）</td><td>R58， Networking 0ms 但 Decoding &gt;400ms；换新头显仍复现</td><td>读四段指标分布，直接输出"Decoding 红了 → 找 Meta 售后"</td></tr>
+<tr><td class="num">F3</td><td><strong>Windows 周期性 WiFi 扫描打断</strong></td><td>R62 "Windows does periodic WiFi searches even with the hotspot on, and it causes this issue"</td><td>检测 WLAN AutoConfig 服务 + 周期性扫描</td></tr>
+<tr><td class="num">F4</td><td><strong>ICS（网络共享）参与转发</strong></td><td>R65 "Using ICS to share my modem internet ... I disabled ALL power saving settings such a Gigabit Lite"</td><td>检测 ICS 状态</td></tr>
+<tr><td class="num">F5</td><td><strong>信号覆盖不足（墙体/距离）</strong></td><td>R56 "my house being built into a hill is partially underground so the wifi strength through the walls is not very strong"</td><td>测 RSSI/信号质量，非单纯速率</td></tr>
+<tr><td class="num">F6</td><td><strong>网卡节能（省电设置）</strong></td><td>R65 同上</td><td>检测网卡节能开关</td></tr>
+</tbody></table></div>
+  <h3 id="s7">S7 画质差 / 卡顿 —— 对应 6 种根因<span class="tag">6 个根因</span></h3>
+  <div class="tblwrap"><table>
+<thead><tr><th>#</th><th>工程根因</th><th>语料证据</th><th>建议检测项</th></tr></thead><tbody>
+<tr><td class="num">G1</td><td><strong>PC 与头显挂在不同网关（跨路由）</strong></td><td>R44 "my computer is wired to the first router ... I think the second router deteriotes the signal back to my comp too much"</td><td>检测两端网关是否相同</td></tr>
+<tr><td class="num">G2</td><td><strong>5GHz 信道拥塞 / 信道宽不是 80MHz</strong></td><td>R72 "5Ghz congestion is actually a real issue"; R71 "If your PC shows 866mbps in the VD app on the quest then its 80mhz channel width"</td><td>扫 5GHz 各信道占用，输出人话判词</td></tr>
+<tr><td class="num">G3</td><td><strong>内存 RGB 控制软件等常驻工具占用</strong></td><td>R59 "Disabling the RGB software that controls my RAM ... That's it."（18 个月苦战后解决）</td><td>扫常驻硬件厂商工具</td></tr>
+<tr><td class="num">G4</td><td><strong>过热降频</strong></td><td>R59 追评："I just needed to clean out my fans and replace the thermal paste it was throttling bad"</td><td>检测温度与降频状态</td></tr>
+<tr><td class="num">G5</td><td><strong>BIOS Resizable BAR（社区盲试，收益无证据）</strong></td><td>R60' "I disabled 'resizeable bar' ... and it eliminated the last of the very few stutters"；<strong>首条高赞回复直接反驳</strong> "There's a significant chance that your change is a placebo fix"</td><td>⚠️ 不建议列为检测项，但需在文档中标注为"社区流传、无证据、高风险"</td></tr>
+<tr><td class="num">G6</td><td><strong>用户拿码率数字当画质</strong></td><td>R30 "I saw on youtube people are getting 100+ and i seem to only get around 60-70"</td><td>把 60-70 Mbps 翻译成"够用"，纠偏而非报警</td></tr>
+</tbody></table></div>
+</section>
+<section id="coverage">
+  <h2>覆盖度：9 / 23 已被检测覆盖</h2>
+  <p class="lead2">已覆盖 9 · 部分覆盖 4 · <strong>完全未覆盖 10</strong>。下面这 10 条是现有检测够不到的地方，也是工具下一步最该做的地方。</p>
+  <div class="tblwrap"><table>
+<thead><tr><th>被评估的根因</th><th>已覆盖</th><th>部分覆盖</th><th><strong>完全未覆盖</strong></th></tr></thead><tbody>
+<tr><td class="num">23</td><td>9</td><td>4</td><td><strong>10</strong></td></tr>
+</tbody></table></div>
+  <ul class="plain">
+    <li><strong>A6 头显 MAC 随机化</strong> —— 社区多人复现，官方零覆盖，能单方面拿分</li>
+    <li><strong>A3/B7 两端版本一致性</strong> —— 完全可程序化</li>
+    <li><strong>A2 配置是否真正 Save 落盘</strong> —— 完全可程序化</li>
+    <li><strong>B2 防火墙入站/出站规则成对性</strong> —— 有社区给出的成功案例，社区普遍止步于"关防火墙"</li>
+    <li><strong>D4 网卡协商速率 ≥1Gbps</strong> —— 社区花整帖才定位的隐蔽陷阱</li>
+    <li><strong>G1 两端网关一致性</strong> —— 社区给出互相矛盾的答案，只有工具能判</li>
+    <li><strong>B4 VPN 进程存活（而非连接状态）</strong> —— 官方措辞有漏洞</li>
+    <li><strong>F1 头显端设置（手部追踪等）</strong> —— 需扩展检测面到头显</li>
+    <li><strong>E2 活动 RDP 会话独占显示器</strong> —— "第二次就黑屏"的经典真因</li>
+    <li><strong>C2 主动探测（PC→头显可达性 / UDP 38850）</strong> —— 社区唯一共识诊断法，社区目前靠手敲 ping</li>
+  </ul>
+</section>
+<section id="myths">
+  <h2>社区常见的错误解法（10 条，逐条纠偏）</h2>
+  <p class="lead2">这 10 条是社区给出频率最高、也最贵的解法。问题不是「有时不管用」，而是<strong>方向就是错的</strong>：把人带去改路由器、改 BIOS、买新设备，而真正的原因留在原地。以下每条都写清「为什么错」与「正确说法是什么」，不骑墙。</p>
+  <div class="myth" id="m3-1">
+    <div class="mh"><span class="no">3.1</span><h3>端口转发 38810/38820/38830/38840</h3><span class="flag"><strong>本地场景完全无关</strong></span></div>
+    <h4>社区原话</h4><blockquote>
+      <p>· R14 "I remoted into my home PC ... I was able to set the port forwarding for TCP 38810, 38820, 38830, and 38840 ... It still says "computer unreachable"."</p>
+      <p>· R14 用户自己也问 "anyone got a list of the ports that need forwarding?"</p>
+    </blockquote>
+    <div class="wrong"><h4>为什么错</h4><p class="say">VD 的<strong>本地</strong>发现与连接不依赖这四个 TCP 端口。已知基线：发现走 <strong>UDP 38850</strong>（配对/发现）与周期广播 <strong>255.255.255.255:38860</strong>；TCP 38810/20/30/40 属于远程连接路径。把本地故障归因于端口转发，会让用户去改路由器，却碰不到真正的问题。</p></div>
+    <h4>证据</h4><p class="say">R21 用户转发端口后<strong>仍失败</strong>；R44 用户把 "Has any tried forwarding ports for the Quest?" 当作求助方向，帖内无人认为这对本地有效。</p>
+    <div class="right"><h4>正确说法</h4><p class="say"><strong>先判定场景</strong>。PC 与头显同网段 → 不需要任何端口转发；异地 → 需要转发 TCP 38810/20/30/40，且 Streamer 需勾选 "Allow remote connections"。开发者本人在 R29 明确说过 "You don't need to forward ports to connect to Shadow."</p></div>
+    <p class="xref">对应检测项：<a href="checks.html#c-21">第 21 项 · 出向端口映射（UPnP）异常</a></p>
+  </div>
+  <div class="myth" id="m3-2">
+    <div class="mh"><span class="no">3.2</span><h3>开 UPnP</h3><span class="flag">方向搞反了，且被用户误解成"开网络发现"</span></div>
+    <h4>社区原话</h4><blockquote>
+      <p>· R53 "I have heard about enabling Upnp but I tried that by going into network settings and <strong>enabling network discovery</strong> and that didn't work."</p>
+      <p>· R22 社区建议 "If possible I'd <strong>disable</strong> UPnP, security reasons, this is why I just suggest direct port forward instead."</p>
+    </blockquote>
+    <div class="wrong"><h4>为什么错</h4><p class="say">UPnP 与 Windows 的"网络发现"是完全不同的两件事，用户把它们混为一谈（见 R53）。本地场景根本不需要 UPnP；而开启 UPnP 意味着任何程序都能在你不知情时开端口。</p></div>
+    <div class="right"><h4>正确说法</h4><p class="say">本地场景不开 UPnP；远程场景优先静态 IP + 精确端口转发。R22 那条"禁用 UPnP 改手动转发"的建议是对的，且与开发者口径一致。</p></div>
+    <p class="xref">对应检测项：<a href="checks.html#c-21">第 21 项 · 出向端口映射（UPnP）异常</a></p>
+  </div>
+  <div class="myth" id="m3-3">
+    <div class="mh"><span class="no">3.3</span><h3>关防火墙全 profile</h3><span class="flag">掩盖问题，且往往无效</span></div>
+    <h4>社区原话</h4><blockquote>
+      <p>· R01 "Full send and turn off your firewall. That's what I did because I was <strong>getting tired of struggling with it</strong>"</p>
+      <p>· R19 OP 的最终解法其实是补规则，不是关防火墙："I noticed that VD didn't have an outbound rule ... so I added one manually. Now I can connect to my PC <strong>even with the firewall enabled</strong>."</p>
+    </blockquote>
+    <div class="wrong"><h4>为什么错</h4><p class="say">R01 那位用户明说是因为<strong>放弃了</strong>才关防火墙——这不是解法，是退出排查。而且大量帖子里关防火墙完全无效（R01 "Already did all that a few times."、R34 关了也连不上且事件日志无任何拦截记录）。关掉防火墙还会顺手干掉 ICS、VPN 的接口隔离，制造出新的干扰因素。</p></div>
+    <div class="right"><h4>正确说法</h4><p class="say">保持防火墙开启，<strong>改成检测哪条规则缺失</strong>。R19 是语料中唯一一个"关防火墙只是诊断手段、正确解法是补规则"的完整案例——这就是 VDHelper 应该给用户的答案。</p></div>
+    <p class="xref">对应检测项：<a href="checks.html#c-5">第 5 项 · 防火墙里根本没有 VD 的入站规则</a> · <a href="checks.html#c-8">第 8 项 · Defender 防火墙 profile 整体被关闭（本机 Private/Public 均为 False）</a></p>
+  </div>
+  <div class="myth" id="m3-4">
+    <div class="mh"><span class="no">3.4</span><h3>开 DMZ</h3><span class="flag">同一社区内互相矛盾，且方向通常是危险的</span></div>
+    <div class="wrong"><h4>为什么错</h4><p class="say">同一位开发者在同一问题下被转述出"开 DMZ"和"关 DMZ"两个相反建议。其中"开 DMZ"来自二手转述、无原始出处；而社区用户自己的安全警告（把整台 PC 暴露给全互联网）是正确的。DMZ 是安全反模式，不应作为任何 VDHelper 建议的出口。</p></div>
+    <div class="right"><h4>正确说法</h4><p class="say">精确端口转发 TCP 38810/20/30/40 到 PC 静态 IP；<strong>明确说明 DMZ 是错误做法及其风险</strong>。VDHelper 在这里必须比社区更确定。</p></div>
+    <p class="xref">对应检测项：<a href="checks.html#c-21">第 21 项 · 出向端口映射（UPnP）异常</a></p>
+  </div>
+  <div class="myth" id="m3-5">
+    <div class="mh"><span class="no">3.5</span><h3>手改头显 IP 匹配 PC 网段</h3><span class="flag">会造成 IP 冲突</span></div>
+    <h4>社区原话</h4><blockquote>
+      <p>R12 "If needed you can <strong>manually assign an IP address on the Quest</strong> to match the PC network"，并让用户"pick any number from 1 to 254... as long as nothing else is on the number you choose"。</p>
+    </blockquote>
+    <div class="wrong"><h4>为什么错</h4><p class="say">让用户手动在头显上填 IP，等于把 IP 冲突的风险交给用户，而 Quest OS 的 DHCP 行为不受用户控制。这是把网络问题的责任转嫁给最没有能力处理它的一方。</p></div>
+    <div class="right"><h4>正确说法</h4><p class="say">改路由器配置（关 Guest 网络 / AP 隔离 / 统一网段），不要动头显的 IP。</p></div>
+    <p class="xref">本机测不了：路由器 AP 隔离 / 访客网络 / VLAN 在 PC 上没有可编程观测点，见 <a href="checks.html#router-untestable">检测项全表</a>。</p>
+  </div>
+  <div class="myth" id="m3-6">
+    <div class="mh"><span class="no">3.6</span><h3>"重启一切"</h3><span class="flag">兜底而非解法，且常被当作正式建议</span></div>
+    <h4>社区原话</h4><blockquote>
+      <p>R01 "Make sure your firewall does not block Virtual Desktop connections. Make sure your PC is WIRED to your router. <strong>Restart your router/PC/Quest.</strong>"；R52 OP 明确回复 "<strong>Already did all that a few times.</strong>"</p>
+    </blockquote>
+    <div class="wrong"><h4>为什么错</h4><p class="say">它在社区里的出现频率极高，但被提问者当场否认有效。它之所以流行是因为它零成本、不需要理解问题。</p></div>
+    <div class="right"><h4>正确说法</h4><p class="say">VDHelper 应把"重启"<strong>降级为最后一招</strong>，并在前面给出真正有信息量的检查。</p></div>
+    <p class="xref">对应检测项：<a href="checks.html#c-25">第 25 项 · PC 刚睡醒，头显连不上（必须先碰一下 PC）</a> · <a href="checks.html#c-26">第 26 项 · 网卡换 IP 后 VD 没恢复（`NetworkAddressChanged` 2 秒去抖）</a></p>
+  </div>
+  <div class="myth" id="m3-7">
+    <div class="mh"><span class="no">3.7</span><h3>归因"杀软"—— 官方错误文案带偏了整个社区</h3></div>
+    <h4>社区原话</h4><blockquote>
+      <p>官方错误弹窗 R64 "it says "virtual desktop service not running, <strong>disable anti virus</strong> and reinstall desktop streamer"；而开发者本人在同帖 R64 明确说 "<strong>Windows Defender won't affect it so it has to be something else.</strong>"</p>
+    </blockquote>
+    <div class="wrong"><h4>为什么错</h4><p class="say">官方文案把用户直接导向"关杀软"这个无效动作。开发者与自己的文案矛盾。</p></div>
+    <div class="right"><h4>正确说法</h4><p class="say">查 <code>VirtualDesktop.Service</code> 的真实状态与失败码。本机基线已经拿到具体证据：<code>ServiceLog.txt</code> 反复 <code>HRESULT -2147024891 configured identity is incorrect</code> —— 这是<strong>服务登录身份配置错误</strong>，和杀软毫无关系。</p></div>
+    <p class="xref">对应检测项：<a href="checks.html#c-3">第 3 项 · 服务在跑但 Streamer 进程起不来（本机 2026-09 反复出现）</a> · <a href="checks.html#c-10">第 10 项 · 第三方杀软/防火墙接管（Avast/AVG/McAfee/Norton/360/火绒）</a></p>
+  </div>
+  <div class="myth" id="m3-8">
+    <div class="mh"><span class="no">3.8</span><h3>把"No computer found"一律归因用户名</h3><span class="flag">开发者自己的过度归因</span></div>
+    <h4>社区原话</h4><blockquote>
+      <p>R04 开发者 "No computer found means that the entered Oculus username in the Streamer window doesn't match. Check the spelling."；同帖提问者 R04b 自述已排除 8 项仍失败，同帖另一回复直接回 "<strong>bullshit</strong>"。</p>
+    </blockquote>
+    <div class="wrong"><h4>为什么错</h4><p class="say">提问者逐项排除了（切私有网络、核对用户名、卸载 Norton、关防火墙、同 5GHz、重装、重启、对版本），用户自己的第一反应就是"这说法不对"。</p></div>
+    <div class="right"><h4>正确说法</h4><p class="say">用户名不匹配应当<strong>被程序化判定并单独报出</strong>（连两边的实际值一起给），而不是用它解释所有"No computer found"。开发者是对的结论、错的适用范围。</p></div>
+    <p class="xref">目前没有对应检测项，落在<a href="#coverage">覆盖度里的未覆盖清单</a>中。</p>
+  </div>
+  <div class="myth" id="m3-9">
+    <div class="mh"><span class="no">3.9</span><h3>改 BIOS 试运气（Resizable BAR / 各类 BIOS 开关）</h3></div>
+    <h4>社区原话</h4><blockquote>
+      <p>R60' "I disabled 'resizeable bar' today in the bios and was surprised that it eliminated the last of the very few stutters I was getting."；<strong>同帖最高赞回复反驳</strong>："Resizable bar provides your CPU with direct access to video memory and has significant performance increases for a lot of non-vr games. There's a significant chance that your change is a <strong>placebo fix</strong>"；OP 被追问是否验证过复现时未给出数据。</p>
+    </blockquote>
+    <div class="wrong"><h4>为什么错</h4><p class="say">改 BIOS 是高风险、收益无证据的动作，却在语料中被当作推荐解法传播。</p></div>
+    <div class="right"><h4>正确说法</h4><p class="say">VDHelper 不跟风推荐，但<strong>可以</strong>提示"你可能已经试过这类改动，目前没有证据表明它对 VD 有效"。</p></div>
+    <p class="xref">目前没有对应检测项，落在<a href="#coverage">覆盖度里的未覆盖清单</a>中。</p>
+  </div>
+  <div class="myth" id="m3-10">
+    <div class="mh"><span class="no">3.10</span><h3>买更贵的路由器作为万能解</h3></div>
+    <h4>社区原话</h4><blockquote>
+      <p>R56 回复 "buy another one and use it dedicated to VR"；R59 OP 甚至 "drove over an hour to pickup an Eero 6E for a bargain price"，问题最终出在内存 RGB 软件上。</p>
+    </blockquote>
+    <div class="wrong"><h4>为什么错</h4><p class="say">语料里至少三例（R44 换第二台路由器、R59 买 Eero 6E、R62 换专用路由）<strong>都不是最终解因</strong>。设备升级是最贵的盲试。</p></div>
+    <div class="right"><h4>正确说法</h4><p class="say">先用工具判定瓶颈在哪一段（Game/Encode/Network/Decode）。R72 社区已有的判据可以直接用："if game in red, lower your in-game setting... if encoding in red, consider upgrading your GPU... if networking in red, upgrade/get a dedicated router... <strong>if decoding in red, contact meta support for RMA</strong>" —— 很多时候答案是降画质或换显卡，不是换路由器。</p></div>
+    <p class="xref">目前没有对应检测项，落在<a href="#coverage">覆盖度里的未覆盖清单</a>中。</p>
+  </div>
+  <p class="note">端口与发现机制的事实依据（TCP 38810-40、UDP 38850/38860、UPnP 的调用点）见 <code>research/02-network-diagnosis/01-ports-and-discovery.md</code>；每条纠偏背后都有对应的检测项，见 <a href="checks.html">检测项全表</a>。</p>
+</section>
+<section id="sources">
+  <h2>证据来源与缺口</h2>
+  <p class="lead2">这一节不做美化。没读到的来源就写没读到，不用推测补齐。</p>
+  <div class="tblwrap"><table>
+<thead><tr><th>目标来源</th><th>状态</th></tr></thead><tbody>
+<tr><td>r/OculusQuest</td><td>✅ 读取 68 个完整帖</td></tr>
+<tr><td>r/oculus</td><td>✅ 读取 2 个完整帖</td></tr>
+<tr><td>vrdesktop.net 官方 FAQ</td><td>✅ 已读取（<code>https://www.vrdesktop.net/</code>），含开发者口径</td></tr>
+<tr><td>VD 开发者 u/ggodin 公开回复</td><td>✅ 采集 7 条，附原帖 URL</td></tr>
+<tr><td><strong>r/Quest</strong></td><td>❌ 未命中相关帖（搜索返回 0 条含 VD 连接故障的）</td></tr>
+<tr><td><strong>r/VR</strong></td><td>❌ 未命中（搜索返回 0 条）</td></tr>
+<tr><td><strong>r/VirtualDesktop</strong></td><td>❌ 该 sub 搜索无结果（不存在或不可索引）</td></tr>
+<tr><td><strong>r/PCVR</strong></td><td>⚠️ 搜索命中 26 条但均为泛 PCVR 讨论，与 VD PC 连接故障无直接对应，<strong>未纳入主表</strong></td></tr>
+<tr><td><strong>VRCompare 论坛</strong></td><td>❌ 本轮未命中可引用的 VD 连接故障帖。VRCompare 站内主要是硬件对比页</td></tr>
+<tr><td><strong>VRDC</strong></td><td>❌ 未命中</td></tr>
+<tr><td><strong>QuestDeveloperHub</strong></td><td>❌ 未命中；搜索结果被 Azure Virtual Desktop（同产品名）淹没</td></tr>
+</tbody></table></div>
+</section>
+</div>
+
+<footer><div class="wrap"><div>本站是 VDHelper 的个人技术文档，与 Virtual Desktop, Inc. 无隶属关系，非官方网站。仅供学习与互操作性研究，所有商标版权归原作者所有。</div><div>页面由 <code>tools/export-docs-site.ps1</code> 从仓库源文件生成</div></div></footer>
+</body>
+</html>

@@ -1,4 +1,4 @@
-# VDHelper
+﻿# VDHelper
 
 Windows 端 **Virtual Desktop 串流检测 / 诊断 / 修复工具**。
 
@@ -10,11 +10,22 @@ Windows 端 **Virtual Desktop 串流检测 / 诊断 / 修复工具**。
 
 | 屏 | 回答什么 | 需要什么 |
 | --- | --- | --- |
-| 本机体检 | PC 侧网卡 / 防火墙 / 服务 / 配置有没有断链 | 无 |
+| 本机体检 | PC 侧网卡 / 防火墙 / 服务 / 配置有没有断链（24 项） | 无 |
 | 串流参数 | Streamer 111 个配置键的当前值与含义 | 无 |
 | 头显诊断 | 通过 adb 读头显的包、权限、网络 | 头显 USB 连接并授权 |
 
 顶部常驻总判定：**可串流 / 有隐患 / 阻断**。
+
+## 先选症状，再看检测
+
+第一屏顶部 7 个症状芯片，用的是社区里真实用户的原话
+（`no computer found` / `computer is unreachable` / `stuck on measuring bandwidth` …）。
+「看不见电脑」和「看得见连不上」的根因几乎不重叠，选对能省掉一半排查。
+
+筛选不改变结论：`verdict` 永远由全部 24 项算出——「筛一下就变绿」是一种骗人的修法。
+
+无头用法：`VdHelper.exe --selftest --symptom S2 --out report.txt`，
+用户可以把某一类症状的完整报告发出来当求助材料。
 
 ## 它解决的真问题（都是本机实测）
 
@@ -26,6 +37,8 @@ Windows 端 **Virtual Desktop 串流检测 / 诊断 / 修复工具**。
 - **离线网卡持有 APIPA**：本机 3 块 Down 状态网卡各持一个 `169.254.x.x`，干扰发现与选路。
 - **虚拟网卡排在物理网卡前面**：广播会走错出口（Hyper-V / WSL / VPN）。
 - **Defender 防火墙 Private/Public profile 被关闭**：规则存在 ≠ 防火墙开着。
+- **本机在双层 NAT 后面**：路由器支持 UPnP，但外网 IP 落在 `172.16.80.42`（私有段），
+  异地连接必须先有映射。同网段不受影响。
 
 ## 用法
 
@@ -63,7 +76,7 @@ src/VdHelper     工具本体（WPF, net10.0-windows）
 research/        11 个主题的调研落盘区（结论带 file:line / 命令输出 / URL 证据）
 notes/           长期笔记：本机基线、ADR
 handoff/         跨会话交接
-docs/checks.md   检测项清单（由真实运行结果自动生成）
+docs/            三段式文档站（index / checks / faq），由脚本生成，数字不会和代码脱节
 tools/           探测 / 发布 / 文档生成脚本
 ```
 

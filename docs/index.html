@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VDHelper · Windows 串流体检</title>
+<meta name="description" content="VDHelper：Windows 端 Virtual Desktop 串流检测 / 诊断 / 修复工具。含本机实测结论、27 项检测、7 类症状与社区常见错解。">
+<link rel="icon" href="data:,">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#05060a;--bg2:#080a11;--fg:#eef1f8;--mut:#8b93a8;--dim:#5a6172;
+  --line:#171a24;--line2:#232838;--card:#0c0e16;
+  --neon:#5b8cff;--neon2:#22d3a7;--warn:#ff5b6e;--gold:#ffcc66;
+  --mono:"Cascadia Mono",Consolas,"SF Mono",ui-monospace,Menlo,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Verdana,"PingFang SC","Microsoft YaHei",sans-serif;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.75;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+#prog{position:fixed;top:0;left:0;height:2px;width:0;z-index:9998;pointer-events:none;background:var(--neon2)}
+@media(prefers-reduced-motion:reduce){#prog{display:none}}
+a{color:var(--neon);text-decoration:none}
+a:hover{text-decoration:underline}
+strong,b{color:#fff}
+code{font-family:var(--mono);font-size:.92em;background:#10131d;border:1px solid var(--line2);border-radius:4px;padding:1px 5px;color:#bcd0ff;word-break:break-word}
+.wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+.topbar{position:sticky;top:0;z-index:999;background:rgba(5,6,10,.93);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;gap:18px;height:54px;flex-wrap:wrap}
+.topbar .brand{font:700 14px/1 var(--mono);color:#fff}
+.topbar .brand span{color:var(--neon2)}
+.topbar nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+.topbar nav a{font:600 13px/1 var(--sans);color:var(--mut);padding:8px 13px;border-radius:8px;border:1px solid transparent}
+.topbar nav a:hover{color:#fff;background:#0e111a;border-color:var(--line2);text-decoration:none}
+.topbar nav a.on{color:#04130d;background:var(--neon2);border-color:var(--neon2)}
+.hero{padding:56px 0 26px}
+.eyebrow{font:600 11.5px/1.6 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--neon2);margin-bottom:14px}
+h1{font-size:clamp(26px,4vw,42px);line-height:1.18;font-weight:800;letter-spacing:-.03em}
+h1 .grad{color:var(--neon2)}
+.lead{color:#b3bbcd;font-size:16px;line-height:1.85;margin-top:18px;max-width:780px}
+.lead strong{color:#e9edf5}
+.actions{display:flex;gap:11px;margin-top:26px;flex-wrap:wrap}
+.actions a{font:600 14px/1 var(--sans);padding:12px 20px;border-radius:10px;border:1px solid var(--line2);color:var(--fg);transition:.18s}
+.actions a.primary{background:var(--neon2);color:#04130d;border-color:var(--neon2)}
+.actions a.primary:hover{box-shadow:0 12px 30px -14px rgba(34,211,167,.75);text-decoration:none;transform:translateY(-1px)}
+.actions a.ghost:hover{border-color:var(--neon);color:#fff;text-decoration:none}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin:28px 0 6px}
+@media(max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:linear-gradient(180deg,var(--card),#090b12);border:1px solid var(--line);border-radius:14px;padding:20px 14px;text-align:center}
+.stat .n{font:800 34px/1 var(--mono);color:#cfe0ff}
+.stat .n.g{color:var(--neon2)}
+.stat .l{margin-top:8px;color:var(--mut);font-size:12.5px;line-height:1.5}
+section{padding:42px 0 44px;border-top:1px solid var(--line);margin-top:32px}
+h2{font-size:clamp(21px,3.2vw,28px);font-weight:800;letter-spacing:-.02em;line-height:1.3}
+h2::before{content:"\BB\00a0";color:var(--neon2);font-family:var(--mono);font-weight:700;opacity:.45}
+h3{font-size:16px;font-weight:700;color:#fff;margin:28px 0 8px}
+h3 .tag{font:600 11px/1 var(--mono);color:var(--neon2);border:1px solid rgba(34,211,167,.3);border-radius:5px;padding:3px 6px;margin-left:8px}
+.lead2{color:#c2c9d8;font-size:15px;margin:12px 0 0;max-width:840px}
+p{color:#c2c9d8;margin:10px 0}
+ul.plain{list-style:none;margin:14px 0 0;padding:0}
+ul.plain li{position:relative;padding-left:20px;margin:9px 0;color:#c2c9d8}
+ul.plain li::before{content:"";position:absolute;left:2px;top:.72em;width:6px;height:6px;border-radius:2px;background:var(--neon2)}
+.note{color:var(--dim);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-top:16px}
+.card.warn{border-color:rgba(255,204,102,.35);background:rgba(255,204,102,.05)}
+.tblwrap{overflow-x:auto;margin:16px 0 6px;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;vertical-align:top;padding:11px 13px;border-bottom:1px solid var(--line)}
+th{background:#0e111a;color:var(--mut);font:600 11.5px/1.5 var(--sans);letter-spacing:.03em;position:sticky;top:54px;z-index:2}
+tbody tr:nth-child(even){background:rgba(255,255,255,.014)}
+tbody tr:hover{background:rgba(91,140,255,.05)}
+tbody tr:last-child td{border-bottom:0}
+td.num{font-family:var(--mono);color:var(--gold);font-weight:700;white-space:nowrap;width:1%}
+tr:target{background:rgba(34,211,167,.1)}
+td code{white-space:pre-wrap;word-break:break-word;display:inline-block;background:none;border:0;padding:0;color:#bcd0ff}
+.badge{display:inline-block;font:700 11px/1 var(--mono);padding:4px 8px;border-radius:6px;white-space:nowrap}
+.badge.pass{color:#8ee9cf;background:rgba(34,211,167,.12);border:1px solid rgba(34,211,167,.35)}
+.badge.warn{color:#ffd98a;background:rgba(255,204,102,.12);border:1px solid rgba(255,204,102,.35)}
+.badge.block{color:#ff9aa6;background:rgba(255,91,110,.12);border:1px solid rgba(255,91,110,.35)}
+.badge.unknown{color:#a6aec2;background:rgba(255,255,255,.05);border:1px solid var(--line2)}
+.myth{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:12px;padding:18px 20px;margin-top:16px}
+.myth:target{border-color:var(--neon2);border-left-color:var(--neon2)}
+.myth .mh{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.myth .mh .no{font:700 12px/1.6 var(--mono);color:var(--warn);letter-spacing:.06em}
+.myth .mh h3{margin:0;font-size:16.5px}
+.flag{font:700 11.5px/1.6 var(--mono);padding:3px 8px;border-radius:6px;background:rgba(255,91,110,.13);border:1px solid rgba(255,91,110,.35);color:#ff9aa6}
+.myth h4{font:700 11.5px/1.6 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:16px 0 6px}
+.say{color:#c9d0de;margin:0}
+.myth blockquote{margin:6px 0 0;padding:8px 12px;border-left:2px solid var(--line2);color:#a9b1c4;font-size:13.5px}
+.myth blockquote p{margin:4px 0;color:inherit}
+.wrong{background:rgba(255,91,110,.06);border:1px solid rgba(255,91,110,.2);border-radius:10px;padding:12px 14px;margin-top:6px}
+.wrong h4{color:#ff9aa6;margin-top:0}
+.right{background:rgba(34,211,167,.06);border:1px solid rgba(34,211,167,.22);border-radius:10px;padding:12px 14px;margin-top:6px}
+.right h4{color:#8ee9cf;margin-top:0}
+.myth .xref{margin:12px 0 0;padding-top:10px;border-top:1px dashed var(--line2);color:var(--mut);font-size:13px}
+details{margin-top:18px;border:1px solid var(--line);border-radius:12px;background:#080a11}
+summary{cursor:pointer;padding:13px 16px;font:600 13px/1.6 var(--sans);color:var(--mut);list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"\25B8\00a0";color:var(--neon2)}
+details[open]>summary{color:#fff;border-bottom:1px solid var(--line)}
+details pre{margin:0;padding:14px 16px;overflow-x:auto;font:12.5px/1.65 var(--mono);color:#a9b1c4;white-space:pre}
+footer{border-top:1px solid var(--line);padding:28px 0 44px;color:var(--dim);font-size:12.5px}
+footer .wrap{display:flex;gap:16px;justify-content:space-between;flex-wrap:wrap}
+footer a{color:var(--mut)}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div id="prog"></div>
+<div class="topbar"><div class="wrap"><a class="brand" href="index.html">VD<span>Helper</span></a><nav><a href="index.html" class="on">首页</a><a href="checks.html">检测项全表</a><a href="faq.html">常见问题</a></nav></div></div>
+<div class="wrap">
+<header class="hero">
+  <div class="eyebrow">VDHELPER · WINDOWS PC · 本机实测</div>
+  <h1>「连不上」不是一个错误码，<br><span class="grad">是 24 条可检测的断链</span></h1>
+  <p class="lead">VDHelper 是 Windows 端的 Virtual Desktop 串流检测 / 诊断 / 修复工具。它回答一个具体问题：<strong>为什么头显找不到这台 PC，或者找到了却连不上。</strong>本页所有数字都来自本机真实运行结果与仓库里可核实的语料，没有一条是估的。</p>
+<p class="lead">清单里有 <strong>27</strong> 条待检测项；工具当前实装并每次体检都会跑的是 <strong>24</strong> 条（见下方本机实测）。两个数字不是一回事，差额是还没实现的。</p>
+  <div class="actions"><a class="primary" href="checks.html">看 27 项检测判据全表</a><a class="ghost" href="faq.html">先排掉 10 个社区错解 ↓</a></div>
+</header>
+<div class="stats">
+  <div class="stat"><div class="n g" data-to="24">0</div><div class="l">条已实装检测项<br>（每次体检都跑）</div></div>
+  <div class="stat"><div class="n" data-to="96">0</div><div class="l">条真实用户失败描述<br>（来自 79 个完整帖子）</div></div>
+  <div class="stat"><div class="n" data-to="43">0</div><div class="l">条症状→根因条目<br>（S1–S7 分诊表逐表数出）</div></div>
+  <div class="stat"><div class="n" data-to="10">0</div><div class="l">个根因完全未覆盖<br>（覆盖度小结口径：共 23）</div></div>
+</div>
+<section id="verdict">
+  <h2>本机最近一次体检结论</h2>
+  <p class="lead2">下面这段是从 <code>docs/checks.md</code> 读进来的真实运行结果，不是宣传语。该文件本身由 <code>tools/export-checks.ps1</code> 执行 <code>VdHelper.exe --selftest</code> 生成。</p>
+  <div class="card"><p style="margin:0"><span class="badge warn">有隐患：能串但可能不稳或掉帧</span></p>
+  <p class="note">原始行：VDHelper selftest  verdict=AtRisk  有隐患：能串但可能不稳或掉帧</p></div>
+  <div class="stats" style="margin:18px 0 4px">
+    <div class="stat"><div class="n g" data-to="17">0</div><div class="l">通过 / 共 24 项</div></div>
+    <div class="stat"><div class="n" data-to="6">0</div><div class="l">警告</div></div>
+    <div class="stat"><div class="n" data-to="0">0</div><div class="l">阻断</div></div>
+    <div class="stat"><div class="n" data-to="1">0</div><div class="l">信息不足（Unknown）</div></div>
+  </div>
+  <div class="tblwrap"><table>
+<thead><tr><th>状态</th><th>编号</th><th>结论</th></tr></thead><tbody>
+<tr><td><span class="badge pass">通过</span></td><td><code>net-primary</code></td><td>1 块网卡可用，主用 Ethernet (192.168.11.2)</td></tr>
+<tr><td><span class="badge warn">警告</span></td><td><code>net-apipa</code></td><td>3 块离线网卡持有 APIPA 地址（Ethernet 2、Wi-Fi、Bluetooth Network Connection）</td></tr>
+<tr><td><span class="badge warn">警告</span></td><td><code>net-virtual</code></td><td>2 块虚拟网卡启用中：vEthernet (Default Switch)、vEthernet (WSL (Hyper-V firewall))</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>net-profile</code></td><td>主网卡网络类别：专用网络 (Private)</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>fw-vd</code></td><td>找到入站放行规则（Virtual Desktop Streamer    True   Inbound  Allow）</td></tr>
+<tr><td><span class="badge warn">警告</span></td><td><code>fw-defender</code></td><td>Defender 防火墙：Domain     True / Private   False / Public    False</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>svc-vd</code></td><td>VirtualDesktop.Service.exe Running Automatic</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>port-vd</code></td><td>四个 VD 端口都空闲</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>streamer-proc</code></td><td>Streamer 进程运行中（1 个）</td></tr>
+<tr><td><span class="badge warn">警告</span></td><td><code>svc-log</code></td><td>服务日志有 5 条历史 ERROR（最近一次 2026-09-18 15:37:35.6962），但 Streamer 正在运行</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>udp-discovery</code></td><td>UDP 38850 已监听（发现/配对协议）</td></tr>
+<tr><td><span class="badge warn">警告</span></td><td><code>cfg-streamer</code></td><td>ShowPairingRequests=false：靠弹窗配对新头显会被静默忽略（靠名字在客户端选则不受影响）；DontWarnApps 含 NetworkProfile：官方自己的网络告警被屏蔽了</td></tr>
+<tr><td><span class="badge warn">警告</span></td><td><code>ics</code></td><td>SharedAccess(ICS)：Running</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>fw-outbound</code></td><td>出站策略：Domain          NotConfigured / Private         NotConfigured / Public          NotConfigured</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>av</code></td><td>已注册杀软：Windows Defender :: 401664</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>route-metric</code></td><td>有线网卡优先级 10，没有虚拟网卡排在它前面</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>link-type</code></td><td>PC 走有线（Ethernet）</td></tr>
+<tr><td><span class="badge unknown">Unknown</span></td><td><code>lan-reach</code></td><td>还没填头显 IP，无法测可达性</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>link-rate</code></td><td>Ethernet 协商速率 1 Gbps</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>vpn-proc</code></td><td>没有发现 VPN/代理客户端进程</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>rdp-session</code></td><td>只有本机 console 会话（1 条），没有远程桌面在跑</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>nat-type</code></td><td>路由器支持 UPnP（UPnP / SSDP），NAT 类型 Cone/Restricted；外网 IP 是 172.16.80.42（私有段），上级还有一层 NAT——这只影响异地连接，不影响同网段</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>fw-pair</code></td><td>入站放行有效（Virtual Desktop Streamer），没有针对 VD 的出站拦截</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>accounts-persisted</code></td><td>配对信息已落盘（OculusQuest 1 条、Oculus 3 条），设备名 Meta Quest 3</td></tr>
+</tbody></table></div>
+  <p class="note">检测项的完整定义（症状 / 命令 / 判据 / 修复 / 回滚 / 风险）见 <a href="checks.html">检测项全表</a>；参数项与头显侧规则见 <code>checks.md</code> 末尾的三处指向。</p>
+</section>
+<section>
+  <h2>三个界面</h2>
+  <div class="tblwrap"><table>
+<thead><tr><th>屏</th><th>回答什么</th><th>需要什么</th></tr></thead><tbody>
+<tr><td>本机体检</td><td>PC 侧网卡 / 防火墙 / 服务 / 配置有没有断链</td><td>无</td></tr>
+<tr><td>串流参数</td><td>Streamer 111 个配置键的当前值与含义</td><td>无</td></tr>
+<tr><td>头显诊断</td><td>通过 adb 读头显的包、权限、网络</td><td>头显 USB 连接并授权</td></tr>
+</tbody></table></div>
+  <p class="note">顶部常驻总判定：可串流 / 有隐患 / 阻断。本页结论行即来自该判定。</p>
+</section>
+<section>
+  <h2>用户说的七种症状，其实只有 7 类</h2>
+  <p class="lead2">语料里能归并出 <strong>7 个症状类 + 12 个子症状</strong>。左边是用户嘴里的话，右边是工具必须拿到的状态 —— 两边对不上，说明这类症状还没被测到。</p>
+  <div class="tblwrap"><table>
+<thead><tr><th>症状类</th><th>用户会怎么说（真实措辞）</th><th>判定信息（VDHelper 需要拿到的）</th></tr></thead><tbody>
+<tr><td><strong>S1 看不见电脑</strong></td><td>"no computer found" / "no computer detected" / "big yellow sign" / "doesn't see the PC" / "servers unreachable, only showing local computers"</td><td>头显端收到零个广播应答；PC 侧 UDP 38850 是否在发</td></tr>
+<tr><td><strong>S2 连不上</strong></td><td>"computer is unreachable" / "PC is unreachable" / "failed to see any computer at all" / "can't connect to a computer contact support"</td><td>收到了应答但后续 TCP 握手失败</td></tr>
+<tr><td><strong>S3 说不在同一网络</strong></td><td>"not on same network" / "not on same local network"</td><td>两端子网 / AP 隔离</td></tr>
+<tr><td><strong>S4 卡在测速</strong></td><td>"stuck on measuring bandwidth" / "won't get past "measuring bandwidth"" / "keeps measuring bandwidth"</td><td>带宽探测阶段超时</td></tr>
+<tr><td><strong>S5 有画面但黑 / 无画面</strong></td><td>"black screen" / "blank screen" / "I can hear audio, but no visuals" / "shows no display"</td><td>音视频分离 → 解码/显示器/编码器</td></tr>
+<tr><td><strong>S6 连上就掉 / 定时卡</strong></td><td>"keeps disconnecting" / "disconnects after 30 seconds" / "freezes exactly at 5-7 mins" / "60-Second Stutter" / "The first time I tried it, it worked perfectly for hours, hasn't worked since"</td><td>周期性 → 时序特征</td></tr>
+<tr><td><strong>S7 画面质量差 / 不跟手</strong></td><td>"choppy" / "stutter" / "bitrate only 60-70" / "black bars when turning my head" / "blurry"</td><td>抖动/丢包/解码耗时</td></tr>
+</tbody></table></div>
+  <p class="note">每一类症状背后的多个工程根因，见 <a href="faq.html#symptom">常见问题 · 症状词典</a> 与 <a href="faq.html#triage">分诊表</a>。</p>
+</section>
+<section>
+  <h2>先纠正三条最贵的误会</h2>
+  <p class="lead2">这几条在社区里出现频率最高，而且对<b>同一网段内</b>的本地串流无效或有害。完整立场写在 <a href="faq.html#myths">常见问题 · 社区常见的错误解法</a>，那里逐条写了「为什么错 / 正确说法是什么」。</p>
+  <div class="myth" id="preview-m3-1"><div class="mh"><span class="no">3.1</span><h3>端口转发 38810/38820/38830/38840</h3> <span class="flag"><strong>本地场景完全无关</strong></span></div>
+    <p class="say"><strong>正确说法：</strong><strong>先判定场景</strong>。PC 与头显同网段 → 不需要任何端口转发；异地 → 需要转发 TCP 38810/20/30/40，且 Streamer 需勾选 "Allow remote connections"。开发者本人在 R29 明确说过 "You don't need to forward ports to connect to Shadow."</p>
+  </div>
+  <div class="myth" id="preview-m3-2"><div class="mh"><span class="no">3.2</span><h3>开 UPnP</h3> <span class="flag">方向搞反了，且被用户误解成"开网络发现"</span></div>
+    <p class="say"><strong>正确说法：</strong>本地场景不开 UPnP；远程场景优先静态 IP + 精确端口转发。R22 那条"禁用 UPnP 改手动转发"的建议是对的，且与开发者口径一致。</p>
+  </div>
+  <div class="myth" id="preview-m3-3"><div class="mh"><span class="no">3.3</span><h3>关防火墙全 profile</h3> <span class="flag">掩盖问题，且往往无效</span></div>
+    <p class="say"><strong>正确说法：</strong>保持防火墙开启，<strong>改成检测哪条规则缺失</strong>。R19 是语料中唯一一个"关防火墙只是诊断手段、正确解法是补规则"的完整案例——这就是 VDHelper 应该给用户的答案。</p>
+  </div>
+</section>
+<section>
+  <h2>它不做什么</h2>
+  <ul class="plain">
+    <li>不做串流本身（那是官方 Streamer 的事）。</li>
+    <li><strong>不伪造任何鉴权</strong>（entitlement / token / UserProof / 签名证明一律不碰）。</li>
+    <li><strong>不分发官方二进制</strong>（APK / keystore / EXE 一律不入库）。</li>
+    <li>不自动关第三方杀软、不自动改路由器、不自动改接口 metric —— 这三类只解释、只给指引。</li>
+    <li>不提供「改了没用」的假开关：读不到的值会写明「由头显决定」。</li>
+  </ul>
+</section>
+</div>
+
+<footer><div class="wrap"><div>本站是 VDHelper 的个人技术文档，与 Virtual Desktop, Inc. 无隶属关系，非官方网站。仅供学习与互操作性研究，所有商标版权归原作者所有。</div><div>页面由 <code>tools/export-docs-site.ps1</code> 从仓库源文件生成</div></div></footer>
+<script>
+(function(){
+  var prog=document.getElementById('prog');
+  if(prog){var tick=false;
+    function upd(){var h=document.documentElement,max=(h.scrollHeight-h.clientHeight)||1;
+      prog.style.width=(Math.min(h.scrollTop/max,1)*100)+'%';tick=false;}
+    addEventListener('scroll',function(){if(!tick){tick=true;requestAnimationFrame(upd);}},{passive:true});
+    upd();}
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var els=document.querySelectorAll('.stat .n[data-to]');
+  for(var i=0;i<els.length;i++){(function(el){
+    var to=parseInt(el.dataset.to,10);
+    if(reduce||isNaN(to)){el.textContent=to;return;}
+    var start=null,dur=1100;
+    function step(ts){if(!start)start=ts;var p=Math.min((ts-start)/dur,1);
+      var e=1-Math.pow(1-p,3);el.textContent=Math.round(e*to);
+      if(p<1)requestAnimationFrame(step);else el.textContent=to;}
+    requestAnimationFrame(step);})(els[i]);}
+})();
+</script>
+</body>
+</html>

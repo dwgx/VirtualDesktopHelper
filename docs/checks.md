@@ -27,6 +27,12 @@
 | 通过 | **route-metric** | 有线网卡优先级 10，没有虚拟网卡排在它前面 |
 | 通过 | **link-type** | PC 走有线（Ethernet） |
 | Unknown | **lan-reach** | 还没填头显 IP，无法测可达性 |
+| 通过 | **link-rate** | Ethernet 协商速率 1 Gbps |
+| 通过 | **vpn-proc** | 没有发现 VPN/代理客户端进程 |
+| 通过 | **rdp-session** | 只有本机 console 会话（1 条），没有远程桌面在跑 |
+| 通过 | **nat-type** | 路由器支持 UPnP（UPnP / SSDP），NAT 类型 Cone/Restricted；外网 IP 是 172.16.80.42（私有段），上级还有一层 NAT——这只影响异地连接，不影响同网段 |
+| 通过 | **fw-pair** | 入站放行有效（Virtual Desktop Streamer），没有针对 VD 的出站拦截 |
+| 通过 | **accounts-persisted** | 配对信息已落盘（OculusQuest 1 条、Oculus 3 条），设备名 Meta Quest 3 |
 
 ## 检查项定义与来源
 
