@@ -40,6 +40,12 @@ public static class HealthChecks
         StreamerChecks.StreamerProcessCheck(),
         StreamerChecks.ServiceLogCheck(),
         StreamerChecks.UdpDiscoveryCheck(),
+        WindowsStateChecks.StreamerSettingsCheck(),
+        WindowsStateChecks.IcsCheck(),
+        WindowsStateChecks.OutboundPolicyCheck(),
+        WindowsStateChecks.ThirdPartyAvCheck(),
+        WindowsStateChecks.RouteMetricCheck(),
+        WindowsStateChecks.WirelessOnlyCheck(),
     ];
 
     // ---------------------------------------------------------------- adapters

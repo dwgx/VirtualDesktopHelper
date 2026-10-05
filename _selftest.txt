@@ -56,3 +56,40 @@ VDHelper selftest  verdict=Blocked  阻断：有检查项失败，串流很可�
             GUIDE: 若重装服务无效，检查服务登录账户密码是否与当前系统账户一致（Uninstall/reinstall 需要管理员）。
 [Warn   ] udp-discovery UDP 38850/38860 都没有活动
             GUIDE: 先看 streamer-proc 与 svc-log 两项；进程起来后这里会变成通过。
+[Block  ] cfg-streamer  ShowPairingRequests=false：新头显的配对请求会被静默忽略；DontWarnApps 含 NetworkProfile：官方自己的网络告警被屏蔽了
+            路径: C:\ProgramData\Virtual Desktop\StreamerSettings.json
+            顶层键: ServerRotation, ProtectedComputerID, Accounts, AutoAdjustBitrate, ShowPairingRequests, ShownH264PlusWarning, PreferredCodec, DeviceName, CodecName, VideosRootPath, LastConnectDate, OpenXRRuntime, MonitorCount, DontWarnApps
+            最后修改: 2026-10-05 05:32:59
+            LastConnectDate: 2026-10-04T00:00:00Z
+            ShowPairingRequests: False
+            DontWarnApps: NetworkProfile
+            DeviceName: Meta Quest 3
+            CodecName: AV1 10-bit
+            PreferredCodec: 11
+            OpenXRRuntime: 1
+            AutoAdjustBitrate: False
+            MonitorCount: 1
+            GUIDE: 配对请求与告警屏蔽只能在 Streamer 界面里改（设置 → 配对请求 / 告警），工具只做定位与指引。
+[Warn   ] ics           SharedAccess(ICS)：Running
+            _exit: 0
+            _lines: Name          Status StartType ;; ----          ------ --------- ;; SharedAccess Running    Manual
+            _first: Name          Status StartType
+            _script: Get-Service SharedAccess -ErrorAction SilentlyContinue | Select-Object Name,Status,StartType | Format-Table -AutoSize | Out-String -Width 160
+            GUIDE: 只报告不修改：ICS 往往在承载别人的网络，停它会断掉热点。确认不再共享后可在「网络共享」里关掉。
+[Pass   ] fw-outbound   出站策略：Domain          NotConfigured / Private         NotConfigured / Public          NotConfigured
+            _exit: 0
+            _lines: Name    DefaultOutboundAction ;; ----    --------------------- ;; Domain          NotConfigured ;; Private         NotConfigured ;; Public          NotConfigured
+            _first: Name    DefaultOutboundAction
+            _script: Get-NetFirewallProfile | Select-Object Name,DefaultOutboundAction | Format-Table -AutoSize | Out-String -Width 160
+[Pass   ] av            已注册杀软：Windows Defender :: 401664
+            _exit: 0
+            _lines: Windows Defender :: 401664
+            _first: Windows Defender :: 401664
+            _script: Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue | ForEach-Object { "$($_.displayName) :: $($_.productState)" }
+[Pass   ] route-metric  有线网卡优先级 10，没有虚拟网卡排在它前面
+            排序（越小越优先）: Ethernet=10 | Loopback Pseudo-Interface 1=75 | vEthernet (WSL (Hyper-V firewall))=5000 | vEthernet (Default Switch)=5000
+            原始输出: InterfaceAlias                     InterfaceMetric      NlMtu ;; --------------                     ---------------      ----- ;; Ethernet                                        10       1500 ;; Loopback Pseudo-Interface 1                     75 4294967295 ;; vEthernet (WSL (Hyper-V firewall))            5000       1500 ;; vEthernet (Default Switch)                    5000       1500
+[Pass   ] link-type     PC 走有线（Ethernet）
+            有线: Ethernet (192.168.11.2)
+            无线: 
+            官方要求: Wired computer to 5 GHz AC or AX Wi-Fi router
