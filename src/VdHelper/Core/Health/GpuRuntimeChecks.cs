@@ -43,10 +43,21 @@ public static class GpuRuntimeChecks
                     ["来源"] = "nvidia-smi（NVIDIA 硬件编码器 NVENC）",
                 };
 
+                // encoder.stats.sessionCount is the machine's whole NVENC session count and carries
+                // no owner. On a machine with nothing streaming but a video open in an editor, this
+                // used to print 硬件编码器正在工作（1 个编码会话） and the reader took it as "my stream
+                // is hardware encoded". The idle branch two lines below already said the careful
+                // thing — 工具无法证明 VD 串流时用的是硬件编码还是软件编码 — so the same evidence was
+                // being read two ways. Both branches say the same thing now.
                 if (f.EncoderSessions > 0)
                     return new CheckResult("gpu-encoder", CheckStatus.Pass,
-                        $"硬件编码器正在工作（{f.EncoderSessions} 个编码会话）",
-                        "说明此刻确实有硬件编码会话在跑。", ev, Array.Empty<FixAction>());
+                        $"本机此刻有 {f.EncoderSessions} 个 NVENC 硬件编码会话",
+                        "这是**整机**的会话数，不区分是谁建的——OBS、Chrome、ffmpeg、剪辑软件都会占用它。"
+                        + "所以这一项无法判断其中有没有 VD 的，"
+                        + "**也无法证明 VD 串流走的是硬件编码还是软件编码**。",
+                        ev, Array.Empty<FixAction>(),
+                        "想确认 VD 串流用的是硬件还是软件：串流进行中跑一次本工具看 encoder.stats 会话数是否"
+                        + "从 0 变成 1——能证明 VD 占了硬件会话，但证明不了它在没占的时候用的是软件。");
 
                 return new CheckResult("gpu-encoder", CheckStatus.Pass,
                     "硬件编码器空闲（当前 0 个编码会话）",

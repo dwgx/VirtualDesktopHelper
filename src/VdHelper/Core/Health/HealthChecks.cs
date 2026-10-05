@@ -356,13 +356,21 @@ public static class HealthChecks
             "若装过第三方杀软，确认它没有接管防火墙且允许 Virtual Desktop 进程。");
 
     private static ICheck DefenderFirewallCheck() =>
-        PsCheck.Create("fw-defender", "防火墙总开关", "三个 profile 是否都被接管或关闭？", "防火墙", PsDefender,
+        // The question said 被接管 and the detail named a blocking claim — but the script reads one
+        // field, Enabled, which cannot see a third-party takeover at all. And nothing here reads a
+        // single Block rule, so "入站与广播都可能被拦" was an interception claim with no rule behind
+        // it. On this machine Private and Public are False, so the warning is right; the reason it
+        // gave was not.
+        PsCheck.Create("fw-defender", "防火墙总开关", "三个 profile 的 Defender 防火墙开关状态？", "防火墙", PsDefender,
             CheckStatus.Warn,
             e => !Lines(e).Any(l => l.Contains("False")),
             e => "Defender 防火墙：" + string.Join(" / ", Lines(e).Where(l => l.Contains("True") || l.Contains("False"))),
-            _ => "任一 profile 被关闭或接管，VD 的入站与广播都可能被拦。",
+            _ => "任一 profile 的 Defender 防火墙是关的。"
+              + "这通常意味着第三方防火墙接管了这一档——但**本项读不到「被接管」，它只读了 Enabled 这一个字段**，"
+              + "也没有读任何一条 Block 规则，所以「VD 被拦」这句话不在本项的证据范围内。",
             Array.Empty<FixAction>(),
-            "被第三方杀软接管是常见情况：需要在该杀软里放行 Virtual Desktop Streamer 与其服务。");
+            "被第三方杀软接管是常见情况：需要在该杀软里放行 Virtual Desktop Streamer 与其服务。"
+            + "要确认 VD 是否真被拦，看 fw-pair——那一项会读针对 VD 的规则。");
     private static ICheck VdServiceCheck() =>
         PsCheck.Create("svc-vd", "VD 服务", "VirtualDesktop 服务在跑吗？", "服务", PsService,
             CheckStatus.Warn,
