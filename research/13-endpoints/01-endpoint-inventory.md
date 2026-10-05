@@ -265,10 +265,10 @@ UPnP 映射的也只有这四个（`PC-S\VirtualDesktop.Net\UPnPManager.cs`）�
 
 | 端口 | 用途 | 谁拨 | 证据 |
 | --- | --- | --- | --- |
-| 38811 + `ServerRotation` | 云端中继（控制） | PC **主动拨**云端 IP | `ConnectionManager.cs:167` |
-| 38821 + `ServerRotation` | 云端中继（数据） | PC 拨 / Quest 拨 | `ConnectionManager.cs:1065` |
-| 38831 + `ServerRotation` | 云端中继（视频） | PC 拨 / Quest 拨 | `ConnectionManager.cs:1027` |
-| 38841 + `ServerRotation` | 云端中继（音频） | PC 拨 / Quest 拨 | `ConnectionManager.cs:1097` |
+| 38811 + `ServerRotation` | 云端中继（控制） | **两侧都拨** | Quest `NetworkManager.cs:425`；PC `ConnectionManager.cs:167` |
+| 38821 + `ServerRotation` | 云端中继（数据） | **两侧都拨** | Quest `NetworkManager.cs:553`；PC `ConnectionManager.cs:1065` |
+| 38831 + `ServerRotation` | 云端中继（视频） | **两侧都拨** | Quest `NetworkManager.cs:543`；PC `ConnectionManager.cs:1027` |
+| 38841 + `ServerRotation` | 云端中继（音频） | **两侧都拨** | Quest `NetworkManager.cs:548`；PC `ConnectionManager.cs:1097` |
 | 443 | 云端注册表 HTTPS | 两侧 | `NetHelper.cs:42,44` |
 
 ### 1.3 `ServerRotation` 把中继端口展开成 6 个
@@ -288,8 +288,14 @@ PC-S\VirtualDesktop.Streamer\StreamerSettings.cs:3225
 | 音频 | 38841 – 38846 |
 
 `ConnectionManager.cs:167` 每次 `IncrementServerRotation()` 后换下一个端口，**这是为了绕开单端口被占/被限**。
-Quest 侧只见到基准值 38811/38821/38831/38841（`NetworkManager.cs:425,543,548,553`），
-由云端返回的 `PeerInfo` 里带真实端口。
+这 4 个基准值在 Quest 侧都能直接看到（`NetworkManager.cs:425` 控制 / `:543` 视频 / `:548` 音频 / `:553` 数据），
+全树 grep 计数：`38811`×1、`38821`×1、`38831`×1、`38841`×1（`%TEMP%\vd_ep_01\vd` 下）。
+真实端口由云端返回的 `PeerInfo` 带回（`NetClient.cs:334`）。
+
+**这 4 组端口是「远程中继端口」，不是「同网段必需端口」。**
+§2.2 的 LAN 表只列 38810/20/30/40/50/60，不含它们 —— 这是有意的，不是漏项：
+同网段场景走 `:427` 分支的 `ConnectToLocalPeerAsync`，只用本地那 4 条 TCP，
+**38811–38846 一次都不会被拨**。判据仍是 `computer.UdpEndPoint` 是否为 null（见 §3.1）。
 
 ### 1.4 UDP 38850 的发现广播
 
@@ -298,8 +304,16 @@ Quest 侧（`%TEMP%\vd_ep_01\vd\VirtualDesktop.Net\VirtualDesktop.Net\ComputerDi
 ```
  63:  BroadcastEP = new IPEndPoint(IPAddress.Broadcast, 38850);
  64:  ListeningEP = new IPEndPoint(IPAddress.Any, 38850);
- 98:  _broadcastClient.Send(array, array.Length, BroadcastEP);
+ 98:  _broadcastClient.Send(array, array.Length, BroadcastEP);      ← 每次刷新只发这 1 个包
+102:  int num = 3000 - (int)stopwatch.ElapsedMilliseconds;            ← 回包窗口硬编码 3000 ms
 ```
+
+⇒ **38850 没有「周期」，只有「一次性 + 3 秒窗口」**：每次刷新发**恰好 1 个**广播包，
+然后最多等 3 秒收单播应答就结束（`:100-135` 的 while 循环靠 `num <= 0` 退出）。
+这对检测有直接影响：**不存在「隔一段时间重试」的兜底**，错过这 3 秒就得等下一次用户触发的刷新。
+
+另注：`LocalNetworkFailure` 事件（`:47` 声明、`:138-143` 触发 `SocketError.HostUnreachable`）
+**零订阅者** —— 头显检测到本地网络不可达后什么都不做，用户看不到任何提示。
 
 **Quest 端只广播、不监听**：`ListeningEP` 定义了但代码里从未使用（`StopListening()` 只 Dispose 一个恒为 null 的
 `_listeningClient`，第 164-167 行）。Quest 侧也**没有** `JoinMulticastGroup`：
@@ -504,6 +518,26 @@ GetComputersAsync()      :629-833
 ⇒ **云端注册表一个包都不发**。两条发现路径同时归零，列表必然为空，
 **与网络是否通无关**。这是「官方远端发现服务不可达」（根因 B9）在补丁基线上的真实形态：
 不是云端挂了，是客户端压根没去问。
+
+### 3.1.1 上游还有两道闸门（在 `GetComputersAsync` 之前）
+
+按执行顺序，`RefreshComputersAsync()` 里先过这两关，任何一关不过就到不了 §3.1 的发现逻辑：
+
+| 顺序 | 位置 | 条件 | 不过的后果 |
+| --- | --- | --- | --- |
+| 1 | `NetworkManager.cs:155-156` | `_accessTokenGetter(timeout)`，`timeout` = 3s（离线档）或 12s（`:31,:33`） | 取不到 token 整链挂 |
+| 2 | `NetworkManager.cs:160` → `:184-186` | `accountID == null` | 弹 "Failed entitlement check" → `Task.Delay(8000)` → **`CurrentProcess.Kill()`** |
+| 2' | `NetworkManager.cs:~188` → `:212-214` | `accountID == string.Empty` | 弹 "Unable to retrieve identity" → `Task.Delay(10000)` → **`Kill()`** |
+| 3 | `UserSettings.cs:1518` | `signature.GetHashCode() - 22 == 1778352230`（+ `_hasValidIdentity` 缓存） | 广播不发（见上） |
+
+**2 和 2' 是自杀路径**：应用直接结束进程，用户看到的是「App 闪退」而不是「找不到电脑」。
+VDHelper 若把这类现象归到网络检查上会误导 —— 判据是**进程是否还活着**。
+
+第二道身份闸门在 `NetworkManager.cs:814` `if (SettingsBase<UserSettings>.Default.HasValidIdentity)`
+（读取 `discoveryTask` 结果前），与 `:637` 同源。
+
+**[未验证]** 补丁是否改过 `1778352230` 这个常量：只 grep 到 `analysis\apk_patch\` 下的
+`.py/.md/.json` 均 0 命中，但二进制级/AOT 级改动 grep 覆盖不到。本轮无法判定。
 
 ### 3.2 PC 侧（`%TEMP%\vd_ep_01\pc\VirtualDesktop.Streamer\`）
 
