@@ -3,7 +3,7 @@
 > 由 `tools/export-checks.ps1` 从 `VdHelper.exe --selftest` 的真实运行结果生成，**不要手工编辑**。
 > 生成时间以 git 提交为准；本机实测退出码 3（0=可串流 3=有隐患 4=阻断）。
 
-本机最近一次结论：VDHelper selftest  verdict=AtRisk  有隐患：能串但可能不稳或掉帧
+本机最近一次结论：VDHelper selftest  verdict=AtRisk  串流中：4 个通道已建立会话（对端 192.168.11.14:36081）；下面 6 项隐患不影响当前这一局，但下次连接前值得看一眼
 
 ## 本机实测结果
 
@@ -19,7 +19,7 @@
 | 通过 | **port-vd** | 4 个端口上有活动会话：38810、38820、38830、38840 |
 | 通过 | **streamer-proc** | Streamer 进程运行中（1 个） |
 | 警告 | **svc-log** | 服务日志有 5 条历史 ERROR（最近一次 2026-09-18 15:37:35.6962），但 Streamer 正在运行 |
-| 警告 | **udp-discovery** | UDP 38850/38860 都没有活动 |
+| 通过 | **udp-discovery** | 串流中，Streamer 已释放发现端口（正常） |
 | 警告 | **cfg-streamer** | ShowPairingRequests=false：靠弹窗配对新头显会被静默忽略（靠名字在客户端选则不受影响）；DontWarnApps 含 NetworkProfile：官方自己的网络告警被屏蔽了 |
 | 警告 | **ics** | SharedAccess(ICS)：Running |
 | 通过 | **fw-outbound** | 出站策略：Domain          NotConfigured / Private         NotConfigured / Public          NotConfigured |

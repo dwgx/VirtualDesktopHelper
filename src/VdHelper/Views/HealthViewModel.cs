@@ -117,6 +117,30 @@ public sealed class HealthViewModel
         Current.Rebuild();
     }
 
+    /// <summary>
+    /// Appends a single result as it lands. A pass takes several seconds; showing rows as they
+    /// arrive beats a blank list with "正在体检…".
+    /// </summary>
+    public static void Append(CheckResult result)
+    {
+        var vm = Current;
+        var row = new CheckRow { Result = result, Title = result.Id };
+        foreach (var f in result.Fixes)
+        {
+            var fixRow = new FixRow { Action = f };
+            fixRow.Bind(ShellWindow.RunHealthAsync);
+            row.Fixes.Add(fixRow);
+        }
+        vm.Rows.Add(row);
+        vm.PropertyChanged?.Invoke(vm, new PropertyChangedEventArgs(nameof(Rows)));
+    }
+
+    public static void ClearForStreaming()
+    {
+        Current.Rows.Clear();
+        Current.PropertyChanged?.Invoke(Current, new PropertyChangedEventArgs(nameof(Rows)));
+    }
+
     private void Rebuild()
     {
         if (_last is null) return;

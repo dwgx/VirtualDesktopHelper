@@ -163,6 +163,10 @@ public static class HealthChecks
                     owner.Contains("VirtualDesktop", StringComparison.OrdinalIgnoreCase);
 
                 var established = ports.Where(p => p.State == PortState.Established).ToList();
+                // Consumed by HealthReport: saying "串流很可能起不来" while four channels are
+                // Established is the kind of contradiction that makes a tool untrustworthy.
+                ev["_livePorts"] = string.Join(",", established.Select(p => p.Port));
+                ev["_livePeer"] = established.Select(p => p.Peer).FirstOrDefault() ?? "";
                 if (established.Count > 0)
                     return new CheckResult("port-vd", CheckStatus.Pass,
                         $"{established.Count} 个端口上有活动会话：{string.Join("、", established.Select(p => p.Port.ToString()))}",

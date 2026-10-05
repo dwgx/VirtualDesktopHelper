@@ -61,12 +61,28 @@ public partial class ShellWindow : Window, INotifyPropertyChanged
     internal async Task RefreshAsync()
     {
         StatusText = "正在体检…";
-        ApplyReport(await HealthEngine.RunAsync(CancellationToken.None));
+        HealthViewModel.ClearForStreaming();
+
+        // Stream results in as they land: the pass takes seconds and a blank list reads as a hang.
+        var report = await HealthEngine.RunStreamingAsync(
+            r => Dispatcher.Invoke(() => HealthViewModel.Append(r)),
+            CancellationToken.None);
+
+        ApplyReport(report, streamed: true);
     }
 
-    private void ApplyReport(HealthReport report)
+    private void ApplyReport(HealthReport report, bool streamed = false)
     {
         _current = this;
+        if (streamed)
+        {
+            _changes = HealthHistory.Save(report);
+            Verdict = report.Verdict;
+            StatusText = $"体检完成 — {report.VerdictText}";
+            Raise(nameof(Verdict));
+            Raise(nameof(VerdictText));
+            return;
+        }
         _changes = HealthHistory.Save(report);
         HealthViewModel.Publish(report);
         Verdict = report.Verdict;

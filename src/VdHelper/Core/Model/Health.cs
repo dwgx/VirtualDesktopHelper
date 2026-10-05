@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 
 namespace VdHelper.Core.Model;
 
@@ -78,11 +78,43 @@ public sealed class HealthReport
         : Results.Count == 0 ? HealthVerdict.Unknown
         : HealthVerdict.Streamable;
 
-    public string VerdictText => Verdict switch
+    /// <summary>
+    /// Established VD channels right now, from the port check. When this is non-empty the
+    /// headline must not claim the stream "probably will not start" — the machine is streaming.
+    /// Warnings stay listed and stay true; only the claim about the current session changes.
+    /// </summary>
+    public IReadOnlyList<int> LiveSessionPorts =>
+        Results.FirstOrDefault(r => r.Id == "port-vd")?.Evidence.TryGetValue("_livePorts", out var raw) == true
+            && !string.IsNullOrWhiteSpace(raw)
+            ? raw.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToList()
+            : Array.Empty<int>();
+
+    public string LiveSessionPeer =>
+        Results.FirstOrDefault(r => r.Id == "port-vd")?.Evidence.GetValueOrDefault("_livePeer") ?? "";
+
+    public string VerdictText
     {
-        HealthVerdict.Blocked => "阻断：有检查项失败，串流很可能起不来",
-        HealthVerdict.AtRisk => "有隐患：能串但可能不稳或掉帧",
-        HealthVerdict.Streamable => "本机网络体检通过",
-        _ => "尚未体检",
-    };
+        get
+        {
+            if (Results.Count == 0) return "尚未体检";
+            var live = LiveSessionPorts;
+            if (live.Count > 0)
+            {
+                var scope = string.IsNullOrWhiteSpace(LiveSessionPeer) ? "" : $"（对端 {LiveSessionPeer}）";
+                return Verdict == HealthVerdict.Streamable
+                    ? $"串流中：{live.Count} 个通道已建立会话{scope}，体检全过"
+                    : $"串流中：{live.Count} 个通道已建立会话{scope}；下面 {CountBy(CheckStatus.Warn) + CountBy(CheckStatus.Block)} 项隐患不影响当前这一局，但下次连接前值得看一眼";
+            }
+
+            return Verdict switch
+            {
+                HealthVerdict.Blocked => "阻断：有检查项失败，串流很可能起不来",
+                HealthVerdict.AtRisk => "有隐患：能串但可能不稳或掉帧",
+                HealthVerdict.Streamable => "本机网络体检通过",
+                _ => "尚未体检",
+            };
+        }
+    }
+
+    private int CountBy(CheckStatus status) => Results.Count(r => r.Status == status);
 }

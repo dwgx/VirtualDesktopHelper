@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.IO;
 using System.Net.NetworkInformation;
@@ -93,36 +93,62 @@ public static class StreamerChecks
                     "若重装服务无效，检查服务登录账户密码是否与当前系统账户一致（重装需要管理员权限）。"));
             });
 
+    /// <summary>
+    /// The discovery socket's presence depends on whether a session is up: measured on this
+    /// machine, the Streamer holds UDP 38850 while idle and releases it once a session is
+    /// established on the TCP channels. Reporting "no discovery activity" as a warning during a
+    /// live stream is exactly the kind of false alarm that sends people to reconfigure routers.
+    /// </summary>
     public static ICheck UdpDiscoveryCheck() =>
         CheckFactory.Delegate(
-            new("udp-discovery", "发现协议端口", "UDP 38850/38860 在不在？", "端口"),
-            ct =>
+            new("udp-discovery", "发现协议端口", "发现通道现在是什么状态？", "端口"),
+            async ct =>
             {
                 var ev = new Dictionary<string, string>();
                 try
                 {
-                    var udp = IPGlobalProperties.GetIPGlobalProperties().GetActiveUdpListeners();
-                    foreach (var ep in udp.Where(e => e.Port is 38850 or 38860))
+                    foreach (var ep in IPGlobalProperties.GetIPGlobalProperties().GetActiveUdpListeners()
+                             .Where(e => e.Port is 38850 or 38860))
                         ev["UDP " + ep.Port] = ep.Address + ":" + ep.Port;
                 }
                 catch (NetworkInformationException ex)
                 {
-                    return Task.FromResult(new CheckResult("udp-discovery", CheckStatus.Unknown,
+                    return new CheckResult("udp-discovery", CheckStatus.Unknown,
                         "读不到 UDP 监听表", ex.Message, ev, Array.Empty<FixAction>(),
-                        "需要管理员权限才能枚举全部监听套接字。"));
+                        "需要管理员权限才能枚举全部监听套接字。");
                 }
 
-                var listening50 = ev.ContainsKey("UDP 38850");
-                var listening60 = ev.ContainsKey("UDP 38860");
-                if (listening50)
-                    return Task.FromResult(new CheckResult("udp-discovery", CheckStatus.Pass,
-                        "UDP 38850 已监听（发现/配对协议）", "头显能通过广播找到这台 PC。", ev, Array.Empty<FixAction>()));
+                var (tcp, _) = await NetworkInventory
+                    .ObserveVdPortsAsync(NetworkInventory.VdPorts, ct).ConfigureAwait(false);
+                var live = tcp.Where(p => p.State == PortState.Established).ToList();
+                ev["是否有活动会话"] = live.Count > 0
+                    ? "是（" + string.Join("、", live.Select(p => p.Port.ToString())) + "）"
+                    : "否";
 
-                return Task.FromResult(new CheckResult("udp-discovery", CheckStatus.Warn,
-                    listening60 ? "只看到 UDP 38860 在广播，没看到 38850 监听" : "UDP 38850/38860 都没有活动",
-                    "发现靠定向广播：PC 收 38850 的配对请求并单播回包，同时周期广播 38860。两者都没有通常意味着 Streamer 进程没在跑。",
+                if (ev.ContainsKey("UDP 38850"))
+                    return new CheckResult("udp-discovery", CheckStatus.Pass,
+                        "UDP 38850 正在监听（发现/配对协议就绪）",
+                        "头显下一次搜索时能收到这台 PC 的应答。", ev, Array.Empty<FixAction>());
+
+                if (live.Count > 0)
+                    return new CheckResult("udp-discovery", CheckStatus.Pass,
+                        "串流中，Streamer 已释放发现端口（正常）",
+                        "实测：Streamer 空闲时绑 UDP 38850，进入会话后把它释放掉。"
+                        + "此时再报「发现通道没有活动」就是假警报。", ev, Array.Empty<FixAction>());
+
+                if (ev.ContainsKey("UDP 38860"))
+                    return new CheckResult("udp-discovery", CheckStatus.Warn,
+                        "只看到 UDP 38860 的广播脉冲，没看到 38850 在监听",
+                        "广播在发但配对收包口没开：头显可能搜得到却配不上对。",
+                        ev, Array.Empty<FixAction>(),
+                        "先看 streamer-proc；Streamer 刚启动的一两分钟内 38850 还没绑上也属正常。");
+
+                return new CheckResult("udp-discovery", CheckStatus.Warn,
+                    "UDP 38850/38860 都没有套接字",
+                    "发现通道完全没开。发现靠定向广播：PC 收 38850 的配对请求并单播回包，"
+                    + "同时周期广播 38860。两者都没有，通常意味着 Streamer 进程没在跑。",
                     ev, Array.Empty<FixAction>(),
-                    "先看 streamer-proc 与 svc-log 两项；进程起来后这里会变成通过。"));
+                    "先看 streamer-proc 与 svc-log 两项；进程起来后这里会变成通过。");
             });
 
     private static List<string> ReadLines(string path)
