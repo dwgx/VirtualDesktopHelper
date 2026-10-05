@@ -1,4 +1,4 @@
-﻿﻿﻿﻿using System.Text.Json;
+﻿﻿﻿﻿﻿﻿using System.Text.Json;
 using VdHelper.Core.Config;
 using VdHelper.Core.Model;
 using System.Runtime.InteropServices;
@@ -309,36 +309,51 @@ public static class ApplyFix
         var wanted = args[index + 1];
         var wantedList = wanted == "--list";
         var matched = 0;
+        var matches = report.Results
+            .SelectMany(r => r.Fixes.Select(f => (Fix: f, Check: r)))
+            .Where(x => wantedList || x.Fix.Id.Equals(wanted, StringComparison.OrdinalIgnoreCase))
+            .GroupBy(x => x.Fix.Id, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-        foreach (var result in report.Results)
-        foreach (var fix in result.Fixes)
-        {
-            if (!wantedList && !fix.Id.Equals(wanted, StringComparison.OrdinalIgnoreCase)) continue;
-            matched++;
-            if (wantedList)
+        if (!wantedList)
+            foreach (var group in matches)
             {
-                if (matched > 1) Console.WriteLine();
+                var fix = group.First().Fix;
+                var offered = group.Select(g => g.Check.Id).ToList();
+                matched++;
+                if (offered.Count > 1)
+                    Console.WriteLine($"注意：{fix.Id} 被 {offered.Count} 个检查同时提供"
+                        + $"（{string.Join("、", offered)}）——这是**同一个修复**，只执行一次。");
+
+                Console.WriteLine($"执行 {fix.Id} — {fix.Title}");
+                Console.WriteLine($"  命令：{fix.What}");
+                Console.WriteLine($"  备份：{fix.Backup}");
+                Console.WriteLine($"  回滚：{fix.Rollback}");
+                var outcome = await fix.Apply(CancellationToken.None);
+                Console.WriteLine(outcome.Success
+                    ? $"  结果：成功 — {outcome.Message}"
+                    : $"  结果：失败 — {outcome.Message}");
+                if (!outcome.Success) return 6;
+            }
+
+        if (wantedList)
+            foreach (var group in matches)
+            {
+                var fix = group.First().Fix;
+                var offered = group.Select(g => g.Check.Id).ToList();
+                matched++;
                 Console.WriteLine($"{fix.Id}  [{fix.Risk} 风险]"
                     + (fix.NeedsElevation ? "  会弹 UAC" : "  不需要管理员"));
                 Console.WriteLine($"  做什么：{fix.Title}");
-                Console.WriteLine($"  出自：{result.Id} — {result.Summary}");
+                Console.WriteLine(offered.Count == 1
+                    ? $"  出自：{offered[0]} — {group.First().Check.Summary}"
+                    : $"  出自：{string.Join("、", offered)}（同一个修复，{offered.Count} 个检查命中；执行一次）");
                 if (!string.IsNullOrWhiteSpace(fix.What)) Console.WriteLine("  说明：" + fix.What);
                 if (!string.IsNullOrWhiteSpace(fix.Backup)) Console.WriteLine("  备份：" + fix.Backup);
                 if (!string.IsNullOrWhiteSpace(fix.Rollback)) Console.WriteLine("  回滚：" + fix.Rollback);
                 Console.WriteLine($"  执行：VdHelper.exe --apply {fix.Id}");
-                continue;
             }
 
-            Console.WriteLine($"执行 {fix.Id} — {fix.Title}");
-            Console.WriteLine($"  命令：{fix.What}");
-            Console.WriteLine($"  备份：{fix.Backup}");
-            Console.WriteLine($"  回滚：{fix.Rollback}");
-            var outcome = await fix.Apply(CancellationToken.None);
-            Console.WriteLine(outcome.Success
-                ? $"  结果：成功 — {outcome.Message}"
-                : $"  结果：失败 — {outcome.Message}");
-            if (!outcome.Success) return 6;
-        }
 
         // A typo'd fix id used to fall through the loop, print the verdict and exit 0 — the tool
         // reporting success for doing nothing. A fix that is offered only when its condition is
