@@ -303,7 +303,7 @@ if (hasQueriedRegistry && !IsComputerRegistryOffline)
 
 | 检查 | 判据 | 为什么值得 |
 |---|---|---|
-| **UDP 38850 方向性观测** | 在 PC 上监听 38850，看头显是否真的发来发现包（每轮刷新一次，搜索窗 3 s：`ComputerDiscoveryClient.cs:362-367`） | **唯一能把「网络/防火墙问题」和「客户端根本没发包」分开的判据**。§3.3 那种情况下这一项会是红的，但原因不是网 |
+| ~~UDP 38850 方向性观测~~ | — | （已被下面的 ② 取代：原写法只说「监听 38850」，没说清是**入站**方向、也没给载荷特征。② 是它的可执行版） |
 | **① 头显进程存活（必须排在所有网络检查之前）** | 进程存在 | **这是唯一的分流判据，且它比任何网络检查都便宜。**`DiscoveryProtocol` 的 D20 与我的 §3.3b 指向同一件事：补丁基线的失败是**静默**的 —— 进程活着但列表空 ⇒ 故障在客户端侧（三道闸门，见 §3.3b），和网络无关；进程死了 ⇒ 才轮到网络/防火墙去解释。**先判这个，否则后面每一项网络检查都可能是在给一个客户端侧 bug 找借口** |
 | **② UDP 38850 入站方向性观测** | `pktmon` 抓 60 s，过滤 `udp.dstport==38850 && len>243` 的**入站**包，见到 ≥1 个即「头显的发现请求真的到了」 | 载荷有固定特征且明文首字节必为 `0x00`（`ComputerDiscoveryClient.cs:472-502`），**无需凭据、无需解密即可识别**。这是**唯一能把「包没到」（网络/防火墙/网卡）与「包到了但 PC 不回」（配置/占用）彻底分开的信号**。`DiscoveryProtocol` D0 |
 | Streamer 进程在跑 | 进程存在 | `"No computer found"` 的另一半文案就是 "Make sure your computer is running the Streamer app"（`NetworkManager.cs:1910`） |
@@ -323,6 +323,7 @@ if (hasQueriedRegistry && !IsComputerRegistryOffline)
 | Assistant 端点 / Azure Speech | 只影响语音问答面板（`Assistant.cs:340,388-389`） |
 | TLS 证书链 / 信任库 | 客户端没做任何校验绕过（§2 D13），出问题会表现为「连不上」，不会表现为「证书错误」 |
 | Streamer 自身的在线更新检查 | Streamer 版本协商走 LAN 消息，不出网（`NetworkManager.cs:2610`） |
+| 把 `38811/38821/38831/38841` 当「同网段必需端口」 | 这几个是**远程/peer-as-client** 端口，只在 `computer.UdpEndPoint == null`（即云端来的 PC）时才用（`01` §2.1）。广播发现的 PC 走 `NetworkManager.cs:427` 的纯本地分支。**该做的是把它们从防火墙建议里排除，不是放行**（`DiscoveryProtocol` D19）。`02` §「明确不要做的检测项」也独立列了这一条 |
 
 ### 4.3 给 B9 的处置建议（决定性）
 
