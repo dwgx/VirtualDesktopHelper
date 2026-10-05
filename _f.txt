@@ -1,0 +1,20 @@
+fix: two checks still concluded "all fine" from an empty query
+
+Same defect class as the stderr fix, but in the checks that call the runner directly and so bypass
+PowerShellCheck's guard.
+
+- gpu-pick exists to spot a display driver in Error. A query returning zero adapters fell through
+  to Pass, telling the user no VR process is pinned to the iGPU while the check had not looked at a
+  single graphics device. Zero adapters now returns Unknown, and the Pass line states how many
+  adapters it actually examined.
+- proc-tuner matched absence against two name lists and passed on no hits, without ever checking
+  that the process query had produced anything. The evidence already recorded a process count and
+  nothing read it. An empty enumeration is now Unknown, and the Pass line states the count.
+
+Checked and left alone because they are already correct rather than because they looked fine:
+display-inventory returns Unknown on zero devices, accounts-persisted enumerates every Accounts
+shape (missing key / null / wrong JSON type / empty object / empty arrays) and returns early on a
+parse error, vpn-proc only passes when both enumerations came back empty together, and
+rdp-session records the exit code.
+
+No regression: 34 checks, 19 pass / 12 warn / 2 block / 1 unknown, verdict still Blocked.

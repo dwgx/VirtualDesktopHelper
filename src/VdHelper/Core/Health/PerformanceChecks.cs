@@ -96,8 +96,19 @@ public static class PerformanceChecks
                         "在「设置 → 系统 → 显示 → 图形」里把对应程序改成「高性能」（独显）。"
                         + "工具不自动改——这会影响整机图形性能，应当由你决定。");
 
+                // Zero adapters is not "zero unhealthy adapters". The whole point of this check is
+                // spotting a display driver in Error, and a query that returns nothing — cmdlet
+                // missing, WMI unavailable, access denied — used to fall straight through to Pass
+                // and certify the displays it never saw.
+                if (adapters.Count == 0)
+                    return new CheckResult("gpu-pick", CheckStatus.Unknown, "读不到显示适配器",
+                        "查询没有返回任何一块显示适配器。**没读到设备不等于设备没问题**——"
+                        + "这一项既没有发现异常，也没有真的看过任何一块显卡。",
+                        ev, Array.Empty<FixAction>(),
+                        "以管理员身份重试；仍然读不到就开「设备管理器 → 显示适配器」，那里是准的。");
+
                 return new CheckResult("gpu-pick", CheckStatus.Pass,
-                    "没有 VR 程序被指定到核显",
+                    $"没有 VR 程序被指定到核显（{adapters.Count} 块显示适配器均为正常状态）",
                     vrLines.Count == 0
                         ? "没人为 VR 程序设过 GPU 偏好，由 Windows 按负载自动选；这台机有独显，一般会选独显。"
                         : "已为 VR 程序设置过高性能偏好。",

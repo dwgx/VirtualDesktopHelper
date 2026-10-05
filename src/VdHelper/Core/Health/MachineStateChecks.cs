@@ -74,9 +74,19 @@ public static class MachineStateChecks
                     ["说明"] = "这两类是社区里「常规指标全绿但串流仍然卡」时最常被指出的真凶，官方 FAQ 对此零字提及。",
                 };
 
+                // No processes enumerated means the query failed, not that the machine is clean.
+                // The predicate above matches absence, and without this a machine whose process list
+                // could not be read was reported as having no vendor network tooling at all.
+                if (lines.Count == 0)
+                    return new CheckResult("proc-tuner", CheckStatus.Unknown, "读不到进程列表",
+                        "一条进程都没枚举出来，说明这条查询没跑成。**没枚举到 ≠ 没有**，"
+                        + "这一项没有测到任何东西。",
+                        ev, Array.Empty<FixAction>(),
+                        "以管理员身份重试；若仍然读不到，多半是 WMI 被禁用。");
+
                 if (boosters.Count == 0 && tuners.Count == 0)
                     return new CheckResult("proc-tuner", CheckStatus.Pass,
-                        "没有发现厂商网络加速或硬件调校常驻工具",
+                        $"没有发现厂商网络加速或硬件调校常驻工具（枚举到 {lines.Count} 个进程）",
                         "这一项干净。", ev, Array.Empty<FixAction>());
 
                 var parts = new List<string>();
