@@ -80,10 +80,20 @@ public static class GpuRuntimeChecks
                         : "0x" + f.ThrottleReasons.Value.ToString("X", CultureInfo.InvariantCulture),
                 };
 
+                // Both facts are already measured here — temperature and the clock ratio — so state
+                // both and let the driver say why. This used to read "高温 + 频率上不去 = 典型的降频"
+                // while branching on temperature alone, and the reason line went on to name three
+                // causes the check had not measured. The reason bits are right there in f.
                 if (f.TemperatureC >= 85)
                     return new CheckResult("gpu-throttle", CheckStatus.Warn,
-                        $"GPU 温度 {f.TemperatureC}°C，当前频率只有最高频率的 {ratio:P0}",
-                        "高温 + 频率上不去 = 典型的降频。画面会卡、编码延迟会涨、画质会掉。",
+                        $"GPU {f.TemperatureC}°C，当前频率 {f.CurrentClock}/{f.MaxClock} MHz = {ratio:P0}",
+                        (f.ThrottleReasons is null
+                            ? "温度已越过 85°C。但驱动没有报 clocks_event_reasons，"
+                              + "所以「是不是因为热才降频」这一项**没测成**，不猜。"
+                            : $"温度 {f.TemperatureC}°C 已越过 85°C，驱动报的降频原因："
+                              + string.Join("、", DescribeReasons(f.ThrottleReasons.Value)) + "。")
+                        + (f.PowerDrawW is null ? "" : $"功耗 {f.PowerDrawW:0.#} W。")
+                        + "温度高本身就会掉频、画面卡、编码延迟涨。",
                         ev, Array.Empty<FixAction>(),
                         "先看散热：清灰、垫高、进风口是否被挡。这类「画质莫名变差」的帖子最后往往落到这一步。");
 

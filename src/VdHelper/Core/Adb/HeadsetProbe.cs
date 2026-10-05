@@ -195,9 +195,13 @@ public sealed class HeadsetProbe(AdbClient adb)
                 + "那是补丁/账号层面的问题，不在 VDHelper 的网络检测范围内。");
 
         var status = missing.Count > 0 ? CheckStatus.Block : CheckStatus.Pass;
+        // "在运行" has to come from running.Count. This read installed.Count, which is only what
+        // pm list packages returned — so the panel said 3 个客户端包在运行 while its own evidence
+        // line said VD 进程存活数: 1 / 3. The pidof work is forty lines above; the summary just
+        // wasn't reading it.
         var summary = missing.Count > 0
-            ? $"{installed.Count} 个客户端包在运行，缺 {missing.Count} 项运行时权限"
-            : $"{installed.Count} 个客户端包在运行，{grantedList.Count} 项权限齐全";
+            ? $"{running.Count}/{installed.Count} 个客户端进程在运行，缺 {missing.Count} 项运行时权限"
+            : $"{running.Count}/{installed.Count} 个客户端进程在运行，{grantedList.Count} 项权限齐全";
         return new CheckResult("adb", status, summary,
             "权限缺失会怎样，表现见 research/06-adb-headset/03-symptom-decision-table.md。"
             + "**下面三条全部标了［未验证］**：它们来自 install_template.bat 与文档，"
