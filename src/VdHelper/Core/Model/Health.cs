@@ -75,10 +75,21 @@ public sealed class HealthReport
     public Collection<CheckDefinition> Definitions { get; } = new();
     public Collection<CheckResult> Results { get; } = new();
 
+    /// <summary>
+    /// Streamable requires evidence. It used to be the fallthrough for "nothing failed", which meant
+    /// a run where every single check failed to collect — PowerShell unavailable, adb missing, a
+    /// permission wall — produced <c>Streamable</c> and the headline 本机网络体检通过. For a
+    /// diagnostic tool that is the worst possible failure: a total failure reported as a clean
+    /// bill of health, and the user has no way to tell the difference from the output.
+    /// <para>
+    /// So a verdict of Streamable now requires at least one check that actually passed.
+    /// </para>
+    /// </summary>
     public HealthVerdict Verdict =>
         Results.Any(r => r.Status == CheckStatus.Block) ? HealthVerdict.Blocked
         : Results.Any(r => r.Status == CheckStatus.Warn) ? HealthVerdict.AtRisk
         : Results.Count == 0 ? HealthVerdict.Unknown
+        : Results.All(r => r.Status == CheckStatus.Unknown) ? HealthVerdict.Unknown
         : HealthVerdict.Streamable;
 
     /// <summary>
@@ -109,13 +120,24 @@ public sealed class HealthReport
                     : $"串流中：{live.Count} 个通道已建立会话{scope}；下面 {CountBy(CheckStatus.Warn) + CountBy(CheckStatus.Block)} 项隐患不影响当前这一局，但下次连接前值得看一眼";
             }
 
-            return Verdict switch
+            var verdict = Verdict switch
             {
                 HealthVerdict.Blocked => "阻断：有检查项失败，串流很可能起不来",
                 HealthVerdict.AtRisk => "有隐患：能串但可能不稳或掉帧",
                 HealthVerdict.Streamable => "本机网络体检通过",
-                _ => "尚未体检",
+                _ => (string?)null,
             };
+
+            // "Unknown" means two very different things and collapsing them is how a tool loses
+            // trust: nothing was run yet, versus everything was attempted and none of it returned
+            // a result. The second one must never read as good news.
+            if (verdict is null)
+                return Results.All(r => r.Status == CheckStatus.Unknown)
+                    ? $"无法判定：{Results.Count} 项检查全部没有取到结果"
+                      + "（PowerShell 不可用 / 权限不足 / 目标不存在都会这样）。"
+                      + "**这不是通过**——这一轮什么都没测出来。"
+                    : "尚未体检";
+            return verdict;
         }
     }
 
