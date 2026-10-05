@@ -86,7 +86,7 @@ VdHelper.exe --report-html out.html --symptom S2  REM 单文件 HTML，原始输
 
 ```bat
 tools\publish.ps1            REM 构建自包含单文件 + SHA256SUMS + VERSION
-dist\v0.1.0\VdHelper.exe     REM 直接双击用
+dist\v0.2.0\VdHelper.exe     REM 直接双击用
 ```
 
 无头自检（CI 与脚本用）：
