@@ -107,13 +107,26 @@
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                     <Setter Property="Padding" Value="0" />
-                    <Setter Property="Margin" Value="0,0,0,6" />
+                    <Setter Property="Margin" Value="0,0,0,0" />
                     <Setter Property="Background" Value="Transparent" />
                     <Setter Property="BorderThickness" Value="0" />
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="ListViewItem">
-                                <ContentPresenter />
+                                <Border x:Name="Rule" BorderBrush="{StaticResource LineBrush}"
+                                        BorderThickness="0,1,0,0" SnapsToDevicePixels="True">
+                                    <ContentPresenter />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <!-- P1-9. There was no selected or focused state at all, so the
+                                         list could not be navigated and a click gave no feedback. -->
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="Rule" Property="Background" Value="#1F2E79BD" />
+                                    </Trigger>
+                                    <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                        <Setter TargetName="Rule" Property="Background" Value="#14243052" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
                             </ControlTemplate>
                         </Setter.Value>
                     </Setter>
@@ -128,6 +141,12 @@
                             <Grid Background="Transparent">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="64" />
+                                    <!-- P1-6. This column is why a row can be matched to a report
+                                         line or an issue. The id was bound in two other places in this
+                                         file and never here, so it was invisible on the one screen
+                                         where you would look for it. Narrow on purpose: the id is
+                                         mono and meta-sized, and the summary has to stay readable. -->
+                                    <ColumnDefinition Width="118" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <Border Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Left"
@@ -142,7 +161,10 @@
                                                               Foreground="{Binding Status, Converter={StaticResource StatusBrush}}" />
                                                </StackPanel>
                                 </Border>
-                                <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap"
+                                <TextBlock Grid.Column="1" VerticalAlignment="Center" Margin="0,0,10,0"
+                                           FontFamily="Consolas" FontSize="11.5" Foreground="{StaticResource MutedBrush}"
+                                           TextTrimming="CharacterEllipsis" Text="{Binding Title}" />
+                                <TextBlock Grid.Column="2" VerticalAlignment="Center" TextWrapping="Wrap"
                                            Margin="10,0,0,0" Style="{StaticResource ChromeText}" FontSize="13"
                                            Text="{Binding Summary}" />
                             </Grid>
