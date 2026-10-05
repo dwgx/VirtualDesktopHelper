@@ -315,10 +315,31 @@ public static class SetParam
             var value = JsonDocument.Parse(literal).RootElement.Clone();
             var result = Core.Config.StreamerConfigWriter.Write(
                 Core.Config.StreamerSettings.DefaultPath, key, value);
-            Console.WriteLine($"已写入 {key} = {literal}");
+            if (!result.Success)
+            {
+                // It used to print 已写入 / 备份 / 回滚 first and only then look at Success, so a
+                // failed write announced itself as a successful one and the user was left believing
+                // the file had changed.
+                Console.WriteLine($"写入失败：{result.Message}");
+                return 6;
+            }
+
             Console.WriteLine($"备份：{result.BackupPath}");
             Console.WriteLine($"回滚：把 {result.BackupPath} 复制回 {Core.Config.StreamerSettings.DefaultPath}");
-            return result.Success ? 0 : 6;
+
+            // Post-condition: re-read and compare, rather than trusting the writer's return.
+            var after = Core.Config.StreamerSettings.Load();
+            var expected = value.ToString();
+            var actual = after.GetRaw(key);
+            var matches = string.Equals(actual?.Trim('"'), expected.Trim('"'), StringComparison.Ordinal);
+            if (!matches)
+            {
+                Console.WriteLine($"写入返回成功，但回读确认 {key} 是 {actual ?? "(空)"}，不是 {expected}。备份已保留，未回滚。");
+                return 6;
+            }
+
+            Console.WriteLine($"已确认 {key} = {expected}（回读一致）");
+            return 0;
         }
         catch (Exception ex)
         {
