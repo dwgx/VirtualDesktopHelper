@@ -138,7 +138,9 @@ website: www.vrdesktop.net"），**不是被拨的端点**（`il_ldstr_raw.json`
 （`ComputerDiscoveryClient` 所在 blob 成员在盘上是 `Xenko.Core.Serialization.dll`；
 `binary_patch.py` 只提取 entry `43/49/52/61/81` 五个（`binary_patch.py:158/223/265/582/623`），
 写出的 5 个 patched 文件里也没有它，所以它整份未动。§7 ① 的 diff 也证明 `VirtualDesktop.Mobile`
-（唯一含网络状态机的那一份）总共只改了 130 字节、12 个区间，全在 UI/输入/渲染路径上。）
+（唯一含网络状态机的那一份）相对 blob 原像只改了 **130 字节、38 个连续区间**，全在 UI/输入/渲染路径上，
+`Networking`/`UdpClient`/`Socket` 一处都没碰。§7 ④ 的 diff 是直接拿 blob 解出的原像比的，
+不经过任何文件名。）
 
 ### 3.3 但是：静态证据显示，补丁后基线有一个**与网络无关**的阻断
 
@@ -189,11 +191,32 @@ diff to 1778352252 = 0
 补丁 APK 用的是自签名 `vdpatch` 密钥，证书 SHA-256 `aad0b756…`（`SIGNING.md:18`），
 与官方证书不同 ⇒ `Signatures[0].GetHashCode() != 1778352252` ⇒ 该方法恒为 false。
 
-这段 IL **没有被任何补丁改过**：`extracted_assemblies\Xenko.dll` 与
-`patched_assemblies\Xenko.dll` 逐字节 diff 只有 **130 字节、12 个区间**
+这段 IL **没有被任何补丁改过**。我不是靠 `extracted_assemblies\` 的文件名推断的 ——
+`DiscoveryProtocol` 正确指出那些文件名是 blob 标签、与内容不对应（实测：
+`VirtualDesktop.Mobile.dll` 里是 `Cysharp.Text.ZString`、`VirtualDesktop.Interfaces.dll` 里是
+`Xamarin.GooglePlayServices.Tasks`、`VirtualDesktop.Mobile.Shared.dll` 里是 `Oculus.Platform`、
+`VirtualDesktop.Core.dll` 里是 Play Integrity）。所以我改用**直接解 blob 比对**：
+按 `binary_patch.py` 自己的解析函数从 `libassemblies.arm64-v8a.blob.so` 解出 5 个被补丁的条目
+（XABA 声明 181 条目 / 扫到 181 个 XALZ，一致），逐条与盘上文件做 SHA-256：
+
+```
+entry # 52 blob=79311294078a9f46 len=  529408 | extracted\Xenko.dll                     =79311294078a9f46 len=529408  | match=True
+entry # 49 blob=c6228aefe3ce0e8d len=   40448 | extracted\Xenko.OpenXR.dll               =c6228aefe3ce0e8d len=40448   | match=True
+entry # 43 blob=c02d86c5389c0b60 len=2126336 | extracted\VirtualDesktop.Net.dll           =c02d86c5389c0b60 len=2126336 | match=True
+entry # 61 blob=d36c8bafb8fbe8cc len=  106496 | extracted\Xenko.Native.dll                =d36c8bafb8fbe8cc len=106496  | match=True
+entry # 81 blob=11896bef852a2ceb len=   35840 | extracted\System.ComponentModel.TypeConverter.dll =11896bef852a2ceb len=35840 | match=True
+```
+
+**5/5 逐字节相同** ⇒ 盘上那 5 个文件就是 blob 里被补丁程序集的原像。
+本任务全部 Quest 侧结论都取自这 5 个条目 + 另外 3 个未被打补丁的条目，
+文件名只用来定位，内容一律以**反编译后读到的 namespace** 为准（§0 已逐个列出对照）。
+
+在此基础上，`extracted\Xenko.dll` 与 `patched\Xenko.dll` 的 diff 只有 **130 字节、12 个区间**
 （`0xdea0`、`0xec43…0xec86`、`0xf2cc…0xf2fd`、`0x10ae9`、`0x13c4b…0x13c57`、
 `0x13eae…0x13ebc`、`0x36649…0x36688`、`0x37415…0x37445`），而两个常量分别落在
-**文件偏移 `0x318cc`（`UserSettings`）与 `0x13126`（`InputSystem..ctor`）**，都不在这些区间里。
+**文件偏移 `0x318cc`（`UserSettings`）与 `0x13126`（`InputSystem..ctor`）**，都不在其中。
+（`DiscoveryProtocol` 跑的 `grep -rn "1778352230|GetHasValidIdentityAsync|HasValidIdentity"`
+在 `apk_patch\` 的 `.py/.md/.json` 里 0 命中，与此一致；我这边是多了一层二进制 diff。）
 
 这解释了为什么补丁基线**不会自杀**却可能**发现不到电脑**：
 
@@ -203,6 +226,39 @@ diff to 1778352252 = 0
   （`InputSystem.Update` 里那条 `Process.KillProcess` 是死代码：`_checkedSignature` 在 ctor
   末尾无条件置 true，`InputSystem.cs:80 / 124-127`。）
 - 但 `GetHasValidIdentityAsync` 返回的是**布尔值**，entry #49 管不到它。
+
+**§3.3b 还有第三道门，比前两道更致命**（`DiscoveryProtocol` 指出了前两道，第三道是我自己复核时发现的）
+
+`GetHasValidIdentityAsync` 返回的 `_hasValidIdentity` 是个**持久化缓存**，而它**只有一条赋值路径**：
+
+```csharp
+// NetworkManager.cs:2536-2539（新鲜反编译）
+if (hasQueriedRegistry && !IsComputerRegistryOffline)
+    SettingsBase<UserSettings>.Default.HasValidIdentity = result != null;
+```
+
+`hasQueriedRegistry` 只在 `Task.WhenAll(america, europe)` **成功**后才置 true（`:2477-2479`），
+而 `result == null` 时还会直接 `return null`（`:2531-2534`）。
+**即：`_hasValidIdentity` 只能由「一次成功的云注册表查询」点亮。**
+
+所以补丁基线的三道门是串联的：
+
+| 门 | 位置 | 补丁基线下的结果 |
+|---|---|---|
+| 门 1 | `GetHasValidIdentityAsync` 的签名哈希项 | **false**（重签名证书，见上） |
+| 门 2 | `GetHasValidIdentityAsync` 的 `_hasValidIdentity` 项 | 从未联网 ⇒ **false** |
+| 门 3 | `NetworkManager.cs:2574` `if (HasValidIdentity)` 守卫 discoveryTask | **false** ⇒ 连已发现的条目都不遍历 |
+| 门 3b | `NetworkManager.cs:2582` `if (hadValidIdentity) hashSet.Add(current)` | **false** ⇒ 广播回来的 PC **不会被加入列表** |
+
+这解释了 `hadValidIdentity` 这个变量为什么在 `:2391` 就被快照下来 ——
+它不是「这次有没有发现到」，而是「历史上验过没有」。
+**即使有人把门 1 的常量改掉，门 2/3/3b 仍然独立地把 LAN 发现结果全部丢弃。**
+这条让 §3.3 从「可能阻断」升级为「三道门串联、补丁一道都没碰」。
+
+⚠️ 我要标清这条的证据强度：门 1 与门 3 的**代码字面**是硬证据（源码可读）。
+门 2「只能由云查询点亮」是我从**唯一赋值点**推出的；若 `_hasValidIdentity` 被
+`SettingsBase` 的序列化/迁移逻辑在别处写入，我看不到（该基类不在 Quest 侧 store 里，
+属于 `[未验证]`）。**但门 3/3b 的 `HasValidIdentity` 读取无论门 2 怎么变都照样把结果丢掉。**
 
 **这一条与 `HANDOFF.md:38-44`「自动发现 PC Streamer ✅ 自动连接」冲突。** 项目自己的文档也确认
 签名门是刻意不碰的（`BINARY_EXPERIMENT_NEXT_STEPS_20260623.md:177-181` 把
@@ -257,11 +313,14 @@ diff to 1778352252 = 0
 
 把 `research\12-coverage-audit\01-coverage-matrix.md:95` 的 B9 行从
 「PC 侧可查 / 无对应检测」改成：**不适用于补丁基线，属噪声，不得进入健康报告**。
-理由是上表，不是推测：registry 调用在离线/无 UserProof 时被 `if (americaProofValid)` 短路，
+理由是代码事实，不是推测：registry 调用被 `if (americaProofValid)` 短路
+（`NetworkManager.cs:2467/2471`），无有效 `UserProof` 时**一个 registry 包都不发**；
 不存在「官方远端发现服务可达性」影响串流的通路。
+`01-endpoint-inventory.md` 与本文件已就此达成一致（§8.4）——「列表空 = 客户端没去问」，
+不是「网络挡了」。
 
 如果 Owner 想保留一条远端提示，唯一诚实的形式是**不做成布尔检查**，只在报告尾部作为
-「已跳过（补丁基线不依赖）」的一行说明。
+「已跳过（补丁基线不依赖云注册表）」的一行说明。
 
 ---
 
@@ -346,9 +405,38 @@ s = h - 0x100000000 if h >= 0x80000000 else h
 print('der len:', len(der), 'hashCode:', s, 'delta to 1778352252:', s - 1778352252)
 PY
 python v2.py
+
+# ③ blob 原像校验：盘上 5 个文件是否就是被补丁程序集的原像（不信文件名）
+cat > v3.py <<'PY'
+import struct, lz4.block, hashlib, os
+BLOB = r'F:\Project\VirtualDesktop\analysis\apk_patch\libassemblies.arm64-v8a.blob.so'
+data = open(BLOB,'rb').read()
+xaba = data.find(b'XABA')
+entry_count = struct.unpack_from('<I', data, xaba+8)[0]
+index_size  = struct.unpack_from('<I', data, xaba+16)[0]
+desc_start  = xaba + 20 + index_size
+xz, off = [], xaba
+while True:
+    p = data.find(b'XALZ', off)
+    if p == -1: break
+    xz.append((p, struct.unpack_from('<I', data, p+4)[0], struct.unpack_from('<I', data, p+8)[0])); off = p+4
+print('XABA entry_count =', entry_count, ' XALZ found =', len(xz))
+def entry(i):
+    p, idx, un = xz[i]
+    dsz = struct.unpack_from('<I', data, desc_start + i*28 + 8)[0]
+    return lz4.block.decompress(data[p+12 : p+12+(dsz-12)], uncompressed_size=un)
+def sha(b): return hashlib.sha256(b).hexdigest()[:16]
+root = r'F:\Project\VirtualDesktop\analysis\apk_patch\extracted_assemblies'
+for idx, name in [(52,'Xenko.dll'), (49,'Xenko.OpenXR.dll'), (43,'VirtualDesktop.Net.dll'),
+                  (61,'Xenko.Native.dll'), (81,'System.ComponentModel.TypeConverter.dll')]:
+    e = entry(idx); f = os.path.join(root, name)
+    ex = open(f,'rb').read() if os.path.exists(f) else None
+    print(f'entry #{idx:3d} blob={sha(e)} len={len(e):>8d} | match={ex==e}')
+PY
+python v3.py
 ```
 
-①② 的实跑输出（本机跑过，未改 `F:\` 任何文件）：
+①②③ 的实跑输出（本机跑过，未改 `F:\` 任何文件）：
 
 ```
 diff bytes: 130
@@ -362,6 +450,13 @@ diff bytes: 130
  ('0x37439','0x3743c'), ('0x3743e','0x37440'), ('0x37443','0x37445')]
 
 der len: 939 hashCode: 1778352252 delta to 1778352252: 0
+
+XABA entry_count = 181  XALZ found = 181
+entry # 52 blob=79311294078a9f46 len=  529408 | match=True
+entry # 49 blob=c6228aefe3ce0e8d len=   40448 | match=True
+entry # 43 blob=c02d86c5389c0b60 len=2126336 | match=True
+entry # 61 blob=d36c8bafb8fbe8cc len=  106496 | match=True
+entry # 81 blob=11896bef852a2ceb len=   35840 | match=True
 ```
 
 ---
@@ -411,9 +506,34 @@ PC 侧结论以 `02` 为准，端点清单以 `01` 为准，我只对「头显�
   **不等于**广播已发出，因为 `ComputerDiscoveryClient` 没有实例构造函数，唯一建 socket 并
   `Send` 的代码在 `FindComputersAsync` 内部，而它只有一个 call site 且在 `t.Result == true`
   的分支里。
-- **它说的「8.8.8.8 无条件打」「SmartAssembly 错误上报无条件发 HTTP:80」，客户端侧均不成立**：
-  前者被 `NetworkManager.cs:678-682` 的 `!IsOnSameNetwork && AllowRemoteConnections` 门控（§2 D18），
-  后者在 Quest 侧六棵反编译树里零命中（§2 D19）—— 那套上报在 Streamer 侧。
-- **分歧仍在 D16/云端点检查**：`01` 建议查 4 个云端点并「只 Warn 不 Block」，我主张
-  **整条删掉**（§4.3）。理由是客户端侧 `if (americaProofValid)` 守卫，与「连不上」无因果通路。
-  这条需要 Main 拍板。
+- **8.8.8.8 那条：采纳它的更正。** 我指出 `TraceRoute` 被 `NetworkManager.cs:678-682` 的
+  `!IsOnSameNetwork && computer.AllowRemoteConnections` 门控（§2 D18），它已把 C9 改标为
+  「只在远端且连不上时跑」。**无分歧。**
+- **SmartAssembly 上报：这一条不是分歧，是我读岔了，已撤回。** 它的 C13 归属本来就写在
+  **仅 PC**（证据 `PC-S\SmartAssembly.SmartExceptionsCore\ReportingService.cs:9,18`），
+  是我把对方转述里的一句反向提醒误读成了「它给 Quest 侧开了一枪」。
+  我这边唯一有效的补充是**反向证据**：Quest 侧六棵反编译树 grep
+  `ExceptionReporter|SendExceptionEmail|SmartAssemblyException|ErrorReport` = 0 命中（§2 D19），
+  `SmartAssembly` 字样只出现在 `sa\SmartAssembly.Attributes.csproj` 这个文件名里。
+  它据此把 C13 的「侧」列加粗成「**仅 PC**（Quest 侧无此通道）」，是对的。
+- **D16 / 云端点检查：已达成一致，无需 Main 拍板。** 双方都落到同一句：
+  端点清单作为**原料**保留在表里，但在补丁基线上**整条不可达** —— 不是降级为 Warn，
+  是「列表空 = 客户端没去问」，不是网络挡了。我 §4.3 建议的措辞是
+  「不适用于补丁基线，属噪声，不得进入健康报告」；若 Owner 想留提示，唯一诚实的形式是
+  报告尾部一行「已跳过（补丁基线不依赖云注册表）」的说明，不做成布尔检查。
+
+---
+
+## 9. 归属与一次误读的撤回
+
+- 本文件是本任务里我的**唯一写入**。同目录 `01-endpoint-inventory.md` 属 `EndpointInventory`，
+  `02-discovery-protocol.md` 属另一位 worker，`04-signature-gate-verification.md` 属第四位。
+- **§8.4 里我撤回过一条自己的「分歧」**：我把对方一句反向提醒读成了它在给 Quest 侧开一枪，
+  实际它的归属本来就写对了。保留这段记录是因为 —— 同一份文件里如果留着自己读错的事当分歧，
+  下一个人会照着去改一个本来就没错的东西。
+- 收工前后我观察到 `git status` 里出现过下列**不属于我**的变更：
+  `src/VdHelper/App.xaml.cs`、`src/VdHelper/Core/Model/Health.cs`、
+  `src/VdHelper/Core/Health/WindowsStateChecks.cs`、`src/VdHelper/Views/HealthViewModel.cs`、
+  `src/VdHelper/Views/ShellWindow.xaml.cs`、`_n.txt`、后来的 `_f2.txt`。
+  其中 `WindowsStateChecks.cs` 的 diff grep `38850|registry|cloud|identity|UserProof` = 0 命中，
+  说明它不是在实现本文件任何一条结论。**若有人把那处改动记到我头上，以本节为准。**

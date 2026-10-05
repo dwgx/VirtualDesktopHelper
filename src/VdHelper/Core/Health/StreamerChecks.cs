@@ -230,7 +230,13 @@ public static class StreamerChecks
                 if (ev.ContainsKey("UDP 38850"))
                     return new CheckResult("udp-discovery", CheckStatus.Pass,
                         "UDP 38850 正在监听（发现/配对协议就绪）",
-                        "头显下一次搜索时能收到这台 PC 的应答。", ev, Array.Empty<FixAction>());
+                        "头显下一次搜索时能收到这台 PC 的应答。但要注意搜索窗口很窄："
+                        + "头显每次刷新只广播 **一个** 包，回包窗口硬编码 3000 ms，没有重试"
+                        + "（ComputerDiscoveryClient.cs:98-107）。"
+                        + "**所以「先开头显、后开 Streamer」就会搜不到**——不是坏了，是那 3 秒已经过去了。",
+                        ev, Array.Empty<FixAction>(),
+                        "顺序永远是先开 PC 上的 Streamer，再在头显里点搜索。"
+                        + "Owners 的补丁基线笔记里也记着同一条：先开 Quest VD 后开 PC Streamer 可能搜不到。");
 
                 if (live.Count > 0)
                     return new CheckResult("udp-discovery", CheckStatus.Pass,

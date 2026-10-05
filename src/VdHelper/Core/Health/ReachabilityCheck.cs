@@ -87,14 +87,25 @@ public static class ReachabilityCheck
                         ev, Array.Empty<FixAction>());
 
                 var absent = !reachable;
+                // Two causes here have nothing to do with the network, and both are easy to
+                // misread as a network fault. They belong on BOTH branches, not whichever one
+                // happens to fire today.
+                const string notNetwork =
+                    "\n\n**动手改网络之前，先排除两个跟网络无关的原因**："
+                    + "\n① 头显里那个应用是不是直接退出了。客户端拿不到账号身份时会自己杀掉进程"
+                    + "（NetworkManager.cs:184-186 与 :212-214 两条 Kill 路径），"
+                    + "表现是打开就闪退，不是「找不到电脑」。"
+                    + "\n② 搜索窗口只有 3 秒且不重试。头显每次刷新只广播一个包，"
+                    + "回包窗口硬编码 3000 ms（ComputerDiscoveryClient.cs:98-107）。"
+                    + "先开头显、后开 PC 上的 Streamer，就一定搜不到——这不是坏了，是那 3 秒已经过去了。";
                 return new CheckResult("lan-reach", CheckStatus.Block,
                     $"头显 {ip} ping 不通"
                     + (absent ? "（ARP 缓存里也没有它）" : "（但 ARP 缓存里有它）"),
-                    absent
+                    (absent
                         ? "两件事同时成立：它不在这个链路上，而且它上次的地址也不再通。"
                         + "最常见的是头显改了 IP（DHCP 续租后跳号）、连到了访客网络、或者根本没连 Wi-Fi。"
                         : "ARP 缓存里有它，说明它在这条链路上，只是 ping 被挡或它不响应 ICMP —— "
-                        + "这种情况更像 AP 隔离或来宾网络。",
+                        + "这种情况更像 AP 隔离或来宾网络。") + notNetwork,
                     ev, Array.Empty<FixAction>(),
                     absent
                         ? "先在头显「设置 → Wi-Fi」里看一眼当前 IP，填回上面那个框；"
