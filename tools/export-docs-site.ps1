@@ -711,7 +711,13 @@ $sb = New-Object System.Text.StringBuilder
 [void]$sb.AppendLine('<header class="hero">')
 [void]$sb.AppendLine('  <div class="eyebrow">CHECKS · 检测项全表 · 唯一真相源</div>')
 [void]$sb.AppendLine('  <h1>每一条检测都写清<br><span class="grad">怎么查 · 怎么判 · 怎么退</span></h1>')
-[void]$sb.AppendLine(('  <p class="lead">这张表由 <code>tools/export-docs-site.ps1</code> 从 <code>' + (Esc-Plain $Checklist) + '</code> 直接生成，共 <strong>' + $checkTotal + ' 条</strong>检测项。清单改了，这一页跟着变 —— 文档不手工维护，就不存在「文档与代码脱节」。</p>'))
+[void]$sb.AppendLine(('  <p class="lead">这张表由 <code>tools/export-docs-site.ps1</code> 从 <code>' + (Esc-Plain $Checklist) + '</code> 直接生成，共 <strong>' + $checkTotal + ' 条</strong>检测项。清单改了，这一页跟着变，不需要手工维护。</p>'))
+if ($checkTotal -ne $implemented) {
+  $gapNote = '<p class="note"><strong>但这张表不是全部。</strong>工具现在每次体检跑的是 <strong>' + $implemented + ' 项</strong>，上面这 ' + $checkTotal + ' 条是最初的清单。'
+  $gapNote = $gapNote + '<strong>差额的方向和「还没做」相反</strong>——是清单没跟上工具，不是工具没做完。'
+  $gapNote = $gapNote + '要看某台机器这次到底跑了哪几项、结论是什么，读本页下半部分的「本机实测结果」，那部分是从一次真实运行生成的。</p>'
+  [void]$sb.AppendLine('  ' + $gapNote)
+}
 [void]$sb.AppendLine(('  <div class="actions"><a class="primary" href="faq.html#myths">先去排掉 ' + $myths.Count + ' 个错解</a><a class="ghost" href="index.html">← 回首页</a></div>'))
 [void]$sb.AppendLine('</header>')
 
