@@ -20,6 +20,7 @@ param(
   [string]$ChecksMd  = 'docs/checks.md',
   [string]$Corpus    = 'research/09-failure-corpus/01-symptom-corpus.md',
   [string]$Rootcause = 'research/09-failure-corpus/02-symptom-to-rootcause.md',
+  [string]$RealRun   = 'research/14-real-run/01-what-this-machine-found.md',
   [string]$Readme    = 'README.md',
   [string]$OutDir    = 'docs'
 )
@@ -871,6 +872,38 @@ foreach ($m in $myths) {
   [void]$sb.AppendLine('  </div>')
 }
 [void]$sb.AppendLine('  <p class="note">端口与发现机制的事实依据（TCP 38810-40、UDP 38850/38860、UPnP 的调用点）见 <code>research/02-network-diagnosis/01-ports-and-discovery.md</code>；每条纠偏背后都有对应的检测项，见 <a href="checks.html">检测项全表</a>。</p>')
+[void]$sb.AppendLine('</section>')
+
+# ------------------------------------------------- 真实机器上抓到了什么（research/14-real-run）
+#
+# 这一节回答「检测项列表本身不能证明工具有用」。内容全部来自真实运行的输出记录。
+# 脚本强制读源文件，并核对它自称的检测项数量；读不到就抛错，而不是静默出一页空话。
+$rrLines = Get-Lines (Read-Text $RealRun)
+$rrCheckTotal = Require-Number ($rrLines -join "`n") 'checks-total:\s*(\d+)' 'real-run check total'
+$rrTables = New-Object System.Collections.Generic.List[object]
+$rrIdx = 0
+while ($rrIdx -lt $rrLines.Count) {
+  if ($rrLines[$rrIdx] -match '^\s*\|') {
+    $rrJ = $rrIdx
+    $rrT = Collect-Table $rrLines ([ref]$rrJ)
+    if ($rrT.Count -ge 2) { $rrTables.Add($rrT) }
+    $rrIdx = $rrJ
+    continue
+  }
+  $rrIdx++
+}
+if ($rrTables.Count -lt 3) { throw "$RealRun 里只解析出 $($rrTables.Count) 张表（预期 ≥3）" }
+
+[void]$sb.AppendLine('<section id="realrun">')
+[void]$sb.AppendLine('  <h2>真实机器上抓到了什么</h2>')
+[void]$sb.AppendLine(('  <p class="lead2">检测项列表本身不能证明工具有用——有用要看它在一台真实机器上抓到了什么、漏了什么，' +
+  '以及有没有把没事说成有事。下面是一次完整真实运行的记录，共 <strong>' + $rrCheckTotal + ' 项检测</strong>，' +
+  '原始输出与复核命令见 <code>research/14-real-run/01-what-this-machine-found.md</code>。</p>'))
+[void]$sb.AppendLine('  <div class="card warn">')
+[void]$sb.AppendLine('    <p style="margin:0"><strong>最重要的一条不是任何单个检测项：</strong>那台机器上两个「阻断」级结论，一个是残留套接字、一个是头显睡着了——都不是配置错误。工具按证据形态分级（ARP 缓存 <code>Stale</code> / 无记录 / <code>Reachable</code>）才区分得出来。一个会把「设备睡着了」报成「网络不通」的工具，用户第三次就不看了。</p>')
+[void]$sb.AppendLine('  </div>')
+foreach ($rt in $rrTables) { [void]$sb.AppendLine('  ' + (Convert-Table $rt)) }
+[void]$sb.AppendLine('  <p class="note">没测到的部分照登：头显侧 adb 三分支需要插 USB（无线调试的 5555/5554/5556/5557/5558/8080 全关），抓包与防火墙修复需要管理员 UAC。</p>')
 [void]$sb.AppendLine('</section>')
 
 [void]$sb.AppendLine('<section id="sources">')

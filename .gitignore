@@ -24,3 +24,5 @@ _shot*.png
 # 调研临时文件
 .scratch/
 dist/
+_run*.txt
+_stdout*.txt

@@ -13,6 +13,22 @@ public partial class App : Application
 {
     [DllImport("kernel32.dll")] private static extern bool AttachConsole(int pid);
 
+    /// <summary>
+    /// Claims a console for a WinExe and pins the output encoding to UTF-8.
+    /// <para>
+    /// Order matters and is not stylistic. Writing to a redirected pipe before
+    /// <c>AttachConsole</c> deadlocks the process. And leaving the encoding unset lets the console
+    /// pick the OEM code page, which mangled the CJK check summaries once output was redirected —
+    /// visibly, some lines came out as Latin-1 garbage while others were fine.
+    /// </para>
+    /// </summary>
+    private static void ClaimConsole()
+    {
+        AttachConsole(-1);
+        try { Console.OutputEncoding = new UTF8Encoding(false); }
+        catch (IOException) { /* no console attached; the caller is writing to a file anyway */ }
+    }
+
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -20,7 +36,7 @@ public partial class App : Application
         var args = e.Args;
         if (args.Contains("--selftest"))
         {
-            AttachConsole(-1); // WinExe has no console of its own; borrow the shell's
+            ClaimConsole();
             var exit = await SelfTest.RunAsync(args);
             Shutdown(exit);
             return;
@@ -28,14 +44,14 @@ public partial class App : Application
 
         if (args.Contains("--apply"))
         {
-            AttachConsole(-1); // same trick as --selftest
+            ClaimConsole(); // same trick as --selftest
             Shutdown(await ApplyFix.RunAsync(args));
             return;
         }
 
         if (args.Contains("--set-param"))
         {
-            AttachConsole(-1);
+            ClaimConsole();
             Shutdown(await SetParam.RunAsync(args));
             return;
         }
@@ -44,8 +60,7 @@ public partial class App : Application
         {
             // Exercises the exact command object the button is bound to, without depending on
             // synthetic mouse input (which does not reach the window in this environment).
-            // AttachConsole first: any write to a redirected pipe before this point deadlocks.
-            AttachConsole(-1);
+            ClaimConsole();
             var vm = new Views.HealthViewModel();
             vm.DeepProbeCommand!.Failed += ex =>
                 Console.Error.WriteLine("深度探测失败: " + ex);
@@ -59,7 +74,7 @@ public partial class App : Application
 
         if (args.Contains("--deep"))
         {
-            AttachConsole(-1);
+            ClaimConsole();
             Shutdown(await LossProbe.RunDeepAsync(args));
             return;
         }
@@ -68,7 +83,7 @@ public partial class App : Application
         // HTML one is the rarer path, so it must not fall through to the Markdown writer.
         if (args.Contains("--report-html") || args.Contains("--report"))
         {
-            AttachConsole(-1);
+            ClaimConsole();
             var html = args.Contains("--report-html");
             Shutdown(await ReportExport.RunAsync(args, html));
             return;

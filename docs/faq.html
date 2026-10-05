@@ -318,6 +318,37 @@ footer a{color:var(--mut)}
   </div>
   <p class="note">端口与发现机制的事实依据（TCP 38810-40、UDP 38850/38860、UPnP 的调用点）见 <code>research/02-network-diagnosis/01-ports-and-discovery.md</code>；每条纠偏背后都有对应的检测项，见 <a href="checks.html">检测项全表</a>。</p>
 </section>
+<section id="realrun">
+  <h2>真实机器上抓到了什么</h2>
+  <p class="lead2">检测项列表本身不能证明工具有用——有用要看它在一台真实机器上抓到了什么、漏了什么，以及有没有把没事说成有事。下面是一次完整真实运行的记录，共 <strong>34 项检测</strong>，原始输出与复核命令见 <code>research/14-real-run/01-what-this-machine-found.md</code>。</p>
+  <div class="card warn">
+    <p style="margin:0"><strong>最重要的一条不是任何单个检测项：</strong>那台机器上两个「阻断」级结论，一个是残留套接字、一个是头显睡着了——都不是配置错误。工具按证据形态分级（ARP 缓存 <code>Stale</code> / 无记录 / <code>Reachable</code>）才区分得出来。一个会把「设备睡着了」报成「网络不通」的工具，用户第三次就不看了。</p>
+  </div>
+  <div class="tblwrap"><table>
+<thead><tr><th>检测项</th><th>结论</th><th>复核</th></tr></thead><tbody>
+<tr><td><code>session-stale</code></td><td>1 个通道是残留套接字，最早建立于 2 小时 55 分前</td><td>同一个 socket 已不在活跃会话里，但 Windows 仍留着 Established</td></tr>
+<tr><td><code>lan-reach</code></td><td>头显 192.168.11.14 ping 不通，ARP 缓存里也没有它</td><td>同一次运行里 ARP 条目状态是 <code>Stale</code></td></tr>
+</tbody></table></div>
+  <div class="tblwrap"><table>
+<thead><tr><th>检测项</th><th>结论</th><th>为什么先不动</th></tr></thead><tbody>
+<tr><td><code>proc-tuner</code></td><td>硬件调校类命中 6 个（Armoury Crate 系列）</td><td>工具<strong>故意不自动停它</strong>：停 Armoury Crate 会连带关掉风扇控制。列出来是因为它在社区里是「常规指标全绿但串流仍然卡」的常见真凶</td></tr>
+<tr><td><code>cfg-streamer</code></td><td><code>AutoAdjustBitrate=false</code></td><td>语料里「卡在 measuring bandwidth」的首选解法就是打开它；但它是<strong>配置意图</strong>，不该由工具替你改</td></tr>
+<tr><td><code>net-apipa</code></td><td>3 块离线网卡各持一个 <code>169.254.x.x</code></td><td>离线网卡拿不到 DHCP 就自己占一个链路本地地址。真实设备<strong>全部可达</strong>时这一条不该报——见下方「一处已修的缺陷」</td></tr>
+<tr><td><code>net-virtual</code></td><td>2 块虚拟网卡启用中</td><td>Hyper-V / WSL 在用。有线网卡 metric=10，没有虚拟网卡排在它前面，所以不影响路由</td></tr>
+<tr><td><code>ics</code></td><td>SharedAccess (ICS) Running</td><td>关掉可能影响手机/热点共享，是否需要由用户判断</td></tr>
+<tr><td><code>nat-type</code></td><td>外网 IP 是 <code>172.16.80.42</code>，落在私有段 → 双层 NAT</td><td>纯 LAN 串流不受影响，只影响从外网连回来。改路由器要 Owner 自己做</td></tr>
+<tr><td><code>svc-log</code></td><td>5 条历史 ERROR（最近一次 2026-09-18）</td><td>Streamer 正在运行，所以降级为 Warn；历史遗留不该按现状报警</td></tr>
+<tr><td><code>nic-powersave</code></td><td><strong>Unknown</strong>：读不到网卡电源管理属性</td><td>本机驱动不通过 WMI 暴露这组属性。如实报 Unknown 而不是 Pass</td></tr>
+</tbody></table></div>
+  <div class="tblwrap"><table>
+<thead><tr><th>项</th><th>为什么没测到</th></tr></thead><tbody>
+<tr><td>头显侧 adb 三分支</td><td>头显没插 USB，也没开无线调试（5555/5554/5556/5557/5558/8080 全部关闭）。<strong>插一下 USB 就能验。</strong></td></tr>
+<tr><td>广播实发抓包</td><td>Npcap 已安装且能枚举 12 个设备，但抓包需要管理员权限，这次会话没有人在键盘前确认 UAC</td></tr>
+<tr><td><code>fw-restore-vd</code></td><td><code>Remove-NetFirewallRule</code> 需要提权</td></tr>
+<tr><td>提权重启 Streamer</td><td>上一轮成功过一次（PID 11120 → 36784），这一次因为无人确认 UAC 而如实报了失败</td></tr>
+</tbody></table></div>
+  <p class="note">没测到的部分照登：头显侧 adb 三分支需要插 USB（无线调试的 5555/5554/5556/5557/5558/8080 全关），抓包与防火墙修复需要管理员 UAC。</p>
+</section>
 <section id="sources">
   <h2>证据来源与缺口</h2>
   <p class="lead2">这一节不做美化。没读到的来源就写没读到，不用推测补齐。</p>
