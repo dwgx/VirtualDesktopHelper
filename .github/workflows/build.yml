@@ -44,6 +44,13 @@ jobs:
         shell: pwsh
         run: ./tools/check-symptom-map.ps1
 
+      # Citation gate: every File.cs:NNN in the shipped tool must resolve in a decompiled tree.
+      # On CI neither tree exists, so it skips loudly rather than failing — the local run is the
+      # one that actually checks. See tools/check-citations.py for why two trees and "at least one".
+      - name: Citation gate
+        shell: pwsh
+        run: python tools/check-citations.py
+
       - name: Publish
         run: dotnet publish src/VdHelper/VdHelper.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o out
 
