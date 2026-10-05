@@ -76,21 +76,28 @@ public sealed class HealthReport
     public Collection<CheckResult> Results { get; } = new();
 
     /// <summary>
-    /// Streamable requires evidence. It used to be the fallthrough for "nothing failed", which meant
-    /// a run where every single check failed to collect — PowerShell unavailable, adb missing, a
-    /// permission wall — produced <c>Streamable</c> and the headline 本机网络体检通过. For a
-    /// diagnostic tool that is the worst possible failure: a total failure reported as a clean
-    /// bill of health, and the user has no way to tell the difference from the output.
+    /// A Block or a Warn is real evidence, so those decide the verdict on their own.
     /// <para>
-    /// So a verdict of Streamable now requires at least one check that actually passed.
+    /// When nothing failed, the verdict must rest on how much was actually measured. Reporting
+    /// Streamable while most checks returned Unknown is the same false all-clear as before, just
+    /// diluted: thirty unreadable checks and three passes is not a healthy machine, it is a machine
+    /// the tool could not read. Streamable therefore requires the measured results to outnumber the
+    /// unmeasured ones.
     /// </para>
     /// </summary>
-    public HealthVerdict Verdict =>
-        Results.Any(r => r.Status == CheckStatus.Block) ? HealthVerdict.Blocked
-        : Results.Any(r => r.Status == CheckStatus.Warn) ? HealthVerdict.AtRisk
-        : Results.Count == 0 ? HealthVerdict.Unknown
-        : Results.All(r => r.Status == CheckStatus.Unknown) ? HealthVerdict.Unknown
-        : HealthVerdict.Streamable;
+    public HealthVerdict Verdict
+    {
+        get
+        {
+            if (Results.Count == 0) return HealthVerdict.Unknown;
+            if (Results.Any(r => r.Status == CheckStatus.Block)) return HealthVerdict.Blocked;
+            if (Results.Any(r => r.Status == CheckStatus.Warn)) return HealthVerdict.AtRisk;
+
+            var passed = CountBy(CheckStatus.Pass);
+            var unknown = CountBy(CheckStatus.Unknown);
+            return unknown >= passed ? HealthVerdict.Unknown : HealthVerdict.Streamable;
+        }
+    }
 
     /// <summary>
     /// Established VD channels right now, from the port check. When this is non-empty the
@@ -129,15 +136,18 @@ public sealed class HealthReport
             };
 
             // "Unknown" means two very different things and collapsing them is how a tool loses
-            // trust: nothing was run yet, versus everything was attempted and none of it returned
-            // a result. The second one must never read as good news.
-            if (verdict is null)
-                return Results.All(r => r.Status == CheckStatus.Unknown)
-                    ? $"无法判定：{Results.Count} 项检查全部没有取到结果"
-                      + "（PowerShell 不可用 / 权限不足 / 目标不存在都会这样）。"
-                      + "**这不是通过**——这一轮什么都没测出来。"
-                    : "尚未体检";
-            return verdict;
+            // trust: nothing was run yet, versus everything was attempted and most of it returned
+            // no result. Neither may read as good news.
+            if (verdict is not null) return verdict;
+
+            if (Results.Count == 0) return "尚未体检";
+            return Results.All(r => r.Status == CheckStatus.Unknown)
+                ? $"无法判定：{Results.Count} 项检查全部没有取到结果"
+                  + "（PowerShell 不可用 / 权限不足 / 目标不存在都会这样）。"
+                  + "**这不是通过**——这一轮什么都没测出来。"
+                : $"无法判定：{CountBy(CheckStatus.Pass)} 项通过，"
+                  + $"但 {CountBy(CheckStatus.Unknown)} 项没测出结果，测到的比没测到的还少。"
+                  + "**这不是通过**——多数检查这一轮没有给出任何信息。";
         }
     }
 

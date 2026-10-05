@@ -1,0 +1,23 @@
+fix: a verdict of "all clear" now has to out-weigh the amount that went unmeasured
+
+The earlier fix only caught the case where every check came back Unknown. The diluted version was
+still open: thirty checks that could not be measured and three that passed produced Streamable and
+the headline 本机网络体检通过. Thirty unreadable checks is not a healthy machine, it is a machine the
+tool could not read.
+
+Streamable now additionally requires that the measured results outnumber the unmeasured ones. Proved
+across six shapes with a throwaway harness (deleted afterwards):
+  34 pass / 0 unknown                     -> Streamable
+  19 pass / 12 warn / 2 block / 1 unknown -> Blocked      (this machine, unchanged)
+  3 pass / 30 unknown / 1 warn            -> AtRisk
+  0 pass / 34 unknown                     -> Unknown
+  2 pass / 2 unknown                      -> Unknown      (a tie cannot conclude)
+  3 pass / 2 unknown                      -> Streamable
+The first and last rows matter: the guard must not downgrade thin but real evidence.
+
+The Unknown headline now distinguishes the two cases in words too — "全部没有取到结果" versus
+"N 项没测出结果，测到的比没测到的还少" — and says plainly that neither is a pass.
+
+One judgement call left explicit rather than papered over: a run with 30 unmeasured checks and one
+warning still reports AtRisk, because that warning is a real finding and burying it behind Unknown
+would be worse. The list shows the Unknowns; the verdict does not claim more than it measured.
