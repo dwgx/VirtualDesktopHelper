@@ -206,23 +206,14 @@ footer a{color:var(--mut)}
 </tbody></table></div>
 </section>
 <section id="coverage">
-  <h2>覆盖度：9 / 23 已被检测覆盖</h2>
-  <p class="lead2">已覆盖 9 · 部分覆盖 4 · <strong>完全未覆盖 10</strong>。下面这 10 条是现有检测够不到的地方，也是工具下一步最该做的地方。</p>
+  <h2>覆盖度：15 / 23 已被检测覆盖</h2>
+  <p class="lead2">已覆盖 15 · 部分覆盖 6 · <strong>完全未覆盖 2</strong>。下面这 2 条是现有检测够不到的地方，也是工具下一步最该做的地方。</p>
   <div class="tblwrap"><table>
 <thead><tr><th>被评估的根因</th><th>已覆盖</th><th>部分覆盖</th><th><strong>完全未覆盖</strong></th></tr></thead><tbody>
-<tr><td class="num">23</td><td>9</td><td>4</td><td><strong>10</strong></td></tr>
+<tr><td class="num">23</td><td>15</td><td>6</td><td><strong>2</strong></td></tr>
 </tbody></table></div>
   <ul class="plain">
-    <li><strong>A6 头显 MAC 随机化</strong> —— 社区多人复现，官方零覆盖，能单方面拿分</li>
-    <li><strong>A3/B7 两端版本一致性</strong> —— 完全可程序化</li>
-    <li><strong>A2 配置是否真正 Save 落盘</strong> —— 完全可程序化</li>
-    <li><strong>B2 防火墙入站/出站规则成对性</strong> —— 有社区给出的成功案例，社区普遍止步于"关防火墙"</li>
-    <li><strong>D4 网卡协商速率 ≥1Gbps</strong> —— 社区花整帖才定位的隐蔽陷阱</li>
-    <li><strong>G1 两端网关一致性</strong> —— 社区给出互相矛盾的答案，只有工具能判</li>
-    <li><strong>B4 VPN 进程存活（而非连接状态）</strong> —— 官方措辞有漏洞</li>
-    <li><strong>F1 头显端设置（手部追踪等）</strong> —— 需扩展检测面到头显</li>
-    <li><strong>E2 活动 RDP 会话独占显示器</strong> —— "第二次就黑屏"的经典真因</li>
-    <li><strong>C2 主动探测（PC→头显可达性 / UDP 38850）</strong> —— 社区唯一共识诊断法，社区目前靠手敲 ping</li>
+    <li><strong>F1 头显端配置（外部注入/篡改）</strong> —— 需要连上头显。<code>HeadsetDeepProbe</code> 已经读得到包、</li>
   </ul>
 </section>
 <section id="myths">
@@ -349,6 +340,12 @@ footer a{color:var(--mut)}
 <tr><td>广播实发抓包</td><td>Npcap 已安装且能枚举 12 个设备，但抓包需要管理员权限，这次会话没有人在键盘前确认 UAC</td></tr>
 <tr><td><code>fw-restore-vd</code></td><td><code>Remove-NetFirewallRule</code> 需要提权</td></tr>
 <tr><td>提权重启 Streamer</td><td>上一轮成功过一次（PID 11120 → 36784），这一次因为无人确认 UAC 而如实报了失败</td></tr>
+</tbody></table></div>
+  <div class="tblwrap"><table>
+<thead><tr><th>情况</th><th>判定</th></tr></thead><tbody>
+<tr><td>同网段 + 新建</td><td>真会话</td></tr>
+<tr><td>不同网段 + 新建</td><td>云端中继连接，<strong>明确不算串流</strong></td></tr>
+<tr><td>同网段 + 超时</td><td>残留套接字（唯一阻断项）</td></tr>
 </tbody></table></div>
   <p class="note">没测到的部分照登：头显侧 adb 三分支需要插 USB（无线调试的 5555/5554/5556/5557/5558/8080 全关），抓包与防火墙修复需要管理员 UAC。</p>
 </section>

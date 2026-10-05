@@ -364,7 +364,10 @@ if ($symptomRows -eq $null) { throw "$Rootcause 里没找到 §1 症状词典表
 if ($causeGroups.Count -ne 7) { throw "$Rootcause 里解析出 $($causeGroups.Count) 个症状分组（预期 7）" }
 foreach ($g in $causeGroups) { if (-not $g.Rows -or $g.Rows.Count -lt 2) { throw "症状分组 $($g.Code) 的表格没解析出来" } }
 if ($coverageRows -eq $null) { throw "$Rootcause 里没找到覆盖度小结表" }
-if ($coverageList.Count -lt 5) { throw "$Rootcause 覆盖度小结后面的未覆盖清单只读到 $($coverageList.Count) 条" }
+# Must be present, but not a fixed count. This was "> 5" when ten gaps were outstanding and the
+# threshold quietly encoded "there are still many gaps" — which stopped being true once the tool
+# grew, and then broke the build instead of just printing a short list.
+if ($coverageList.Count -lt 1) { throw "$Rootcause 覆盖度小结后面没有未覆盖清单条目" }
 if ($myths.Count -ne 10) { throw "$Rootcause §3 解析出 $($myths.Count) 条错误解法（预期 10）" }
 foreach ($m in $myths) {
   $hasWrong = $false; $hasRight = $false
