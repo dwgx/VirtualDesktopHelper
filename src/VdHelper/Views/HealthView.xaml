@@ -6,13 +6,54 @@
     <Grid Margin="18,14,18,10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Style="{StaticResource Muted}" Margin="0,0,0,10"
+        <!-- symptom entry: the one binary split every human triage does by hand -->
+        <ItemsControl Grid.Row="0" ItemsSource="{Binding Symptoms}" Margin="0,0,0,8">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Margin="0,0,6,6" Padding="10,4" CornerRadius="3"
+                            Background="#161616" BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Cursor" Value="Hand" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                        <Setter Property="Background" Value="#1E2A38" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock Style="{StaticResource ChromeText}" FontSize="12"
+                                   Text="{Binding Label}">
+                            <TextBlock.InputBindings>
+                                <MouseBinding MouseAction="LeftClick"
+                                              Command="{Binding SelectCommand}" />
+                            </TextBlock.InputBindings>
+                        </TextBlock>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Border Grid.Row="1" Margin="0,0,0,10" Padding="10,6" CornerRadius="3" Background="#161616"
+                BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
+            <TextBlock Style="{StaticResource Muted}" Text="{Binding SymptomHint}" />
+        </Border>
+
+        <TextBlock Grid.Row="2" Style="{StaticResource Muted}" Margin="0,0,0,8"
                    Text="每项都能展开看到原始输出。所有修复先备份、可回滚；路由器这类本机改不了的只给指引。" />
 
-        <ListView Grid.Row="1" ItemsSource="{Binding Rows}"
+        <ListView Grid.Row="3" ItemsSource="{Binding Rows}"
                   Background="Transparent" BorderThickness="0"
                   ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListView.ItemContainerStyle>

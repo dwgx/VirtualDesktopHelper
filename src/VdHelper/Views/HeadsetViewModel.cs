@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using VdHelper.Core.Adb;
 using VdHelper.Core.Model;
@@ -103,13 +103,24 @@ public sealed class HeadsetViewModel : INotifyPropertyChanged
         foreach (var (k, v) in result.Evidence)
             Facts.Add(new HeadsetRow { Label = k, Value = v });
 
-        var row = new CheckRow { Result = result, Title = "headset" };
-        foreach (var f in result.Fixes)
+        AddCheck(result, "headset");
+
+        // Deep probe covers the three root causes a PC-side pass structurally cannot see:
+        // headset MAC randomization, headset-side settings, headset-side VPN.
+        var serial = result.Evidence.TryGetValue("serial", out var s) ? s : string.Empty;
+        var deep = await new HeadsetDeepProbe(client).ProbeAsync(serial);
+        AddCheck(deep, HeadsetDeepProbe.Id);
+
+        void AddCheck(CheckResult r, string title)
         {
-            var fixRow = new FixRow { Action = f };
-            fixRow.Bind(ShellWindow.RunHealthAsync);
-            row.Fixes.Add(fixRow);
+            var row = new CheckRow { Result = r, Title = title };
+            foreach (var f in r.Fixes)
+            {
+                var fixRow = new FixRow { Action = f };
+                fixRow.Bind(ShellWindow.RunHealthAsync);
+                row.Fixes.Add(fixRow);
+            }
+            Checks.Add(row);
         }
-        Checks.Add(row);
     }
 }

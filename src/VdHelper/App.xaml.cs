@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using VdHelper.Core.Config;
+using VdHelper.Core.Model;
 using System.Runtime.InteropServices;
 using System.IO;
 using System.Text;
@@ -43,6 +44,14 @@ public partial class App : Application
         var i = Array.IndexOf(args, "--tab");
         if (i >= 0 && i + 1 < args.Length && int.TryParse(args[i + 1], out var parsed)) tabIndex = parsed;
         var window = new Views.ShellWindow(tabIndex);
+        var si2 = Array.IndexOf(args, "--symptom");
+        if (si2 >= 0 && si2 + 1 < args.Length)
+        {
+            var cls = Core.Model.SymptomCatalog.Find(args[si2 + 1]);
+            if (cls is not null)
+                Views.HealthViewModel.Current.Selected =
+                    Views.HealthViewModel.Current.Symptoms.First(t => t.Class == cls);
+        }
         MainWindow = window;
         window.Show();
     }
@@ -58,8 +67,31 @@ public static class SelfTest
         {
             var report = await HealthEngine.RunAsync(CancellationToken.None);
             var changes = HealthHistory.Save(report);
-            sb.AppendLine($"VDHelper selftest  verdict={report.Verdict}  {report.VerdictText}");
-            foreach (var r in report.Results)
+
+            // --symptom narrows the report to one user-reported failure mode. It is also the
+            // natural support artefact: "run this and send me the output".
+            var symptomId = string.Empty;
+            var si = Array.IndexOf(args, "--symptom");
+            if (si >= 0 && si + 1 < args.Length) symptomId = args[si + 1];
+            var focus = SymptomCatalog.Find(symptomId);
+            if (si >= 0 && si + 1 < args.Length && focus is null)
+            {
+                Console.WriteLine($"未知症状类 {symptomId}，可选：" +
+                    string.Join("/", SymptomCatalog.All.Select(s => s.Id)));
+                return 2;
+            }
+
+            if (focus is not null)
+                sb.AppendLine($"症状类 {focus.Id}「{focus.Title}」：{focus.PhraseLine}\n重点：{focus.FirstLook}\n");
+
+            IReadOnlyList<CheckResult> shown = focus is null
+                ? report.Results.ToList()
+                : report.Results.Where(r => focus.RelevantChecks.Contains(r.Id)).ToList();
+            var hidden = report.Results.Count - shown.Count;
+
+            sb.AppendLine($"VDHelper selftest  verdict={report.Verdict}  {report.VerdictText}"
+                + (focus is null ? "" : $"  (症状类 {focus.Id}，已隐藏 {hidden} 项无关检测)"));
+            foreach (var r in shown)
             {
                 sb.AppendLine($"[{r.Status,-7}] {r.Id,-13} {r.Summary}");
                 foreach (var (k, v) in r.Evidence)

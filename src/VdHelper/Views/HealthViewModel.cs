@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
@@ -79,14 +79,52 @@ public sealed class HealthViewModel
     private static readonly Lazy<HealthViewModel> Instance = new(() => new HealthViewModel());
     public static HealthViewModel Current => Instance.Value;
 
+    private static HealthReport? _last;
+
     public ObservableCollection<CheckRow> Rows { get; } = new();
+    public ObservableCollection<SymptomTab> Symptoms { get; } = new();
+
+    private SymptomTab? _selected;
+    public SymptomTab? Selected
+    {
+        get => _selected;
+        set
+        {
+            _selected = value;
+            foreach (var tab in Symptoms)
+                tab.IsSelected = ReferenceEquals(tab, value);
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Selected)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SymptomHint)));
+            Rebuild();
+        }
+    }
+
+    /// <summary>One-line guidance under the symptom buttons; empty when showing everything.</summary>
+    public string SymptomHint => _selected is null
+        ? "先选你遇到的现象——这两类故障的根因几乎不重叠，选对能省掉一半排查。"
+        : $"{_selected!.Class!.FirstLook}\n用户原话：{_selected.Class.PhraseLine}";
+
+    public HealthViewModel()
+    {
+        Symptoms.Add(new SymptomTab(this, null, "全部"));
+        foreach (var s in SymptomCatalog.All)
+            Symptoms.Add(new SymptomTab(this, s, s.Title));
+    }
 
     public static void Publish(HealthReport report)
     {
-        var vm = Current;
-        vm.Rows.Clear();
-        foreach (var r in report.Results)
+        _last = report;
+        Current.Rebuild();
+    }
+
+    private void Rebuild()
+    {
+        if (_last is null) return;
+        var keep = _selected?.Class?.RelevantChecks;
+        Rows.Clear();
+        foreach (var r in _last.Results)
         {
+            if (keep is not null && !keep.Contains(r.Id)) continue;
             var row = new CheckRow { Result = r, Title = r.Id };
             foreach (var f in r.Fixes)
             {
@@ -94,7 +132,40 @@ public sealed class HealthViewModel
                 fixRow.Bind(ShellWindow.RunHealthAsync);
                 row.Fixes.Add(fixRow);
             }
-            vm.Rows.Add(row);
+            Rows.Add(row);
         }
     }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+}
+
+/// <summary>A clickable symptom chip; "全部" clears the filter.</summary>
+public sealed class SymptomTab : INotifyPropertyChanged
+{
+    public SymptomTab(HealthViewModel owner, SymptomClass? cls, string label)
+    {
+        Class = cls;
+        Label = label;
+        SelectCommand = new RelayCommand(() => owner.Selected = this);
+    }
+
+    public SymptomClass? Class { get; }
+    public string Label { get; }
+
+    /// <summary>Bound from the chip's MouseBinding.</summary>
+    public ICommand SelectCommand { get; }
+
+    private bool _isSelected;
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected == value) return;
+            _isSelected = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 }

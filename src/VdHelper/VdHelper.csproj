@@ -8,6 +8,10 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
+
+  <ItemGroup>
+    <PackageReference Include="SharpOpenNat" Version="4.0.19" />
+  </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources\parameters.json" />
   </ItemGroup>

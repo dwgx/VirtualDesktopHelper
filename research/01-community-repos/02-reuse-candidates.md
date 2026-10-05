@@ -146,7 +146,7 @@ wasRule.Interfaces = NetworkInterface.GetAllNetworkInterfaces();   // ← 精确
 | --- | --- | --- |
 | `SharpOpenNat/SharpOpenNat/Discovery/Searcher.cs` + `ISearcher.cs` | `ISearcher` / `Searcher` | SSDP M-SEARCH 发现，支持 `PortMapper.Upnp` 与 `PortMapper.Pmp` 两种协议 |
 | `SharpOpenNat/SharpOpenNat/INatDiscoverer.cs` | `INatDiscoverer` | `OpenNat.Discoverer.DiscoverDeviceAsync(PortMapper.Upnp, token)` |
-| `SharpOpenNat/SharpOpenNat/INatDevice.cs` | `INatDevice` | `GetExternalIPAsync()` → **「检测项：外网 IP / 是否在 NAT 后」**；`GetMappedPortAsync()` → 「检测项：端口是否已被别的映射占了」 |
+| `SharpOpenNat/SharpOpenNat/INatDevice.cs` | `INatDevice` | `GetExternalIPAsync()` → **「检测项：外网 IP / 是否在 NAT 后」**；`GetSpecificMappingAsync(Protocol, int, ct)` → 「检测项：这个端口在 NAT 上有没有映射」（**修正 2026-10-05**：4.0.19 的 `INatDevice` 没有 `GetMappedPortAsync`；已按上游 `INatDevice.cs` 逐行核实，公开面只有 HostEndPoint / LocalAddress / CreatePortMapAsync / DeletePortMapAsync / GetAllMappingsAsync / GetExternalIPAsync / GetSpecificMappingAsync） |
 | `SharpOpenNat/SharpOpenNat/Mapping.cs`（同目录可见 `Enums/ProtocolType.cs`） | `Mapping`、`ProtocolType` | `CreatePortMapAsync(new Mapping(ProtocolType.Tcp, 1600, 1700, "name"))` → **「修复项：给路由器加映射」** |
 | `SharpOpenNat/SharpOpenNat/EventArgs/DeviceEventArgs.cs` | `DeviceEventArgs` | 路由器设备上下线事件 |
 | `SharpOpenNat/SharpOpenNat/Exceptions/NatDeviceNotFoundException.cs`、`MappingException.cs` | 两个异常 | 「检测项：路由器不支持 UPnP」的明确失败信号 |

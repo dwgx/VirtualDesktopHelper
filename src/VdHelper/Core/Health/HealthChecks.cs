@@ -47,6 +47,9 @@ public static class HealthChecks
         WindowsStateChecks.RouteMetricCheck(),
         WindowsStateChecks.WirelessOnlyCheck(),
         ReachabilityCheck.Create(),
+        .. LinkRateChecks.Create(),
+        .. NatChecks.Create(),
+        .. FirewallPairChecks.Create(),
     ];
 
     // ---------------------------------------------------------------- adapters
