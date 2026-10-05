@@ -104,6 +104,10 @@ dist\v0.3.0\VdHelper.exe     REM 直接双击用
 | `--apply <fixId>` | 执行一项修复（会先备份，可回滚） | `0` 成功 / `6` 失败 / `9` 没有匹配的修复项 |
 | `--set-param <key> <json>` | 直接写一个配置键 | `0` 成功并已回读确认 / `2` 未知键 / `7` 只读或不在本机 / `8` Streamer 在运行 / `6` 写失败 |
 
+`--report` / `--report-html` 排在 `--selftest` **之前**：两个一起给时，报告标志生效。
+以前是 `--selftest` 先命中，于是 `--selftest --report issue.md` 只打到 stdout、**不写文件也不警告**——
+在求助帖里就是一个空附件。指定文件是更明确的要求，所以它赢。两者跑的是同一个体检引擎，结论一致。
+
 常用组合：
 
 ```powershell

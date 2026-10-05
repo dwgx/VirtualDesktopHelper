@@ -343,10 +343,18 @@ public static class SetParam
 
         var streamer = System.Diagnostics.Process.GetProcessesByName("VirtualDesktop.Streamer");
         var running = streamer.Length > 0;
+        var pids = string.Join(", ", streamer.Select(p => p.Id.ToString()));
         foreach (var p in streamer) p.Dispose();
         if (running)
         {
-            Console.WriteLine("Streamer 正在运行：它有 2 秒防抖保存，会覆盖外部写入。先退出 Streamer 再试。");
+            // "先退出 Streamer" is only useful if it says how. The tray icon is where the official
+            // client puts it; taskkill is the fallback when the window is not on screen.
+            Console.WriteLine("Streamer 正在运行（PID " + pids + "）：它有 2 秒防抖保存，会覆盖外部写入。");
+            Console.WriteLine("退出方式（任选其一）：");
+            Console.WriteLine("  1. 任务栏托盘区右键 Virtual Desktop Streamer 图标 → 退出");
+            Console.WriteLine("  2. 任务管理器结束 VirtualDesktop.Streamer.exe");
+            Console.WriteLine("  3. taskkill /PID " + pids.Split(", ")[0] + " /F");
+            Console.WriteLine("退出后重跑同一条命令；参数改动会写入并回读确认。");
             return 8;
         }
 
