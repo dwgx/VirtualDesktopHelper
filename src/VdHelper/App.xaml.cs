@@ -234,8 +234,14 @@ public static class SelfTest
             if (timeline.Count > 1)
             {
                 sb.AppendLine($"最近 {timeline.Count} 次体检（{timeline[0].At:MM-dd HH:mm} 起）：");
-                foreach (var s in timeline)
+                for (var i = 0; i < timeline.Count; i++)
+                {
+                    var s = timeline[i];
+                    if (i > 0 && s.Logic != timeline[i - 1].Logic)
+                        sb.AppendLine($"  ── 判定规则由 v{timeline[i - 1].Logic} 变为 v{s.Logic}："
+                                    + "这一段之间的结论不可直接比较 ──");
                     sb.AppendLine($"  {s.At:MM-dd HH:mm}  {s.Verdict,-10} {s.Headline}");
+                }
             }
         }
         catch (Exception ex)

@@ -41,7 +41,7 @@
 | 警告 | **display-inventory** | Virtual Desktop Monitor(Error) |
 | 通过 | **cfg-version** | Streamer 版本 1.34.22.0 |
 | 通过 | **gpu-encoder** | 硬件编码器空闲（当前 0 个编码会话） |
-| 警告 | **gpu-throttle** | GPU 跑在最高频率的 76%（2355/3090 MHz），温度只有 55°C |
+| 警告 | **gpu-throttle** | GPU 跑在最高频率的 77%（2377/3090 MHz），温度只有 56°C |
 | Unknown | **wifi-quality** | 无线未连接（disconnected），这一项没有测到任何链路数据 |
 | 警告 | **net-loss** | 头显 192.168.11.14 完全不应答（0 收到） |
 
