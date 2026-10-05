@@ -304,10 +304,13 @@ if (hasQueriedRegistry && !IsComputerRegistryOffline)
 | 检查 | 判据 | 为什么值得 |
 |---|---|---|
 | **UDP 38850 方向性观测** | 在 PC 上监听 38850，看头显是否真的发来发现包（每轮刷新一次，搜索窗 3 s：`ComputerDiscoveryClient.cs:362-367`） | **唯一能把「网络/防火墙问题」和「客户端根本没发包」分开的判据**。§3.3 那种情况下这一项会是红的，但原因不是网 |
+| **① 头显进程存活（必须排在所有网络检查之前）** | 进程存在 | **这是唯一的分流判据，且它比任何网络检查都便宜。**`DiscoveryProtocol` 的 D20 与我的 §3.3b 指向同一件事：补丁基线的失败是**静默**的 —— 进程活着但列表空 ⇒ 故障在客户端侧（三道闸门，见 §3.3b），和网络无关；进程死了 ⇒ 才轮到网络/防火墙去解释。**先判这个，否则后面每一项网络检查都可能是在给一个客户端侧 bug 找借口** |
+| **② UDP 38850 入站方向性观测** | `pktmon` 抓 60 s，过滤 `udp.dstport==38850 && len>243` 的**入站**包，见到 ≥1 个即「头显的发现请求真的到了」 | 载荷有固定特征且明文首字节必为 `0x00`（`ComputerDiscoveryClient.cs:472-502`），**无需凭据、无需解密即可识别**。这是**唯一能把「包没到」（网络/防火墙/网卡）与「包到了但 PC 不回」（配置/占用）彻底分开的信号**。`DiscoveryProtocol` D0 |
 | Streamer 进程在跑 | 进程存在 | `"No computer found"` 的另一半文案就是 "Make sure your computer is running the Streamer app"（`NetworkManager.cs:1910`） |
 | Streamer 版本 | `computer.StreamerVersion` 门槛 1.20.3 / 1.34.0 / 1.20.17（`NetworkManager.cs:403-409`） | 版本不够时客户端会拒连，文案是 `"Streamer on your PC needs to be updated"` |
 | TCP 38810/20/30/40 监听 + 防火墙 | 四端口全 LISTEN 且允许入站 | 四通道缺一即连不上（`NetworkManager.cs:131-144`） |
 | 同网段 / 同 SSID / 无 AP 隔离 | PC 主地址与头显 IP 同段 + 双向可达 | 客户端自己也这么判（`NetworkManager.cs:1885` `IsOnSameNetwork`） |
+| Streamer `ShowPairingRequests` / `Accounts` 配置 | `ShowPairingRequests=true` 且 `Accounts` 非空 | 纯配置导致的「发现失败」，网络检测全绿也查不出；`Accounts` 为空则任何头显都落进不回包分支（`02` D7/D8） |
 
 ### 4.2 不该查（噪声，在补丁基线上必然常亮且没有信息量）
 
