@@ -112,6 +112,27 @@ if ($Analyze -ne '') {
 }
 
 # ---- capture path ----
+# Prerequisite, and it is the one people skip: discovery only happens while the Streamer is up.
+# Capturing with it stopped produces a clean capture that proves nothing, and reading that as
+# "the headset sent nothing" would be exactly backwards.
+$streamer = @(Get-Process -Name 'VirtualDesktop.Streamer' -ErrorAction SilentlyContinue)
+if ($streamer.Count -eq 0) {
+    Write-Host 'Virtual Desktop Streamer 现在没有在跑。先把它开起来再抓。' -ForegroundColor Yellow
+    Write-Host '原因：发现包是 PC 在回。Streamer 没跑就没有 38850 监听，'
+    Write-Host '      那种情况下抓到的空白只能说明"没人在听"，不能说明"头显没发"。'
+    Write-Host ''
+    Write-Host '开起来之后，先确认顺序：先开 PC 上的 Streamer，再在头显里点搜索。'
+    Write-Host '启动它（本工具不会替你做这一件事，它会断开现有串流）：'
+    Write-Host '  & "$env:ProgramFiles\Virtual Desktop Streamer\VirtualDesktop.Streamer.exe"'
+    exit 1
+}
+Write-Host ("前置检查通过：Streamer 进程在跑（{0} 个）。" -f $streamer.Count) -ForegroundColor DarkGray
+
+New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+$etl = Join-Path $OutDir 'discovery.etl'
+$txt = Join-Path $OutDir 'discovery.txt'
+
+
 if (-not (Test-Admin)) {
     Write-Host '需要管理员权限：pktmon 抓的是原始包，普通权限起不来。' -ForegroundColor Red
     Write-Host '请用管理员身份重开 PowerShell（开始菜单 -> PowerShell -> 以管理员身份运行）再跑。'
@@ -119,9 +140,6 @@ if (-not (Test-Admin)) {
     exit 1
 }
 
-New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
-$etl = Join-Path $OutDir 'discovery.etl'
-$txt = Join-Path $OutDir 'discovery.txt'
 
 $status = & pktmon status 2>&1 | Out-String
 if ($status -match 'Running') {
