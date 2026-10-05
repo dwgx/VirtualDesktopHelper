@@ -1,3 +1,5 @@
+﻿using System.Text.Json;
+using VdHelper.Core.Config;
 using System.Runtime.InteropServices;
 using System.IO;
 using System.Text;
@@ -27,6 +29,13 @@ public partial class App : Application
         {
             AttachConsole(-1); // same trick as --selftest
             Shutdown(await ApplyFix.RunAsync(args));
+            return;
+        }
+
+        if (args.Contains("--set-param"))
+        {
+            AttachConsole(-1);
+            Shutdown(await SetParam.RunAsync(args));
             return;
         }
 
@@ -118,5 +127,68 @@ public static class ApplyFix
         if (!wantedList)
             Console.WriteLine(report.VerdictText);
         return 0;
+    }
+}
+/// <summary>
+/// Headless parameter write: <c>--set-param &lt;key&gt; &lt;jsonValue&gt;</c>.
+/// Refuses to touch the file while the Streamer is running — its 2 s debounced save would
+/// overwrite us (research/04-streamer-settings), so a silent data loss is not an option.
+/// </summary>
+public static class SetParam
+{
+    public static async Task<int> RunAsync(string[] args)
+    {
+        var i = Array.IndexOf(args, "--set-param");
+        if (i < 0 || i + 2 >= args.Length)
+        {
+            Console.WriteLine("usage: VdHelper.exe --set-param <key> <jsonValue>");
+            return 2;
+        }
+
+        var key = args[i + 1];
+        var literal = args[i + 2];
+
+        var info = ParameterCatalog.All.FirstOrDefault(p =>
+            p.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+        if (info is null)
+        {
+            Console.WriteLine($"未知参数 {key}（不是调研表里的 111 个键之一）");
+            return 2;
+        }
+        if (info.ReadOnly)
+        {
+            Console.WriteLine($"{key} 是 DPAPI 密文键，改了会清空配对，拒绝写入。");
+            return 7;
+        }
+        if (!info.LivesOnPc)
+        {
+            Console.WriteLine($"{key} 不在 PC 落盘，由头显决定，本机改不了。");
+            return 7;
+        }
+
+        var streamer = System.Diagnostics.Process.GetProcessesByName("VirtualDesktop.Streamer");
+        var running = streamer.Length > 0;
+        foreach (var p in streamer) p.Dispose();
+        if (running)
+        {
+            Console.WriteLine("Streamer 正在运行：它有 2 秒防抖保存，会覆盖外部写入。先退出 Streamer 再试。");
+            return 8;
+        }
+
+        try
+        {
+            var value = JsonDocument.Parse(literal).RootElement.Clone();
+            var result = Core.Config.StreamerConfigWriter.Write(
+                Core.Config.StreamerSettings.DefaultPath, key, value);
+            Console.WriteLine($"已写入 {key} = {literal}");
+            Console.WriteLine($"备份：{result.BackupPath}");
+            Console.WriteLine($"回滚：把 {result.BackupPath} 复制回 {Core.Config.StreamerSettings.DefaultPath}");
+            return result.Success ? 0 : 6;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("写入失败：" + ex.Message);
+            return 6;
+        }
     }
 }

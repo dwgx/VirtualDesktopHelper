@@ -1,9 +1,9 @@
 # 检测项清单（自动生成）
 
 > 由 `tools/export-checks.ps1` 从 `VdHelper.exe --selftest` 的真实运行结果生成，**不要手工编辑**。
-> 生成时间以 git 提交为准；本机实测退出码 4（0=可串流 3=有隐患 4=阻断）。
+> 生成时间以 git 提交为准；本机实测退出码 3（0=可串流 3=有隐患 4=阻断）。
 
-本机最近一次结论：VDHelper selftest  verdict=Blocked  阻断：有检查项失败，串流很可能起不来
+本机最近一次结论：VDHelper selftest  verdict=AtRisk  有隐患：能串但可能不稳或掉帧
 
 ## 本机实测结果
 
@@ -17,10 +17,10 @@
 | 警告 | **fw-defender** | Defender 防火墙：Domain     True / Private   False / Public    False |
 | 通过 | **svc-vd** | VirtualDesktop.Service.exe Running Automatic |
 | 通过 | **port-vd** | 四个 VD 端口都空闲 |
-| 阻断 | **streamer-proc** | Streamer 进程没有运行——PC 侧不会广播，也不会监听串流端口 |
-| 阻断 | **svc-log** | 服务日志有 5 条 ERROR，最近一次 2026-09-18 15:37:35.6962 |
-| 警告 | **udp-discovery** | UDP 38850/38860 都没有活动 |
-| 阻断 | **cfg-streamer** | ShowPairingRequests=false：新头显的配对请求会被静默忽略；DontWarnApps 含 NetworkProfile：官方自己的网络告警被屏蔽了 |
+| 通过 | **streamer-proc** | Streamer 进程运行中（1 个） |
+| 警告 | **svc-log** | 服务日志有 5 条历史 ERROR（最近一次 2026-09-18 15:37:35.6962），但 Streamer 正在运行 |
+| 通过 | **udp-discovery** | UDP 38850 已监听（发现/配对协议） |
+| 警告 | **cfg-streamer** | ShowPairingRequests=false：靠弹窗配对新头显会被静默忽略（靠名字在客户端选则不受影响）；DontWarnApps 含 NetworkProfile：官方自己的网络告警被屏蔽了 |
 | 警告 | **ics** | SharedAccess(ICS)：Running |
 | 通过 | **fw-outbound** | 出站策略：Domain          NotConfigured / Private         NotConfigured / Public          NotConfigured |
 | 通过 | **av** | 已注册杀软：Windows Defender :: 401664 |

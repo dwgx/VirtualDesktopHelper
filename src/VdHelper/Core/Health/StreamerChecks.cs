@@ -74,11 +74,23 @@ public static class StreamerChecks
                         "服务日志里没有 ERROR", "正常。", ev, Array.Empty<FixAction>()));
 
                 var last = recent[^1].Groups["ts"].Value;
+
+                // A successful repair does not erase the log. When the Streamer is running right
+                // now, those ERROR lines are history: blocking on them would make the tool cry
+                // wolf on a machine that has already been fixed.
+                var running = Process.GetProcessesByName("VirtualDesktop.Streamer").Length > 0;
+                if (running)
+                    return Task.FromResult(new CheckResult("svc-log", CheckStatus.Warn,
+                        $"服务日志有 {recent.Count} 条历史 ERROR（最近一次 {last}），但 Streamer 正在运行",
+                        "错误来自过去，重装服务也不会抹掉历史记录。当前进程能起来，说明服务身份绑定已恢复。",
+                        ev, Array.Empty<FixAction>(),
+                        "想从零验证：删掉 ServiceLog.txt，重启 Streamer，再看有没有新 ERROR。"));
+
                 return Task.FromResult(new CheckResult("svc-log", CheckStatus.Block,
                     $"服务日志有 {recent.Count} 条 ERROR，最近一次 {last}",
                     "含义：服务尝试拉起 Streamer 时被系统拒绝，网络层再正常也不会广播。这是「各项都正常但连不上」的典型原因。",
                     ev, Fixes.RepairService(),
-                    "若重装服务无效，检查服务登录账户密码是否与当前系统账户一致（Uninstall/reinstall 需要管理员）。"));
+                    "若重装服务无效，检查服务登录账户密码是否与当前系统账户一致（重装需要管理员权限）。"));
             });
 
     public static ICheck UdpDiscoveryCheck() =>

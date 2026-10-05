@@ -57,16 +57,13 @@ public static class WindowsStateChecks
                 ev["DeviceName"] = s.GetString("DeviceName") ?? "-";
                 ev["CodecName"] = s.GetString("CodecName") ?? "-";
                 ev["PreferredCodec"] = s.GetRaw("PreferredCodec") ?? "-";
-                ev["OpenXRRuntime"] = s.GetRaw("OpenXRRuntime") ?? "-";
-                ev["AutoAdjustBitrate"] = s.GetBool("AutoAdjustBitrate")?.ToString() ?? "-";
-                ev["MonitorCount"] = s.GetRaw("MonitorCount") ?? "-";
-
                 var muted = s.GetString("DontWarnApps") ?? string.Join(",", s.GetStringArray("DontWarnApps"));
                 var pairingOff = s.GetBool("ShowPairingRequests") == false;
                 var neverConnected = last is null;
 
                 var problems = new List<string>();
-                if (pairingOff) problems.Add("ShowPairingRequests=false：新头显的配对请求会被静默忽略");
+                if (pairingOff)
+                    problems.Add("ShowPairingRequests=false：靠弹窗配对新头显会被静默忽略（靠名字在客户端选则不受影响）");
                 if (muted.Contains("NetworkProfile", StringComparison.OrdinalIgnoreCase))
                     problems.Add("DontWarnApps 含 NetworkProfile：官方自己的网络告警被屏蔽了");
                 if (neverConnected) problems.Add("LastConnectDate 为空：这台 PC 从未成功连过");
@@ -76,7 +73,10 @@ public static class WindowsStateChecks
                         last is null ? "配置可读，没有被屏蔽的告警" : $"配置正常，最近一次成功连接 {last:yyyy-MM-dd}",
                         "没有发现用户自己屏蔽掉的告警。", ev, Array.Empty<FixAction>()));
 
-                var status = (neverConnected || pairingOff) ? CheckStatus.Block : CheckStatus.Warn;
+                // Only "never connected" is fatal on its own. The other two are traps for users
+                // who expect VD to prompt them; someone who pairs by picking the computer's name
+                // in the client never sees them fire.
+                var status = neverConnected ? CheckStatus.Block : CheckStatus.Warn;
                 return Task.FromResult(new CheckResult("cfg-streamer", status,
                     string.Join("；", problems),
                     "这几项都会让「连不上」看起来像玄学：配对请求被静默忽略、网络告警被屏蔽、从没成功过。",

@@ -10,14 +10,23 @@ namespace VdHelper.Core.Checks;
 /// </summary>
 public static class PowerShellRunner
 {
-    public sealed record Result(int ExitCode, string StdOut, string StdErr)
+    public sealed record Result(int ExitCode, string StdOut, string StdErr, bool TimedOut = false)
     {
-        public bool Ok => ExitCode == 0;
+        public bool Ok => ExitCode == 0 && !TimedOut;
         public string Combined => string.IsNullOrWhiteSpace(StdErr) ? StdOut : StdOut + "\n[stderr] " + StdErr;
     }
 
     /// <param name="dryRun">When true the script text is returned instead of executed.</param>
-    public static async Task<Result> RunAsync(string script, bool asAdministrator = false, bool dryRun = false, CancellationToken ct = default)
+    public static Task<Result> RunAsync(string script, bool asAdministrator = false, bool dryRun = false, CancellationToken ct = default)
+        => RunAsync(script, asAdministrator, dryRun, DefaultTimeoutMs, ct);
+
+    private const int DefaultTimeoutMs = 60_000;
+
+    /// <summary>
+    /// The timeout matters for repairs: an elevated fix raises a UAC prompt, and a process waiting
+    /// forever on a prompt nobody answers would hang the UI thread.
+    /// </summary>
+    public static async Task<Result> RunAsync(string script, bool asAdministrator, bool dryRun, int timeoutMs, CancellationToken ct)
     {
         if (dryRun)
             return new Result(0, script, string.Empty);
@@ -49,11 +58,23 @@ public static class PowerShellRunner
 
         using var p = new Process { StartInfo = psi };
         p.Start();
-        var outTask = p.StandardOutput.ReadToEndAsync(ct);
-        var errTask = p.StandardError.ReadToEndAsync(ct);
+        var outTask = p.StandardOutput.ReadToEndAsync(CancellationToken.None);
+        var errTask = p.StandardError.ReadToEndAsync(CancellationToken.None);
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(timeoutMs);
+        try
+        {
+            await p.WaitForExitAsync(cts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            try { p.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
+            return new Result(-1, "", $"命令超时（{timeoutMs / 1000}s）。管理员操作可能正在等待 UAC 确认。", TimedOut: true);
+        }
+
         await Task.WhenAll(outTask, errTask).ConfigureAwait(false);
-        await p.WaitForExitAsync(ct).ConfigureAwait(false);
-        return new Result(p.ExitCode, outTask.Result, errTask.Result);
+        return new Result(p.ExitCode, outTask.Result, errTask.Result, TimedOut: false);
     }
 
     /// <summary>Runs a script and returns each non-empty trimmed line as a list.</summary>
