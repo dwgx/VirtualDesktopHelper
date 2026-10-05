@@ -445,7 +445,11 @@ public static class AdbProbe
         foreach (var (k, v) in check.Evidence)
             Console.WriteLine($"  {k}: {v}");
         if (!string.IsNullOrWhiteSpace(check.Guidance))
-            Console.WriteLine("  指引：" + check.Guidance);
+        {
+            var g = check.Guidance.TrimStart();
+            if (g.StartsWith("指引：", StringComparison.Ordinal)) g = g["指引：".Length..];
+            Console.WriteLine("  指引：" + g);
+        }
         foreach (var f in check.Fixes)
             Console.WriteLine($"  可修: {f.Id} — {f.Title}（风险 {f.Risk}）");
 

@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using VdHelper.Core.Model;
@@ -433,7 +433,7 @@ public sealed class HeadsetDeepProbe(AdbClient adb)
     };
 
     private const string WiringGuidance =
-        "接线指引：① USB-C 接 PC，② 头显里点「允许 USB 调试」（勾「始终允许」），"
+        "① USB-C 接 PC，② 头显里点「允许 USB 调试」（勾「始终允许」），"
         + "③ 回到本屏重跑。无线方式：先在头显 开发者选项 打开无线调试，"
         + "PC 上 `adb pair <头显IP:配对端口> <配对码>`，再 `adb connect <头显IP>:5555`；"
         + "头显 IP 在 设置 → Wi-Fi → 连接详情 里看。";

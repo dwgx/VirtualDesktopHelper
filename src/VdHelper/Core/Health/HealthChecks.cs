@@ -246,12 +246,18 @@ public static class HealthChecks
                 var fresh = established.Where(p => p.Since is not null && Age(p.Since.Value) <= FreshSession).ToList();
                 var stale = established.Except(fresh).ToList();
 
-                // A freshly established VD socket is not automatically a headset session. The
-                // Streamer also opens a channel to Virtual Desktop's cloud relay on startup — measured
-                // here as 192.168.11.2:38810 -> 40.89.161.236:38812, where 40.89.161.236 is the
-                // documented relay IP and 38812 is a remote relay port (38811-16), not a LAN one.
-                // Calling that "串流中" told the user they were streaming when they were not, and it is
-                // exactly the false all-clear this project keeps fixing. Only a same-subnet peer counts.
+                // A freshly established VD socket is not automatically a headset session. On startup
+                // the Streamer opens a channel to Virtual Desktop's own server — measured here as
+                // 192.168.11.2:38810 -> 40.89.161.236:38812. That address is a server endpoint chosen by
+                // timezone, not a relay: NetHelper.cs:17 names it EuropeServerIP, and :16 the
+                // AmericaCentral one. Calling it "串流中" told the user they were streaming when they
+                // were not, which is exactly the false all-clear this project keeps fixing.
+                //
+                // The test below is the peer address, not the port: that endpoint is a public IP, so it
+                // cannot share a /24 with any local adapter. An earlier version of this comment called
+                // it "the cloud relay" and claimed 38812 was "a remote relay port (38811-16)"; that
+                // range appears nowhere in either decompiled tree, and the same IP is a server address,
+                // so both claims were wrong and are gone rather than kept because they sounded right.
                 var localNets = NetworkInventory.ReadAdapters()
                     .Where(a => a.IsUp && a.PrimaryIPv4 is not null)
                     .Select(a => a.PrimaryIPv4!).ToList();
@@ -263,6 +269,7 @@ public static class HealthChecks
                         && localNets.Any(l => SameNet(l, peerIp)));
 
                 var lan = fresh.Where(IsLan).ToList();
+                // Named for what it is: sockets to Virtual Desktop's servers, not relays.
                 var relay = fresh.Except(lan).ToList();
 
                 // Consumed by HealthReport: a headline that says "will not start" while channels are
@@ -270,18 +277,19 @@ public static class HealthChecks
                 ev["_livePorts"] = string.Join(",", lan.Select(p => p.Port));
                 ev["_livePeer"] = lan.Select(p => p.Peer).FirstOrDefault() ?? "";
                 if (relay.Count > 0)
-                    ev["云端中继连接"] = string.Join(" ;; ", relay.Select(p => $"{p.Port} -> {p.Peer}"))
-                        + "（这不是头显串流：这是 Streamer 主动连到 Virtual Desktop 的云端中继）";
+                    ev["出网到官方服务器的连接"] = string.Join(" ;; ", relay.Select(p => $"{p.Port} -> {p.Peer}"))
+                        + "（这不是头显串流：这是 Streamer 启动后主动连到 Virtual Desktop 的服务器端点）";
 
                 if (relay.Count > 0 && lan.Count == 0)
                     return new CheckResult("session-stale", CheckStatus.Pass,
-                        $"没有头显串流会话；Streamer 连着云端中继：{relay[0].Peer}",
+                        $"没有头显串流会话；Streamer 连着官方服务器：{relay[0].Peer}",
                         "**这是「没有在串流」，不是「串流中」。**"
-                        + "刚建立的 VD 通道指向的是 Virtual Desktop 的云端中继（对端不在本网段），"
-                        + "不是头显。头显串流时对端应该是同网段的地址。",
+                        + "刚建立的 VD 通道指向的是 Virtual Desktop 的服务器端点（按时区选出来的那个，"
+                        + "对端是公网 IP，不在本网段），不是头显。头显串流时对端应该是同网段的地址。",
                         ev, Array.Empty<FixAction>(),
                         "如果你的基线是去联网鉴权的补丁版，这条出网连接值得单独看一眼——"
-                        + "它意味着 Streamer 在启动后仍会联系官方服务器。工具不阻断它，只如实报出。");
+                        + "它意味着 Streamer 在启动后仍会联系官方服务器（时区决定连欧洲还是美洲那台）。"
+                        + "工具不阻断它，只如实报出。");
 
                 if (fresh.Count > 0)
                     return new CheckResult("session-stale", CheckStatus.Pass,
@@ -301,9 +309,20 @@ public static class HealthChecks
                         ev, Fixes.RestartStreamer(),
                         "先确认头显此刻是不是真的在串流；如果早就退出了，重启 Streamer 即可，别去动路由器。");
 
+                // Reached only when stale sockets exist and none are on the LAN. Saying "也没有残留
+                // 套接字" here was wrong on every idle machine: the Streamer keeps that outbound
+                // connection open for hours, so this branch is reached precisely because stale
+                // sockets are present.
+                var offLan = stale.Count;
                 return new CheckResult("session-stale", CheckStatus.Pass,
-                    "当前没有活动会话（也没有残留套接字）",
-                    "Streamer 在正常待机，等头显来连。", ev, Array.Empty<FixAction>());
+                    offLan == 0
+                        ? "当前没有活动会话，也没有残留套接字"
+                        : $"当前没有活动会话；{offLan} 个残留通道都不在本网段（是连官方服务器留下的，不是头显）",
+                    offLan == 0
+                        ? "Streamer 在正常待机，等头显来连。"
+                        : "Streamer 在正常待机，等头显来连。残留的那几个是出网到官方服务器的通道，"
+                        + "不需要清理——它们不是头显会话，也不影响下一次串流。",
+                    ev, Array.Empty<FixAction>());
             });
 
     // ---------------------------------------------------------------- Windows state (PowerShell)
