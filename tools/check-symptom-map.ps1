@@ -70,8 +70,18 @@ if (Test-Path -LiteralPath $readmePath) {
             $readmeStale = $true
         }
     }
+    # Same treatment for the research topic count: it is another hand-written number in the same
+    # file, and it had drifted too (11 while there were 14 directories).
+    $topicDirs = @(Get-ChildItem -LiteralPath (Join-Path $root 'research') -Directory -ErrorAction SilentlyContinue)
+    foreach ($m in [regex]::Matches($readme, '(\d+)\s*个主题')) {
+        if ([int]$m.Groups[1].Value -ne $topicDirs.Count) {
+            Write-Host ""
+            Write-Host ("FAIL README 写的『" + $m.Value + "』与实际 " + $topicDirs.Count + " 个 research 主题目录不符") -ForegroundColor Red
+            $readmeStale = $true
+        }
+    }
     if (-not $readmeStale) {
-        Write-Host ("README 声明项数    : " + $real.Count + "（一致）")
+        Write-Host ("README 声明项数    : " + $real.Count + " 项检测 / " + $topicDirs.Count + " 个调研主题（一致）")
     }
 }
 
