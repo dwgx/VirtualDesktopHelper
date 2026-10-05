@@ -1,4 +1,4 @@
-﻿﻿using System.Text.RegularExpressions;
+﻿﻿﻿using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -70,6 +70,17 @@ public static class StreamerChecks
             return Array.Empty<int>();
         }
     }
+
+    /// <summary>
+    /// The three texts this machine has actually logged for a service-identity failure. Matching on
+    /// them is what lets the Block branch name a cause it has evidence for instead of assuming one.
+    /// </summary>
+    private static bool LooksLikeIdentityFailure(string msg) =>
+        msg.Contains("0x80070005", StringComparison.OrdinalIgnoreCase)
+        || msg.Contains("-2147024891", StringComparison.OrdinalIgnoreCase)   // same value, decimal
+        || msg.Contains("Access is denied", StringComparison.OrdinalIgnoreCase)
+        || msg.Contains("UnauthorizedAccessException", StringComparison.OrdinalIgnoreCase)
+        || msg.Contains("identity is incorrect", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Name and PID of whatever holds a UDP port, read from the connection table.
@@ -158,7 +169,6 @@ public static class StreamerChecks
                         "服务日志里没有 ERROR", "正常。", ev, Array.Empty<FixAction>()));
 
                 var last = recent[^1].Groups["ts"].Value;
-
                 // A successful repair does not erase the log. When the Streamer is running right
                 // now, those ERROR lines are history: blocking on them would make the tool cry
                 // wolf on a machine that has already been fixed.
@@ -190,7 +200,18 @@ public static class StreamerChecks
 
                 return Task.FromResult(new CheckResult("svc-log", CheckStatus.Block,
                     $"服务日志有 {recent.Count} 条 ERROR，最近一次 {last}",
-                    "含义：服务尝试拉起 Streamer 时被系统拒绝，网络层再正常也不会广播。这是「各项都正常但连不上」的典型原因。",
+                    // The judge is level == "ERROR" and nothing else. Any ERROR — network, config,
+                    // the user cancelling — used to be translated into two specific assertions: 服务
+                    // 尝试拉起 Streamer 时被系统拒绝, and 网络层再正常也不会广播. The message field went
+                    // into the evidence truncated to 160 chars and was never judged. So let the log
+                    // speak, and only name the identity-binding failure when the text actually says
+                    // so — this machine has one logged, and that is not what this class of entry
+                    // generally means.
+                    (LooksLikeIdentityFailure(recent[^1].Groups["msg"].Value)
+                        ? "**日志原文指向服务身份绑定问题**（0x80070005 / Access is denied / "
+                          + "identity is incorrect）。这一类会让服务拉不起 Streamer，网络层再正常也不会广播。原文见证据。"
+                        : "这条 ERROR 的原文见证据——本项只按级别判定、不解释内容，"
+                          + "所以不能断定它是身份问题，也可能是网络、配置或用户取消。"),
                     ev, Fixes.RepairService(),
                     "若重装服务无效，检查服务登录账户密码是否与当前系统账户一致（重装需要管理员权限）。"));
             });
