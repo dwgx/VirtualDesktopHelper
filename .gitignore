@@ -20,3 +20,6 @@ _logs/
 _capture/_selftest.txt
 _gui.log
 _shot.png
+
+# 调研临时文件
+.scratch/

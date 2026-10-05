@@ -49,6 +49,9 @@
             <TabItem Header="串流参数" Style="{StaticResource NavTab}">
                 <views:ParametersView />
             </TabItem>
+            <TabItem Header="头显诊断" Style="{StaticResource NavTab}">
+                <views:HeadsetView />
+            </TabItem>
         </TabControl>
 
         <Border Grid.Row="2" Background="{StaticResource TitleBrush}">

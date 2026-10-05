@@ -1,0 +1,98 @@
+<UserControl x:Class="VdHelper.Views.HeadsetView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:VdHelper.Views"
+             DataContext="{x:Static vm:HeadsetViewModel.Current}">
+    <Grid Margin="18,14,18,10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Style="{StaticResource ChromeText}" FontSize="13" Text="{Binding Summary}"
+                           Foreground="{Binding Status, Converter={StaticResource StatusBrush}}" />
+                <TextBlock Style="{StaticResource Mono}" Text="{Binding AdbStatus}" />
+            </StackPanel>
+            <Button Grid.Column="1" Content="重新检测" Command="{Binding RefreshCommand}" />
+        </Grid>
+
+        <TextBlock Grid.Row="1" Style="{StaticResource Muted}" Margin="0,0,0,10"
+                   Text="头显用 USB 连接并在头显里点「允许 USB 调试」。VD 的网络层不打 logcat，所以「能不能连上」最终要看第一屏的 PC 侧状态；这里只负责头显自身的包、权限、网络。" />
+
+        <ItemsControl Grid.Row="2" ItemsSource="{Binding Checks}" Margin="0,0,0,10">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Padding="10" Margin="0,0,0,6" CornerRadius="3" Background="#161616"
+                            BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource ChromeText}" FontSize="12.5" Text="{Binding Detail}" />
+                            <TextBlock Style="{StaticResource Muted}" Margin="0,6,0,0"
+                                       Text="{Binding GuidanceText, StringFormat=指引：{0}}"
+                                       Visibility="{Binding HasGuidance, Converter={StaticResource BoolToVisible}}" />
+                            <ItemsControl ItemsSource="{Binding Fixes}" Margin="0,6,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,4,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Style="{StaticResource Muted}" FontSize="11.5"
+                                                       Text="{Binding Title}" />
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                <TextBlock VerticalAlignment="Center" Margin="0,0,8,0"
+                                                           Style="{StaticResource Muted}" FontSize="11.5"
+                                                           Text="{Binding State}" />
+                                                <Button Content="执行" MinWidth="64" Height="24"
+                                                        Command="{Binding ApplyCommand}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <ListView Grid.Row="3" ItemsSource="{Binding Facts}" Background="Transparent" BorderThickness="0"
+                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="BorderThickness" Value="0" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListViewItem">
+                                <ContentPresenter />
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <Grid Margin="0,0,0,3">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="200" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Style="{StaticResource Muted}" FontSize="11.5"
+                                   Text="{Binding Label}" />
+                        <TextBlock Grid.Column="1" Style="{StaticResource Mono}" Text="{Binding Value}" />
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+</UserControl>
