@@ -161,3 +161,35 @@ Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
 cd D:/Project/VirtualDesktopHelper
 ./src/VdHelper/bin/Release/net10.0-windows/VdHelper.exe --selftest --out run.txt
 ```
+---
+
+## 八、补充实测：Streamer 启动后会主动连云端中继
+
+2026-10-06 01:54 重启 Streamer 后实测：
+
+```
+$ Get-NetTCPConnection -State Established -OwningProcess (Get-Process VirtualDesktop.Streamer).Id
+local=192.168.11.2:38810  remote=40.89.161.236:38812
+```
+
+- Streamer 启动时间 `01:54:37`，该连接自启动起一直保持，十分钟后仍在。
+- `40.89.161.236` 是 `localization/desktop/decompiled_streamer/VirtualDesktop.Streamer/-/-.92.cs:21`
+  里记的两个中继 IP 之一；`38812` 落在 `StreamerSettings.cs:3225` 的 `% 6` 展开区间
+  38811–16，属于**远程中继端口**，不是同网段的 38810/20/30/40。
+- **本地端口 38810 与局域网会话共用**——同一个端口既走局域网直连也走云端中继，
+  所以只看端口号分不出来，必须看对端地址。
+
+**为什么这条重要**：本基线的目的是去掉联网鉴权，但 PC 端的官方 Streamer 仍是官方程序，
+它启动后仍会主动出网连到 Virtual Desktop 的中继节点。工具不阻断这条连接，只如实报出。
+
+**由此产生的工具缺陷（已修）**：`session-stale` 原先把任何「新建的 VD 套接字」都当成头显会话，
+于是这条中继连接让工具报出「串流中：1 个通道已建立会话（对端 40.89.161.236:38812）」——
+而此时根本没有在串流。现在按对端是否在本机 /24 网段分成三类：
+
+| 情况 | 判定 |
+|---|---|
+| 同网段 + 新建 | 真会话 |
+| 不同网段 + 新建 | 云端中继连接，**明确不算串流** |
+| 同网段 + 超时 | 残留套接字（唯一阻断项）|
+
+只修前半段会把中继连接变成「残留套接字」阻断——修反方向的 bug 才是发现后半段的原因。
