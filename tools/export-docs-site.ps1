@@ -631,8 +631,9 @@ $sb = New-Object System.Text.StringBuilder
 $implemented = $itemRows.Count
 $plannedNote = ''
 if ($checkTotal -ne $implemented) {
-  $plannedNote = '<p class="lead">清单里有 <strong>' + $checkTotal + '</strong> 条待检测项；工具当前实装并每次体检都会跑的是 <strong>' +
-    $implemented + '</strong> 条（见下方本机实测）。两个数字不是一回事，差额是还没实现的。</p>'
+  $plannedNote = '<p class="lead">本表是最初的 <strong>' + $checkTotal + '</strong> 条设计清单。工具后来又加了检测项，现在每次体检实际跑的是 <strong>' + $implemented + '</strong> 条（见下方本机实测）。' +
+    '<strong>差额的走向和「待实现」相反</strong>——是清单没跟上工具，不是工具没做完。' +
+    '本次体检到底跑了哪几项，以 <code>--selftest</code> 的输出为准。</p>'
 }
 [void]$sb.AppendLine(('  <h1>「连不上」不是一个错误码，<br><span class="grad">是 ' + $implemented + ' 条可检测的断链</span></h1>'))
 [void]$sb.AppendLine('  <p class="lead">VDHelper 是 Windows 端的 Virtual Desktop 串流检测 / 诊断 / 修复工具。它回答一个具体问题：<strong>为什么头显找不到这台 PC，或者找到了却连不上。</strong>本页所有数字都来自本机真实运行结果与仓库里可核实的语料，没有一条是估的。</p>')
