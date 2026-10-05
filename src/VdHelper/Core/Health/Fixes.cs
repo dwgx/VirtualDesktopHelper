@@ -24,7 +24,8 @@ public static class Fixes
                 "修复前已记录该网卡当前 Enabled 状态（当前为 Disabled 或不存在）；未改动其 IP 配置。",
                 $"Enable-NetAdapter -Name {Ps.Literal(name)} -Confirm:$false",
                 FixRisk.Low,
-                ct => RunPsAsync($"Disable-NetAdapter -Name {Ps.Literal(name)} -Confirm:$false", name, ct)));
+                ct => RunPsAsync($"Disable-NetAdapter -Name {Ps.Literal(name)} -Confirm:$false", name, ct),
+                NeedsElevation: true));
         }
         return actions;
     }
@@ -48,7 +49,8 @@ public static class Fixes
             FixRisk.Medium,
             ct => RunPsAsync(
                 @"netsh advfirewall firewall add rule name=""Virtual Desktop Streamer"" dir=in action=allow program=""C:\Program Files\Virtual Desktop Streamer\VirtualDesktop.Streamer.exe"" enable=yes profile=any",
-                "Virtual Desktop Streamer", ct)),
+                "Virtual Desktop Streamer", ct),
+            NeedsElevation: true),
     ];
 
     public static IReadOnlyList<FixAction> StartVdService() =>
@@ -72,7 +74,8 @@ public static class Fixes
                 return state.StdOut.Contains("Running", StringComparison.OrdinalIgnoreCase)
                     ? new FixResult(true, "服务已处于 Running", state.StdOut.Trim())
                     : new FixResult(false, "命令返回 0，但复查状态不是 Running：" + state.StdOut.Trim());
-            }),
+            },
+            NeedsElevation: true),
     ];
 
     /// <summary>
@@ -167,7 +170,7 @@ public static class Fixes
             "Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden "
             + "-ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File','" + inner + "')";
 
-        var run = await PowerShellRunner.RunAsync(wrapper, false, false, 90_000, ct).ConfigureAwait(false);
+        var run = await PowerShellRunner.RunAsync(wrapper, false, 90_000, ct).ConfigureAwait(false);
 
         try
         {
@@ -232,7 +235,7 @@ public static class Fixes
 
     private static async Task<FixResult> RunPsAsync(string script, string subject, CancellationToken ct)
     {
-        var r = await PowerShellRunner.RunAsync(script, asAdministrator: true, ct: ct).ConfigureAwait(false);
+        var r = await PowerShellRunner.RunAsync(script, ct: ct).ConfigureAwait(false);
         return r.Ok
             ? new FixResult(true, $"{subject} 已处理", r.Combined)
             : new FixResult(false, $"{subject} 处理失败（可能需要管理员权限）", r.Combined);

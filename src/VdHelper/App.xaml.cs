@@ -34,6 +34,22 @@ public partial class App : Application
         base.OnStartup(e);
 
         var args = e.Args;
+
+        // Report flags are matched BEFORE --selftest. Both run the same engine, but --selftest used
+        // to win and silently swallow the output file: `--selftest --report issue.md` printed to
+        // stdout and wrote nothing, with no warning. Someone pasting that into a support thread
+        // would have attached an empty report. Naming a file is the more specific request, so it
+        // takes precedence.
+        // --report-html is checked before --report: both are prefixes of the same idea and the
+        // HTML one is the rarer path, so it must not fall through to the Markdown writer.
+        if (args.Contains("--report-html") || args.Contains("--report"))
+        {
+            ClaimConsole();
+            var html = args.Contains("--report-html");
+            Shutdown(await ReportExport.RunAsync(args, html));
+            return;
+        }
+
         if (args.Contains("--selftest"))
         {
             ClaimConsole();
@@ -86,16 +102,6 @@ public partial class App : Application
         {
             ClaimConsole();
             Shutdown(await LossProbe.RunDeepAsync(args));
-            return;
-        }
-
-        // --report-html is checked before --report: both are prefixes of the same idea and the
-        // HTML one is the rarer path, so it must not fall through to the Markdown writer.
-        if (args.Contains("--report-html") || args.Contains("--report"))
-        {
-            ClaimConsole();
-            var html = args.Contains("--report-html");
-            Shutdown(await ReportExport.RunAsync(args, html));
             return;
         }
 

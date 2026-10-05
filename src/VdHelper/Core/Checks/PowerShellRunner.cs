@@ -17,8 +17,8 @@ public static class PowerShellRunner
     }
 
     /// <param name="dryRun">When true the script text is returned instead of executed.</param>
-    public static Task<Result> RunAsync(string script, bool asAdministrator = false, bool dryRun = false, CancellationToken ct = default)
-        => RunAsync(script, asAdministrator, dryRun, DefaultTimeoutMs, ct);
+    public static Task<Result> RunAsync(string script, bool dryRun = false, CancellationToken ct = default)
+        => RunAsync(script, dryRun, DefaultTimeoutMs, ct);
 
     private const int DefaultTimeoutMs = 60_000;
 
@@ -26,7 +26,7 @@ public static class PowerShellRunner
     /// The timeout matters for repairs: an elevated fix raises a UAC prompt, and a process waiting
     /// forever on a prompt nobody answers would hang the UI thread.
     /// </summary>
-    public static async Task<Result> RunAsync(string script, bool asAdministrator, bool dryRun, int timeoutMs, CancellationToken ct)
+    public static async Task<Result> RunAsync(string script, bool dryRun, int timeoutMs, CancellationToken ct)
     {
         if (dryRun)
             return new Result(0, script, string.Empty);
@@ -50,11 +50,11 @@ public static class PowerShellRunner
         psi.ArgumentList.Add("-Command");
         psi.ArgumentList.Add(script);
 
-        // NOTE: ProcessStartInfo.Verb is silently ignored when UseShellExecute is false, which is
-        // what we need for redirected output. An earlier version set Verb = "runas" here and every
-        // "elevated" fix quietly ran unelevated. Elevation must be requested INSIDE the script with
-        // `Start-Process ... -Verb RunAs -Wait`; see Fixes.ElevatedAsync.
-        _ = asAdministrator;
+        // This runner never elevates, and there is deliberately no flag that claims to:
+        // ProcessStartInfo.Verb is silently ignored when UseShellExecute is false, which is what
+        // we need for redirected output. An earlier version set Verb = "runas" here and every
+        // "elevated" fix quietly ran unelevated. A repair that needs elevation says so with
+        // FixAction.NeedsElevation, which the UI and both report formats surface to the user.
 
         using var p = new Process { StartInfo = psi };
         p.Start();
