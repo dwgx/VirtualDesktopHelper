@@ -69,7 +69,7 @@ public static class Fixes
                 if (!started.Success)
                     return new FixResult(false, "启动命令未成功：" + started.Message);
                 var state = await PowerShellRunner
-                    .RunAsync("(Get-Service -Name 'VirtualDesktop.Service').Status", ct: ct)
+                    .RunAsync("(Get-Service | Where-Object { $_.Name -like 'VirtualDesktop*' } | Select-Object -First 1).Status", ct: ct)
                     .ConfigureAwait(false);
                 return state.StdOut.Contains("Running", StringComparison.OrdinalIgnoreCase)
                     ? new FixResult(true, "服务已处于 Running", state.StdOut.Trim())

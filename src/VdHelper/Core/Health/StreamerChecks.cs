@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -127,6 +128,24 @@ public static class StreamerChecks
                 // now, those ERROR lines are history: blocking on them would make the tool cry
                 // wolf on a machine that has already been fixed.
                 var running = Process.GetProcessesByName("VirtualDesktop.Streamer").Length > 0;
+
+                // How old is the newest ERROR? Reinstalling the service cannot retroactively change
+                // log lines from weeks ago, so offering it for those is offering a destructive action
+                // that provably does nothing about what was found.
+                var newest = DateTime.MinValue;
+                if (DateTime.TryParse(last, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedTs))
+                    newest = parsedTs;
+                var stale = newest != DateTime.MinValue && DateTime.Now - newest > TimeSpan.FromDays(2);
+
+                if (stale && !running)
+                    return Task.FromResult(new CheckResult("svc-log", CheckStatus.Warn,
+                        $"服务日志有 {recent.Count} 条历史 ERROR，但最近一条是 {last}，已经不是当前状态",
+                        $"这些 ERROR 距今约 {(DateTime.Now - newest).TotalDays:F0} 天。重装服务不会抹掉日志里的旧行，"
+                        + "也不会让一个已经能正常启动的服务变好——所以这里不给你这个动作。",
+                        ev, Array.Empty<FixAction>(),
+                        "现在 Streamer 没在跑，按 streamer-proc 那一项启动它就够了。"
+                        + "如果启动后仍然报错，那时的新 ERROR 才是当前问题，那时再看这一项。"));
+
                 if (running)
                     return Task.FromResult(new CheckResult("svc-log", CheckStatus.Warn,
                         $"服务日志有 {recent.Count} 条历史 ERROR（最近一次 {last}），但 Streamer 正在运行",
