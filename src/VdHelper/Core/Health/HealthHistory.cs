@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text.Json;
 using VdHelper.Core.Model;
 
@@ -25,7 +25,18 @@ public static class HealthHistory
 
     public sealed record Change(string Id, string Before, string After, bool IsNew);
 
-    public sealed record Snapshot(DateTime At, HealthVerdict Verdict, string Headline);
+    public sealed record Snapshot(DateTime At, HealthVerdict Verdict, string Headline, int Logic);
+
+    /// <summary>
+    /// Which verdict rules produced a stored verdict. Bump this whenever the rules change.
+    /// <para>
+    /// The verdict logic changed twice in one session (all-Unknown and evidence-ratio both used to
+    /// report Streamable). Comparing a run produced by the old rules with one produced by the new
+    /// rules shows a transition that never happened — "Streamable → Unknown" across a rules change
+    /// is noise, and noise in a trend line is how people stop reading it.
+    /// </para>
+    /// </summary>
+    public const int LogicVersion = 2;
 
     /// <summary>Saves this run and returns what changed since the previous one.</summary>
     public static IReadOnlyList<Change> Save(HealthReport report)
@@ -56,7 +67,9 @@ public static class HealthHistory
                     ? Enum.TryParse<HealthVerdict>(v.GetString(), out var parsed) ? parsed : HealthVerdict.Unknown
                     : HealthVerdict.Unknown;
                 var headline = root.TryGetProperty("headline", out var h) ? h.GetString() ?? "" : "";
-                list.Add(new Snapshot(when, verdict, headline));
+                var logic = root.TryGetProperty("logic", out var lg) && lg.TryGetInt32(out var lv)
+                    ? lv : 0;   // files written before this field existed
+                list.Add(new Snapshot(when, verdict, headline, logic));
             }
             catch (Exception ex) when (ex is IOException or JsonException)
             {
@@ -98,6 +111,7 @@ public static class HealthHistory
                 at = entry.At,
                 verdict = report.Verdict.ToString(),
                 headline = report.VerdictText,
+                logic = LogicVersion,
                 checks = entry.Checks,
             });
             File.WriteAllText(Path.Combine(Dir, $"run-{entry.At:yyyyMMdd-HHmmss}.json"), payload);

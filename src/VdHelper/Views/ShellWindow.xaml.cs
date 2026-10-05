@@ -85,7 +85,12 @@ public partial class ShellWindow : Window, INotifyPropertyChanged
         var block = report.Results.Count(r => r.Status == CheckStatus.Block);
         var timeline = HealthHistory.Timeline();
         var trend = timeline.Count >= 2
-            ? timeline[^1].Verdict == timeline[^2].Verdict ? "" : " · 较上次：" + timeline[^2].Verdict + " → " + timeline[^1].Verdict
+            ? timeline[^1].Verdict == timeline[^2].Verdict ? ""
+            // Across a verdict-rules change the two numbers were produced by different rules, so the
+            // "change" is an artefact of the tool, not of the machine. Say so instead of inventing one.
+            : timeline[^1].Logic != timeline[^2].Logic
+                ? " · 上一次体检用的是旧判定规则，趋势不可直接比较"
+                : " · 较上次：" + timeline[^2].Verdict + " → " + timeline[^1].Verdict
             : "";
 
         StatusText = $"通过 {pass} · 警告 {warn} · 阻断 {block} — {report.VerdictText}"
