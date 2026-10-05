@@ -1,4 +1,4 @@
-﻿using VdHelper.Core.Model;
+﻿﻿﻿﻿﻿using VdHelper.Core.Model;
 
 namespace VdHelper.Core.Adb;
 
@@ -209,7 +209,7 @@ public sealed class HeadsetProbe(AdbClient adb)
             + "该表 §I 要求这类句子在界面上标出来，以前这里一句都没标。"
             + "「缺权限」是实测的，「缺了会掉焦点」还不是。",
             ev,
-            missing.Count > 0 ? HeadsetFixes.GrantPermissions(missing, serial, installed) : Array.Empty<FixAction>(),
+            missing.Count > 0 ? HeadsetFixes.GrantPermissions(missing, serial, installed, adb.AdbPath) : Array.Empty<FixAction>(),
             missing.Count > 0 ? null : "进程在跑、权限齐全，若头显里仍列不出这台 PC，才轮到看 PC 侧（第一屏）。");
     }
 
@@ -292,7 +292,7 @@ public static class HeadsetFixes
     /// </para>
     /// </summary>
     public static IReadOnlyList<FixAction> GrantPermissions(
-        IEnumerable<string> permissions, string serial, IReadOnlyList<string> packages)
+        IEnumerable<string> permissions, string serial, IReadOnlyList<string> packages, string? adbPathOverride)
     {
         var perms = permissions.Distinct().ToList();
         var pkgs = packages.Where(p => !string.IsNullOrEmpty(p)).ToList();
@@ -303,13 +303,17 @@ public static class HeadsetFixes
                 "授予缺失的运行时权限（真执行，逐项回报结果）",
                 string.Join(" ;; ", pkgs.SelectMany(p => perms
                     .Select(x => "adb -s " + serial + " shell pm grant " + p + " " + x))),
-                "仅授予权限，不改其它设置；回滚用 pm revoke 逐项撤销：" + string.Join(" ;; ", perms),
+                "仅授予权限，不改其它设置。执行的是「每个已装包 × 每条待授予权限」的组合"
+                    + $"（{pkgs.Count} 个包 × {perms.Count} 条权限 = {pkgs.Count * perms.Count} 次 pm grant，"
+                    + "其中已在另一包上授予过的那些是 no-op）。回滚是同样规模的 pm revoke，逐条见下一行。",
                 string.Join(" ;; ", pkgs.SelectMany(p => perms
                     .Select(x => "adb -s " + serial + " shell pm revoke " + p + " " + x))),
                 FixRisk.Low,
                 async ct =>
                 {
-                    var adbPath = AdbLocator.Find();
+                    // the same adb binary the probe is already talking to; re-locating it here
+                    // could run a different one if the configured path changed in between
+                    var adbPath = adbPathOverride ?? AdbLocator.Find();
                     if (adbPath is null) return new FixResult(false, "找不到 adb.exe，没有真的执行任何命令。");
                     var adb = new AdbClient(adbPath);
                     var done = new List<string>();
