@@ -141,6 +141,15 @@ public static class SelfTest
 
             sb.AppendLine($"VDHelper selftest  verdict={report.Verdict}  {report.VerdictText}"
                 + (focus is null ? "" : $"  (症状类 {focus.Id}，已隐藏 {hidden} 项无关检测)"));
+
+            // Name what did not run. The HTML report already does this; the console output is the one
+            // people paste into issues, and a silently shorter list reads as full coverage.
+            var pending = (focus?.RelevantChecks ?? SymptomCatalog.All.SelectMany(s => s.RelevantChecks))
+                .Distinct()
+                .Where(id => report.Results.All(r => r.Id != id))
+                .ToList();
+            if (pending.Count > 0)
+                sb.AppendLine($"本轮未跑的检测（{pending.Count} 项，需要连上头显）：{string.Join("、", pending)}");
             // Lead with what to do, not with 34 rows. A verdict on its own is not actionable, and
             // the first thing people do with a long list is close the window.
             var actions = report.NextActions;

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 先看这三页，别直接开 issue
+    url: https://github.com/dwgx/VirtualDesktopHelper/blob/main/docs/faq.html
+    about: 症状分诊表与社区最贵的十个错解，多数「连不上」在这里就能定位。

@@ -17,7 +17,7 @@
 | 警告 | **fw-defender** | Defender 防火墙：Domain     True / Private   False / Public    False |
 | 通过 | **svc-vd** | VirtualDesktop.Service.exe Running Automatic |
 | 通过 | **port-vd** | 4 个端口由 Virtual Desktop 持有，没有被别的程序抢占 |
-| 阻断 | **session-stale** | 1 个通道是残留套接字（最早建立于 6 小时 8 分前） |
+| 通过 | **session-stale** | 当前没有活动会话（也没有残留套接字） |
 | 通过 | **streamer-proc** | Streamer 进程运行中（1 个） |
 | 警告 | **svc-log** | 服务日志有 5 条历史 ERROR（最近一次 2026-09-18 15:37:35.6962），但 Streamer 正在运行 |
 | 通过 | **udp-discovery** | UDP 38850 正在监听（发现/配对协议就绪） |
@@ -41,7 +41,7 @@
 | 警告 | **display-inventory** | Virtual Desktop Monitor(Error) |
 | 通过 | **cfg-version** | Streamer 版本 1.34.22.0 |
 | 通过 | **gpu-encoder** | 硬件编码器空闲（当前 0 个编码会话） |
-| 警告 | **gpu-throttle** | GPU 跑在最高频率的 77%（2385/3090 MHz），温度只有 55°C |
+| 警告 | **gpu-throttle** | GPU 跑在最高频率的 79%（2430/3090 MHz），温度只有 55°C |
 | Unknown | **wifi-quality** | 无线未连接（disconnected），这一项没有测到任何链路数据 |
 | 警告 | **net-loss** | 测到 100% 丢包（快速采样 8 次） |
 

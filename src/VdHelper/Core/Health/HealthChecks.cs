@@ -219,6 +219,16 @@ public static class HealthChecks
     /// To the user that looks like "connected but nothing happens", and it is its own failure
     /// mode rather than a port problem, so it gets its own check.
     /// </summary>
+    /// <summary>Same /24 — enough to tell a LAN peer from a cloud relay, and no more than claimed.</summary>
+    private static bool SameNet(System.Net.IPAddress a, System.Net.IPAddress b)
+    {
+        var x = a.GetAddressBytes();
+        var y = b.GetAddressBytes();
+        if (x.Length != 4 || y.Length != 4) return false;
+        for (var i = 0; i < 3; i++) if (x[i] != y[i]) return false;
+        return true;
+    }
+
     private static ICheck StaleSessionCheck() =>
         CheckFactory.Delegate(
             new("session-stale", "会话新鲜度", "现在是真在串流，还是套接字没超时？", "串流"),
@@ -236,20 +246,56 @@ public static class HealthChecks
                 var fresh = established.Where(p => p.Since is not null && Age(p.Since.Value) <= FreshSession).ToList();
                 var stale = established.Except(fresh).ToList();
 
+                // A freshly established VD socket is not automatically a headset session. The
+                // Streamer also opens a channel to Virtual Desktop's cloud relay on startup — measured
+                // here as 192.168.11.2:38810 -> 40.89.161.236:38812, where 40.89.161.236 is the
+                // documented relay IP and 38812 is a remote relay port (38811-16), not a LAN one.
+                // Calling that "串流中" told the user they were streaming when they were not, and it is
+                // exactly the false all-clear this project keeps fixing. Only a same-subnet peer counts.
+                var localNets = NetworkInventory.ReadAdapters()
+                    .Where(a => a.IsUp && a.PrimaryIPv4 is not null)
+                    .Select(a => a.PrimaryIPv4!).ToList();
+                bool IsLan(PortView p) =>
+                    !string.IsNullOrWhiteSpace(p.Peer)
+                    && System.Net.IPAddress.TryParse(p.Peer.Split(':')[0], out var ip)
+                    && System.Net.IPAddress.IsLoopback(ip)
+                    || (System.Net.IPAddress.TryParse(p.Peer.Split(':')[0], out var peerIp)
+                        && localNets.Any(l => SameNet(l, peerIp)));
+
+                var lan = fresh.Where(IsLan).ToList();
+                var relay = fresh.Except(lan).ToList();
+
                 // Consumed by HealthReport: a headline that says "will not start" while channels are
                 // up is the kind of contradiction that makes a tool untrustworthy.
-                ev["_livePorts"] = string.Join(",", fresh.Select(p => p.Port));
-                ev["_livePeer"] = fresh.Select(p => p.Peer).FirstOrDefault() ?? "";
+                ev["_livePorts"] = string.Join(",", lan.Select(p => p.Port));
+                ev["_livePeer"] = lan.Select(p => p.Peer).FirstOrDefault() ?? "";
+                if (relay.Count > 0)
+                    ev["云端中继连接"] = string.Join(" ;; ", relay.Select(p => $"{p.Port} -> {p.Peer}"))
+                        + "（这不是头显串流：这是 Streamer 主动连到 Virtual Desktop 的云端中继）";
+
+                if (relay.Count > 0 && lan.Count == 0)
+                    return new CheckResult("session-stale", CheckStatus.Pass,
+                        $"没有头显串流会话；Streamer 连着云端中继：{relay[0].Peer}",
+                        "**这是「没有在串流」，不是「串流中」。**"
+                        + "刚建立的 VD 通道指向的是 Virtual Desktop 的云端中继（对端不在本网段），"
+                        + "不是头显。头显串流时对端应该是同网段的地址。",
+                        ev, Array.Empty<FixAction>(),
+                        "如果你的基线是去联网鉴权的补丁版，这条出网连接值得单独看一眼——"
+                        + "它意味着 Streamer 在启动后仍会联系官方服务器。工具不阻断它，只如实报出。");
 
                 if (fresh.Count > 0)
                     return new CheckResult("session-stale", CheckStatus.Pass,
-                        $"{fresh.Count} 个通道刚建立：{string.Join("、", fresh.Select(p => p.Port.ToString()))}",
-                        $"建立于 {fresh.Min(p => DescribeAge(p.Since!.Value))}。PC 侧通道是通的。",
+                        $"{lan.Count} 个通道刚建立：{string.Join("、", fresh.Select(p => p.Port.ToString()))}",
+                        $"建立于 {fresh.Min(p => DescribeAge(p.Since!.Value))}。PC 侧通道是通的。"
+                        + (relay.Count > 0 ? "（同时还有云端中继连接，那不算串流。）" : ""),
                         ev, Array.Empty<FixAction>());
 
-                if (stale.Count > 0)
+                // Only LAN sockets can be a leftover headset session. A relay socket that has not
+                // aged out is a live cloud connection, not something to tell the user to clear.
+                var staleLan = stale.Where(IsLan).ToList();
+                if (staleLan.Count > 0)
                     return new CheckResult("session-stale", CheckStatus.Block,
-                        $"{stale.Count} 个通道是残留套接字（最早建立于 {stale.Min(p => DescribeAge(p.Since!.Value))}）",
+                        $"{staleLan.Count} 个通道是残留套接字（最早建立于 {staleLan.Min(p => DescribeAge(p.Since!.Value))}）",
                         "Windows 只有在对端发 FIN 或超时之后才改状态。头显早就退出了、这边套接字还挂着时，"
                         + "表现就是「界面上像连着、实际什么都不发生」。重启 Streamer 能立刻清掉。",
                         ev, Fixes.RestartStreamer(),
@@ -290,7 +336,6 @@ public static class HealthChecks
             _ => "任一 profile 被关闭或接管，VD 的入站与广播都可能被拦。",
             Array.Empty<FixAction>(),
             "被第三方杀软接管是常见情况：需要在该杀软里放行 Virtual Desktop Streamer 与其服务。");
-
     private static ICheck VdServiceCheck() =>
         PsCheck.Create("svc-vd", "VD 服务", "VirtualDesktop 服务在跑吗？", "服务", PsService,
             CheckStatus.Warn,
