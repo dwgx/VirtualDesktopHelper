@@ -1,4 +1,4 @@
-name: build
+﻿name: build
 
 on:
   push:
@@ -29,6 +29,12 @@ jobs:
           Get-Content selftest.txt
           if ($code -eq 5) { throw "self test failed to run (exit $code)" }
           if ($code -gt 5 -or $code -lt 0) { throw "self test crashed (exit $code)" }
+
+      # Anti-drift gate: every check must be reachable from a symptom class, and every id a
+      # symptom references must exist. A symptom that filters to nothing is a silent dead end.
+      - name: Symptom map gate
+        shell: pwsh
+        run: ./tools/check-symptom-map.ps1
 
       - name: Publish
         run: dotnet publish src/VdHelper/VdHelper.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o out

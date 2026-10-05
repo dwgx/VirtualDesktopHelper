@@ -31,8 +31,8 @@ public static class SymptomCatalog
         new("S2", "能看到但连不上",
             ["computer is unreachable", "PC is unreachable", "failed to see any computer at all",
              "can't connect to a computer contact support"],
-            ["lan-reach", "fw-pair", "fw-vd", "fw-outbound", "net-profile", "route-metric", "vpn-proc",
-             "net-apipa", "net-virtual", "ics"],
+            ["session-stale", "port-vd", "lan-reach", "fw-pair", "fw-vd", "fw-outbound",
+             "net-profile", "route-metric", "vpn-proc", "net-apipa", "net-virtual", "ics", "nat-type"],
             "电脑已经被发现，问题在后面的握手：先确认头显 IP 能不能 ping 通，再看防火墙与出口网卡。"),
 
         new("S3", "说不在同一网络",
@@ -47,13 +47,14 @@ public static class SymptomCatalog
 
         new("S5", "有画面但黑的 / 没画面",
             ["black screen", "blank screen", "I can hear audio but no visuals", "shows no display"],
-            ["rdp-session", "link-type", "cfg-streamer", "svc-log", "streamer-proc", "net-primary"],
+            ["session-stale", "rdp-session", "link-type", "cfg-streamer", "svc-log", "streamer-proc", "net-primary"],
             "「有声音没画面」是显示链路问题：先查有没有活动 RDP 会话占着显示器，再查 PC 是不是走了无线。"),
 
         new("S6", "连上就掉 / 定时卡",
             ["keeps disconnecting", "disconnects after 30 seconds", "freezes exactly at 5-7 mins",
              "60-second stutter", "worked for hours the first time, never since"],
-            ["streamer-proc", "svc-log", "fw-defender", "net-apipa", "net-virtual", "ics", "lan-reach"],
+            ["session-stale", "streamer-proc", "svc-log", "fw-defender", "net-apipa",
+             "net-virtual", "ics", "lan-reach"],
             "周期性掉线要先看服务与网络抖动的来源；注意不同用户的周期完全不同，别用同一个结论套。"),
 
         new("S7", "画质差 / 不跟手",

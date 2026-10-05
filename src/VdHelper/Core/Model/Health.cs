@@ -87,13 +87,13 @@ public sealed class HealthReport
     /// Warnings stay listed and stay true; only the claim about the current session changes.
     /// </summary>
     public IReadOnlyList<int> LiveSessionPorts =>
-        Results.FirstOrDefault(r => r.Id == "port-vd")?.Evidence.TryGetValue("_livePorts", out var raw) == true
+        Results.FirstOrDefault(r => r.Id == "session-stale")?.Evidence.TryGetValue("_livePorts", out var raw) == true
             && !string.IsNullOrWhiteSpace(raw)
             ? raw.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToList()
             : Array.Empty<int>();
 
     public string LiveSessionPeer =>
-        Results.FirstOrDefault(r => r.Id == "port-vd")?.Evidence.GetValueOrDefault("_livePeer") ?? "";
+        Results.FirstOrDefault(r => r.Id == "session-stale")?.Evidence.GetValueOrDefault("_livePeer") ?? "";
 
     public string VerdictText
     {
