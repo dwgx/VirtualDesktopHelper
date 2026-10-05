@@ -1,0 +1,15 @@
+fix: the parameters page called a corrupt config "a Streamer that never ran"
+
+StreamerSettings.Load reports an unreadable file as Exists=false with ParseError set — it has to,
+since it returns the same object shape either way. Two health checks already read ParseError and say
+"读不到 Streamer 配置". The parameters page did not, so a damaged configuration was announced as
+"未找到 StreamerSettings.json —— Streamer 从未正常运行过", which is a different problem with a
+different fix, and it invites the reader to blame the Streamer rather than restore the file.
+
+The summary now separates the three cases and, in the corrupt case, says the values below are empty
+and not to toggle anything while the config cannot be read.
+
+Proven against the real loader with a throwaway harness over three files (deleted afterwards):
+  absent   Exists=False ParseError=(none)
+  corrupt  Exists=False ParseError=set
+  valid    Exists=True  ParseError=(none)

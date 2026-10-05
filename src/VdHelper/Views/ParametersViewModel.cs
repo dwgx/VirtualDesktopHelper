@@ -160,9 +160,16 @@ public sealed class ParametersViewModel
 
         var pc = ParameterCatalog.PcSide.Count;
         var ro = ParameterCatalog.All.Count(p => p.ReadOnly);
+        // Load() reports a corrupt file as Exists=false with ParseError set, and "not there" and
+        // "there but unreadable" are very different problems: the first is a Streamer that never
+        // ran, the second is a file the Streamer may still be able to recover. Collapsing them
+        // told the user the Streamer had never run when their configuration was actually damaged.
         Summary = s.Exists
             ? $"配置：{ConfigPath}（最后修改 {s.LastWriteTime:yyyy-MM-dd HH:mm:ss}）· {pc} 项 PC 侧 / {Rows.Count - pc} 项头显侧 · {ro} 项只读"
-            : $"未找到 {ConfigPath}——Streamer 从未正常运行过";
+            : s.ParseError is not null
+                ? $"⚠ 配置读不出来：{ConfigPath} 存在但解析失败 —— {s.ParseError}。"
+                  + "下面的值全部是空的，**不要在读不出配置时点切换**；先从 .vdhelper.bak 还原。"
+                : $"未找到 {ConfigPath}——Streamer 从未正常运行过";
         Notify();
     }
 
