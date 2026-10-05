@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+﻿﻿using System.Text.RegularExpressions;
 using System.IO;
 using System.Text.Json;
 using VdHelper.Core.Checks;
@@ -19,7 +19,7 @@ public static class WindowsStateChecks
         "Get-Service SharedAccess -ErrorAction SilentlyContinue | Select-Object Name,Status,StartType | Format-Table -AutoSize | Out-String -Width 160";
 
     private const string PsAv =
-        "Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue | ForEach-Object { \"$($_.displayName) :: $($_.productState)\" }";
+        "try { Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction Stop | ForEach-Object { \"$($_.displayName) :: $($_.productState)\" } } catch { Write-Error (\"SecurityCenter2 读不到：\" + $_.Exception.Message) }";
 
     private const string PsMetric =
         "Get-NetIPInterface -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.ConnectionState -eq 'Connected' } "
@@ -172,7 +172,10 @@ public static class WindowsStateChecks
             e =>
             {
                 var lines = HealthChecks.Lines(e);
-                if (lines.Count == 0) return "已注册杀软：(读不到 SecurityCenter2)";
+                // Reaching here with no lines means the query succeeded and nothing is registered.
+                // The failure case (no SecurityCenter2 namespace) now writes to stderr and is turned
+                // into Unknown before this judge runs, so zero lines no longer has to mean both.
+                if (lines.Count == 0) return "已注册杀软：只有 Windows Defender（SecurityCenter2 读到了，只是没有别的）";
                 var names = lines.Select(l => l.Split(" :: ")[0].Trim()).Where(s => s.Length > 0);
                 return "已注册杀软：" + string.Join(" ;; ", names)
                      + "（productState 原值见下方原始输出，未解码：那是各版本含义不一的位掩码）";
