@@ -1,4 +1,4 @@
-﻿using System.IO;
+﻿﻿﻿using System.IO;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using VdHelper.Core.Model;
@@ -219,6 +219,7 @@ public sealed class HeadsetDeepProbe(AdbClient adb)
         var read = 0;
         var handTracking = false;
         var handKeySeen = false;
+        var readFiles = new List<string>();
 
         foreach (var file in SettingsFiles)
         {
@@ -230,6 +231,7 @@ public sealed class HeadsetDeepProbe(AdbClient adb)
                 if (content is null) continue;
                 got = true;
                 read++;
+                readFiles.Add(file);
                 ev[key + " / " + file] = DescribeJson(file, content, ref handTracking, ref handKeySeen);
                 break;
             }
@@ -246,11 +248,22 @@ public sealed class HeadsetDeepProbe(AdbClient adb)
             return new Sub(key, CheckStatus.Unknown,
                 "头显本地设置读不到（需要 patched APK 可调试或已 root）");
 
-        var summary = $"头显设置读到 {read}/{SettingsFiles.Length} 个文件";
-        if (handKeySeen && handTracking)
+        var missingFiles = SettingsFiles.Where(f => !readFiles.Contains(f)).ToList();
+        var summary = $"头显设置读到 {read}/{SettingsFiles.Length} 个文件"
+            + (missingFiles.Count > 0 ? "（没读到：" + string.Join("、", missingFiles) + "）" : "");
+
+        // The key not being present is not the key being off. F1's root cause is hand tracking left
+        // on, and if this Quest OS simply does not carry HandTracking/UseMultiModal in either file
+        // then the check has not measured the thing it exists to measure. Pass was wrong for it.
+        if (!handKeySeen)
+            return new Sub(key, CheckStatus.Unknown,
+                summary + "，但两个候选文件里都没有 HandTracking/UseMultiModal 键——"
+                + "所以「手部追踪是开着还是关着」这一项**没测成**，不是「正常」。");
+
+        if (handTracking)
             return new Sub(key, CheckStatus.Warn,
                 summary + "，且手部追踪是开着的——PC 侧全绿时它就是每 60 秒卡一下的那种根因");
-        return new Sub(key, CheckStatus.Pass, summary);
+        return new Sub(key, CheckStatus.Pass, summary + "，且手部追踪明确是关着的。");
     }
 
     /// <summary>
@@ -310,7 +323,7 @@ public sealed class HeadsetDeepProbe(AdbClient adb)
         const int cap = 40;
         var shown = keys.Take(cap);
         var suffix = keys.Count > cap ? $" …共 {keys.Count} 个键" : string.Empty;
-        var hand = handKeySeen ? "；HandTracking/UseMultiModal = 开" : string.Empty;
+        var hand = handKeySeen ? "；HandTracking/UseMultiModal = " + (handTracking ? "开" : "关") : string.Empty;
         return $"{file}：{bytes} 字节，{keys.Count} 个顶层键（{string.Join("、", shown)}{suffix}）{hand}";
     }
 
