@@ -1,4 +1,4 @@
-# 02 — PC 侧检测与修复清单
+﻿# 02 — PC 侧检测与修复清单
 
 配套文档：`01-ports-and-discovery.md`（端口/发现机制事实）、`03-root-cause-triage.md`（排查顺序）。
 
@@ -59,7 +59,7 @@
 | 19 | 38810-40 被别的进程占用（Streamer listen 失败 `WSAEADDRINUSE`） | `Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue \| Where-Object {$_.LocalPort -in 38810,38820,38830,38840} \| Format-Table LocalAddress,LocalPort,OwningProcess -AutoSize` | 要么为空（Streamer 没跑），要么 4 个端口的 `OwningProcess` **全部相同**且等于 Streamer PID | 🖐 若出现多个不同 PID → 有第二个程序占了 VD 端口。用 `Get-Process -Id <OwningProcess> \| Select-Object ProcessName,Path` 定位；**不要**让工具杀进程（硬地板禁止不明的进程终止） | 不适用 | 无（只读） |
 | 20 | UDP 38850 被别的进程占用（发现协议被抢占 → 必然发现失败） | `Get-NetUDPEndpoint -ErrorAction SilentlyContinue \| Where-Object {$_.LocalPort -in 38850,38860} \| Format-Table LocalAddress,LocalPort,OwningProcess -AutoSize` | 空，或占用者就是 Streamer | 🖐 同第 19 项。**注意**：38850 是绑 `0.0.0.0` 的独占端口，被占即发现完全失效 | 不适用 | 无（只读） |
 | 21 | 出向端口映射（UPnP）异常 | `Get-Content "C:\ProgramData\Virtual Desktop\StreamerSettings.json" -Raw \| ConvertFrom-Json \| Select-Object ServerRotation` | 同网段 LAN 场景下 **UPnP 完全不需要**，`ServerRotation` 与发现无关 | 🖐 仅当用户要用**远程**连接时才需要：`AllowRemoteConnections` + 路由器开 UPnP。官方 FAQ：「forward TCP ports 38810, 38820, 38830 and 38840」。同网段不要去动它 | 不适用 | 低（只读）。盲目开 UPnP 会扩大 NAT 暴露面，**不要自动开** |
-| 22 | 用了不存在的端口号做检查（**工具自身的 bug 防线**） | 对 38811/38821/38831/38841 做一次存在性校验，见 01 文档 §4 | 这四个端口在反编译源码里**零命中** → 工具常量表里**不得出现**它们 | ⚙ 从常量表删除 | n/a | **高（若不删）**。上一轮报告误列这四个端口，若工具据此生成防火墙规则/端口占用检查，会产生**永假**的告警 |
+| 22 | 远程中继端口被误用在同网段场景（**工具自身的 bug 防线**） | 常量表里 38811/38821/38831/38841 必须挂在**远程分支**下，判据 = 同网段场景不检查它们 | 工具任何针对这四个端口的防火墙建议/占用检查，**都不得在同网段触发** | ⚙ 保持门控，不要在同网段路径引用 | n/a | **高（若错用）**。此前以为这四个端口不存在，2026-10-05 证明它们存在（01 文档 §4.1 更正：旧的「零命中」是在文件名与内容错位的程序集里搜出来的）。它们是**远程中继**端口，与同网段发现无关——同网段走 38810/20/30/40 直连 |
 
 ---
 
