@@ -53,6 +53,7 @@ public static class HealthChecks
         .. FirewallPairChecks.Create(),
         .. PerformanceChecks.Create(),
         .. MachineStateChecks.Create(),
+        .. GpuRuntimeChecks.Create(),
     ];
 
     // ---------------------------------------------------------------- adapters

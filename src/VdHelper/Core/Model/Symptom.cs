@@ -49,7 +49,7 @@ public static class SymptomCatalog
 
         new("S5", "有画面但黑的 / 没画面",
             ["black screen", "blank screen", "I can hear audio but no visuals", "shows no display"],
-            ["gpu-pick", "display-inventory", "rdp-session", "session-stale", "link-type",
+            ["gpu-encoder", "gpu-pick", "display-inventory", "rdp-session", "session-stale", "link-type",
              "cfg-streamer", "svc-log", "streamer-proc", "net-primary"],
             "「有声音没画面」是显示链路问题：先查有没有活动 RDP 会话占着显示器，再查 PC 是不是走了无线。"),
 
@@ -62,8 +62,8 @@ public static class SymptomCatalog
 
         new("S7", "画质差 / 不跟手",
             ["choppy", "stutter", "bitrate only 60-70", "black bars when turning my head", "blurry"],
-            ["link-rate", "link-type", "gpu-pick", "cfg-streamer", "cfg-version", "proc-tuner",
-             "route-metric", "vpn-proc", "av", "nic-powersave"],
+            ["gpu-throttle", "gpu-encoder", "link-rate", "link-type", "gpu-pick", "cfg-streamer",
+             "cfg-version", "proc-tuner", "route-metric", "vpn-proc", "av", "nic-powersave"],
             "画质与延迟：链路速率、接入方式、码率与编解码设置是第一梯队，别一上来换路由器。"),
     ];
 
