@@ -191,6 +191,7 @@ public static class SelfTest
                 var byKind = actions.GroupBy(a => a.Kind).ToDictionary(g => g.Key, g => g.Count());
                 var mix = new List<string>();
                 if (byKind.TryGetValue(NextActionKind.FixThisFirst, out var nFix)) mix.Add($"{nFix} 条先修");
+                if (byKind.TryGetValue(NextActionKind.ReadThisFirst, out var nRead)) mix.Add($"{nRead} 条先看");
                 if (byKind.TryGetValue(NextActionKind.ThenThis, out var nThen)) mix.Add($"{nThen} 条再修");
                 if (byKind.TryGetValue(NextActionKind.WorthKnowing, out var nKnow)) mix.Add($"{nKnow} 条值得知道");
                 sb.AppendLine("接下来做什么：" + string.Join(" · ", mix));
@@ -199,6 +200,7 @@ public static class SelfTest
                     var tag = a.Kind switch
                     {
                         NextActionKind.FixThisFirst => "先修",
+                        NextActionKind.ReadThisFirst => "先看",
                         NextActionKind.ThenThis => "再修",
                         _ => "知道",
                     };

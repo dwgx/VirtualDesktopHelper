@@ -186,7 +186,7 @@ public sealed class HealthReport
                     r.Id,
                     DefinitionOf(r.Id)?.Title ?? r.Id,
                     fix?.Title ?? r.Summary,
-                    NextActionKind.FixThisFirst,
+                    fix is null ? NextActionKind.ReadThisFirst : NextActionKind.FixThisFirst,
                     live));
             }
             foreach (var r in fixable)
@@ -228,8 +228,15 @@ public sealed record NextAction(
 
 public enum NextActionKind
 {
-    /// <summary>Stops the stream from starting at all.</summary>
+    /// <summary>Stops the stream from starting at all, and the tool can repair it.</summary>
     FixThisFirst,
+
+    /// <summary>
+    /// Stops the stream from starting at all, and the tool CANNOT repair it. Warnings already
+    /// distinguish "再修" from "知道"; blocks did not, so a blocker with no button — lan-reach, the
+    /// single most common one — was labelled "先修" and read as if there were a button to press.
+    /// </summary>
+    ReadThisFirst,
 
     /// <summary>Actionable, but the session can still start.</summary>
     ThenThis,

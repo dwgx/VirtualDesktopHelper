@@ -97,6 +97,7 @@ public sealed class HealthViewModel
     public string ActionsHint => Actions.Count == 0
         ? ""
         : Actions.Count(a => a.Action.Kind == NextActionKind.FixThisFirst) + " 条先修 · "
+          + Actions.Count(a => a.Action.Kind == NextActionKind.ReadThisFirst) + " 条先看 · "
           + Actions.Count(a => a.Action.Kind == NextActionKind.ThenThis) + " 条再修 · "
           + Actions.Count(a => a.Action.Kind == NextActionKind.WorthKnowing) + " 条值得知道";
 
@@ -271,6 +272,7 @@ public sealed class NextActionRow
     public string Tag => Action.Kind switch
     {
         NextActionKind.FixThisFirst => "先修",
+        NextActionKind.ReadThisFirst => "先看",
         NextActionKind.ThenThis => "再修",
         _ => "知道",
     };
