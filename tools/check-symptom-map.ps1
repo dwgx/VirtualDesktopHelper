@@ -91,7 +91,7 @@ if (Test-Path -LiteralPath $readmePath) {
 $punct = @([char]0x300C, [char]0x300D, [char]0x300E, [char]0x300F, [char]0xFF08, [char]0xFF09,
            [char]0xFF1A, [char]0xFF0C, [char]0x3002, [char]0x3001, [char]0xFF1B, [char]0xFF01)
 $emphBroken = $false
-foreach ($md in @('README.md', 'docs/RELEASE-0.2.0.md')) {
+foreach ($md in (@('README.md') + @(Get-ChildItem -LiteralPath (Join-Path $root 'docs') -Filter 'RELEASE-*.md' -ErrorAction SilentlyContinue | ForEach-Object { 'docs/' + $_.Name }))) {
     $mdPath = Join-Path $root $md
     if (-not (Test-Path -LiteralPath $mdPath)) { continue }
     $lineNo = 0
@@ -122,7 +122,20 @@ foreach ($md in @('README.md', 'docs/RELEASE-0.2.0.md')) {
     }
 }
 
-if ($dangling -or $unreachable -or $readmeStale -or $emphBroken) { exit 1 }
+# README tells the user which dist folder to double-click. Pinning a version in prose is the same
+# drift that made the coverage table wrong, so the two are compared here instead of trusted.
+$verText = ''
+$verPath = Join-Path $root 'VERSION.txt'
+if (Test-Path -LiteralPath $verPath) { $verText = ([System.IO.File]::ReadAllText($verPath)).Trim() }
+$readmeRaw = [System.IO.File]::ReadAllText((Join-Path $root 'README.md'), [System.Text.Encoding]::UTF8)
+$verBroken = $false
+if ($verText -and $readmeRaw -notmatch [regex]::Escape('dist\v' + $verText + '\')) {
+    Write-Host ""
+    Write-Host ("FAIL README.md 里的 dist 路径不是当前版本 v" + $verText + "（VERSION.txt）") -ForegroundColor Red
+    $verBroken = $true
+}
+
+if ($dangling -or $unreachable -or $readmeStale -or $emphBroken -or $verBroken) { exit 1 }
 Write-Host ""
 Write-Host "OK  症状表与检测项一一对应，README 计数同步" -ForegroundColor Green
 exit 0

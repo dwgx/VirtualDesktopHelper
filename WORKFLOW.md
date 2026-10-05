@@ -56,3 +56,17 @@ python C:/Users/dwgx1/.omp/extra-hands/CACHE/board.py list        # 看谁没收
 | `06-adb-headset` | ADB 头显检测：能读什么、怎么判故障 |
 | `07-vdapkpatcher` | questhelper 的 VdApkPatcher 能力盘点与可瘦身部分 |
 | `08-legacy-vdh` | 旧 VDH（0.4.7）资产盘点：哪些代码直接复用 |
+## 9. 发布：标签与资产不可原地覆盖
+
+`gh release upload <tag> --clobber` 用成了默认动作，结果 `v0.2.0` 的资产在发布页写完"让「通过」这两个字先被证明"
+之后又被反复覆盖。现在下载到的不是发布当时那一份——发布页从此与资产对不上。
+
+规则：
+
+1. **标签一旦发布就冻结。** 改版就改 `VERSION.txt`、改 `dist/v<版本>`、发新标签。
+2. **不写 `--clobber`。** 旧标签上的东西即使知道是错的，也不覆盖；写进新版发布说明里说明。
+3. `publish.ps1` 产出的 `dist/v<版本>` 目录名由 `VERSION.txt` 推导，不是手打的。
+4. README 里的 `dist\vX.Y.Z\` 必须与 `VERSION.txt` 一致 —— `tools/check-symptom-map.ps1` 会比，不一致就 exit 1。
+5. 发布后把 `VERSION.txt` 下载回来核一遍，别信本地那份。
+
+`v0.1.0` 与 `v0.2.0` 的资产都已被覆盖过，页面上有说明；`v0.3.0` 起按上面的规则走。

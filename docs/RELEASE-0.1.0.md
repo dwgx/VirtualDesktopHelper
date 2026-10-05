@@ -1,7 +1,7 @@
-## VDHelper 0.1.0 — Virtual Desktop 串流体检
+﻿## VDHelper 0.1.0 — Virtual Desktop 串流体检
 
 面向使用 patched Virtual Desktop 基线（去联网鉴权、去 Quest 账号鉴权）的玩家。
-这一版解决的不是画面问题，而是**「头显找不到 PC / PC 发现不到头显」**这一层。
+这一版解决的不是画面问题，而是 **「头显找不到 PC / PC 发现不到头显」** 这一层。
 
 ### 三个界面
 
