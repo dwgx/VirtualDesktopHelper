@@ -17,7 +17,7 @@
 | 警告 | **fw-defender** | Defender 防火墙：Domain     True / Private   False / Public    False |
 | 通过 | **svc-vd** | VirtualDesktop.Service.exe Running Automatic |
 | 通过 | **port-vd** | 4 个端口由 Virtual Desktop 持有，没有被别的程序抢占 |
-| 阻断 | **session-stale** | 1 个通道是残留套接字（最早建立于 4 小时 44 分前） |
+| 阻断 | **session-stale** | 1 个通道是残留套接字（最早建立于 4 小时 49 分前） |
 | 通过 | **streamer-proc** | Streamer 进程运行中（1 个） |
 | 警告 | **svc-log** | 服务日志有 5 条历史 ERROR（最近一次 2026-09-18 15:37:35.6962），但 Streamer 正在运行 |
 | 通过 | **udp-discovery** | UDP 38850 正在监听（发现/配对协议就绪） |
@@ -27,7 +27,7 @@
 | 通过 | **av** | 已注册杀软：Windows Defender :: 397568 |
 | 通过 | **route-metric** | 有线网卡优先级 10，没有虚拟网卡排在它前面 |
 | 通过 | **link-type** | PC 走有线（Ethernet） |
-| 阻断 | **lan-reach** | 头显 192.168.11.14 ping 不通（ARP 缓存里也没有它） |
+| 阻断 | **lan-reach** | 头显 192.168.11.14 ping 不通（但 ARP 缓存里有它） |
 | 通过 | **link-rate** | Ethernet 协商速率 1 Gbps |
 | 通过 | **vpn-proc** | 没有发现 VPN/代理客户端进程 |
 | 通过 | **rdp-session** | 只有本机 console 会话（1 条），没有远程桌面在跑 |
@@ -41,7 +41,7 @@
 | 警告 | **display-inventory** | Virtual Desktop Monitor(Error) |
 | 通过 | **cfg-version** | Streamer 版本 1.34.22.0 |
 | 通过 | **gpu-encoder** | 硬件编码器空闲（当前 0 个编码会话） |
-| 警告 | **gpu-throttle** | GPU 跑在最高频率的 80%（2467/3090 MHz），温度只有 50°C |
+| 警告 | **gpu-throttle** | GPU 跑在最高频率的 77%（2370/3090 MHz），温度只有 56°C |
 | 警告 | **net-loss** | 测到 100% 丢包（快速采样 8 次） |
 
 ## 检查项定义与来源

@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -84,6 +84,15 @@ public sealed class ParameterRow : INotifyPropertyChanged
         if (!Editable) return;
         ToggleCommand = new AsyncRelayCommand(async () =>
         {
+            // Same refusal the CLI already makes, and for the same reason: the Streamer keeps a
+            // ~2 s debounced save, so anything written underneath it is overwritten moments later.
+            // Without this guard the button reported 已写入 and the change silently reverted.
+            if (System.Diagnostics.Process.GetProcessesByName("VirtualDesktop.Streamer").Length > 0)
+            {
+                State = "Streamer 正在运行，它有 2 秒防抖保存会把这次写入盖掉。请先退出 Streamer 再改。";
+                return;
+            }
+
             State = "写入中…";
             var s = StreamerSettings.Load();
             var next = !(s.GetBool(Info.Key) ?? false);
@@ -93,7 +102,21 @@ public sealed class ParameterRow : INotifyPropertyChanged
                     StreamerSettings.DefaultPath,
                     Info.Key,
                     System.Text.Json.JsonDocument.Parse(next ? "true" : "false").RootElement.Clone());
-                State = write.Success ? "已写入（备份 " + Path.GetFileName(write.BackupPath ?? "") + "）" : write.Message;
+                if (!write.Success)
+                {
+                    State = write.Message;
+                }
+                else
+                {
+                    // Post-condition. "The writer returned true" is not the same claim as "the value
+                    // on disk is now what you asked for", and this project has already shipped two
+                    // repairs that reported success while doing nothing.
+                    var after = StreamerSettings.Load().GetBool(Info.Key);
+                    State = after == next
+                        ? $"已确认 {Info.Key}={next.ToString().ToLowerInvariant()}（备份 "
+                          + Path.GetFileName(write.BackupPath ?? "") + "）"
+                        : $"写入返回成功，但回读确认 {Info.Key} 仍是 {after?.ToString() ?? "（空）"} —— 备份已保留";
+                }
             }
             catch (Exception ex)
             {
@@ -120,10 +143,14 @@ public sealed class ParametersViewModel
     {
         var s = StreamerSettings.Load();
         Rows.Clear();
+        // Read-only first was backwards. It pushed the 18 parameters a user can actually change
+        // below ninety-odd account blobs they never can, in a 111-row list -- and the default
+        // scroll position landed on a wall of DPAPI ciphertext. LAN-affecting still leads, because
+        // that is what this tool exists for; within that, editable before read-only.
         var ordered = ParameterCatalog.All
             .OrderByDescending(p => p.AffectsLan)
             .ThenByDescending(p => p.LivesOnPc)
-            .ThenByDescending(p => p.ReadOnly);
+            .ThenBy(p => p.ReadOnly);
         foreach (var info in ordered)
         {
             var row = new ParameterRow { Info = info, Current = ParameterRow.RenderValue(info, s) };

@@ -233,10 +233,18 @@ public static class StreamerChecks
                         "头显下一次搜索时能收到这台 PC 的应答。但要注意搜索窗口很窄："
                         + "头显每次刷新只广播 **一个** 包，回包窗口硬编码 3000 ms，没有重试"
                         + "（ComputerDiscoveryClient.cs:98-107）。"
-                        + "**所以「先开头显、后开 Streamer」就会搜不到**——不是坏了，是那 3 秒已经过去了。",
+                        + "**所以「先开头显、后开 Streamer」就会搜不到**——不是坏了，是那 3 秒已经过去了。\n\n"
+                        + "**这一项通过，只代表 PC 这一半准备好了，不代表头显那边没问题。**"
+                        + "把「头显到底有没有把发现包发出来」和「包到了但 PC 没回」分开，"
+                        + "需要抓包（pktmon，要管理员权限）或从头显侧读日志；"
+                        + "本工具两样都做不到，所以那一段是**测不到的盲区**，不是通过。",
                         ev, Array.Empty<FixAction>(),
                         "顺序永远是先开 PC 上的 Streamer，再在头显里点搜索。"
-                        + "补丁基线的交接笔记里也记着同一条：先开 Quest VD 后开 PC Streamer 可能搜不到。");
+                        + "补丁基线的交接笔记里也记着同一条：先开 Quest VD 后开 PC Streamer 可能搜不到。\n\n"
+                        + "要在本机分辨「包没来」还是「包来了没回」，以管理员身份跑：\n"
+                        + "  pktmon start --capture --pkt-size 0 --comp nics ; "
+                        + "在头显里点一次搜索 ; pktmon stop ; pktmon etl2txt out.etl -o out.txt\n"
+                        + "然后在 out.txt 里找 UDP 目的端口 38850。");
 
                 if (live.Count > 0)
                     return new CheckResult("udp-discovery", CheckStatus.Pass,
