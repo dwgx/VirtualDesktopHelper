@@ -328,17 +328,38 @@ public sealed class HeadsetDeepProbe(AdbClient adb)
             ev[key + " 进程样本"] = $"{names.Count} 个进程，例如：" + string.Join("、", names.Take(12));
 
         var hits = new List<string>();
+        var unreadable = new List<string>();
         foreach (var (name, note) in VpnProcesses)
         {
             // 降级点 5：`ps -A` 读不到（部分镜像裁掉 ps、或格式不同）时逐个 `pidof` 兜底。
-            bool live = names.Count > 0
-                ? names.Any(n => IsVpnProcess(n, name))
-                : (await TryAsync(["-s", serial, "shell", "pidof", name], 6000, ct)) is { Ok: true, StdOut: { Length: > 0 } };
+            // pidof, not "non-empty". research/06-adb-headset/01-adb-playbook.md:257-259 records
+            // that adb shell prints the literal `no process` when there is no such process — which is
+            // non-empty, so this reported a VPN running on a clean headset whenever ps -A was
+            // unavailable, and told the user to go quit it. HeadsetProbe was already fixed to parse
+            // pids; this fallback was left behind.
+            bool live;
+            if (names.Count > 0)
+            {
+                live = names.Any(n => IsVpnProcess(n, name));
+            }
+            else
+            {
+                var r = await TryAsync(["-s", serial, "shell", "pidof", name], 6000, ct);
+                var pids = r is { Ok: true }
+                    ? r.StdOut.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                              .Where(x => int.TryParse(x, out _)).ToList()
+                    : new List<string>();
+                live = pids.Count > 0;
+                if (r is { Ok: true } && pids.Count == 0 && r.StdOut.Trim().Length > 0)
+                    unreadable.Add($"{name}: pidof 返回了「{r.StdOut.Trim()}」，不是 pid");
+            }
             if (live) hits.Add(note.Length > 0 ? name + "（" + note + "）" : name);
         }
 
         if (names.Count == 0)
             ev[key + " 取进程方式"] = "ps -A 读不到，已逐个用 pidof 兜底查了 " + VpnProcesses.Length + " 个名字";
+        if (unreadable.Count > 0)
+            ev[key + " pidof 非 pid 输出"] = string.Join(" ;; ", unreadable);
 
         if (hits.Count == 0)
         {
