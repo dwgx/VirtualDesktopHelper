@@ -111,6 +111,14 @@ public static class SelfTest
             {
                 sb.AppendLine("与上次相比没有变化。");
             }
+
+            var timeline = HealthHistory.Timeline();
+            if (timeline.Count > 1)
+            {
+                sb.AppendLine($"最近 {timeline.Count} 次体检（{timeline[0].At:MM-dd HH:mm} 起）：");
+                foreach (var s in timeline)
+                    sb.AppendLine($"  {s.At:MM-dd HH:mm}  {s.Verdict,-10} {s.Headline}");
+            }
         }
         catch (Exception ex)
         {

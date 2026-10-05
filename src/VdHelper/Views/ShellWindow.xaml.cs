@@ -89,8 +89,14 @@ public partial class ShellWindow : Window, INotifyPropertyChanged
         var pass = report.Results.Count(r => r.Status == CheckStatus.Pass);
         var warn = report.Results.Count(r => r.Status == CheckStatus.Warn);
         var block = report.Results.Count(r => r.Status == CheckStatus.Block);
+        var timeline = HealthHistory.Timeline();
+        var trend = timeline.Count >= 2
+            ? timeline[^1].Verdict == timeline[^2].Verdict ? "" : " · 较上次：" + timeline[^2].Verdict + " → " + timeline[^1].Verdict
+            : "";
+
         StatusText = $"通过 {pass} · 警告 {warn} · 阻断 {block} — {report.VerdictText}"
-            + (_changes.Count > 0 ? $" · 与上次相比 {string.Join("、", _changes.Take(3).Select(c => c.Id))}" : "");
+            + (_changes.Count > 0 ? $" · 与上次相比 {string.Join("、", _changes.Take(3).Select(c => c.Id))}" : "")
+            + trend;
         Raise(nameof(Verdict));
         Raise(nameof(VerdictText));
     }
