@@ -133,6 +133,19 @@ public static class HealthChecks
                     "排查顺序建议：先临时停用 VPN/WSL/虚拟网卡，再测是否恢复；确认无关后再长期停用。"));
             });
 
+    /// <summary>A socket older than this is treated as a leftover rather than a live stream.</summary>
+    private static readonly TimeSpan FreshSession = TimeSpan.FromMinutes(2);
+
+    private static TimeSpan Age(DateTime since) => DateTime.Now - since;
+
+    private static string DescribeAge(DateTime since)
+    {
+        var age = Age(since);
+        return age.TotalHours >= 1
+            ? $"{(int)age.TotalHours} 小时 {age.Minutes} 分前"
+            : age.TotalMinutes >= 1 ? $"{age.Minutes} 分钟前" : $"{Math.Max(0, age.Seconds)} 秒前";
+    }
+
     private static ICheck VdPortCheck() =>
         CheckFactory.Delegate(
             new("port-vd", "VD 端口", "38810/20/30/40 现在被谁占着、处在什么状态？", "端口"),
@@ -163,15 +176,32 @@ public static class HealthChecks
                     owner.Contains("VirtualDesktop", StringComparison.OrdinalIgnoreCase);
 
                 var established = ports.Where(p => p.State == PortState.Established).ToList();
-                // Consumed by HealthReport: saying "串流很可能起不来" while four channels are
-                // Established is the kind of contradiction that makes a tool untrustworthy.
-                ev["_livePorts"] = string.Join(",", established.Select(p => p.Port));
-                ev["_livePeer"] = established.Select(p => p.Peer).FirstOrDefault() ?? "";
-                if (established.Count > 0)
+
+                // Windows says Established even after the peer has gone: measured on this machine,
+                // four sockets stayed Established for 45 minutes after the headset had closed its
+                // side and stopped answering on those ports. So the socket state is necessary but
+                // NOT sufficient, and the verdict has to say which one it is.
+                var fresh = established.Where(p => p.Since is not null && Age(p.Since.Value) <= FreshSession).ToList();
+                var stale = established.Except(fresh).ToList();
+
+                ev["_livePorts"] = string.Join(",", fresh.Select(p => p.Port));
+                ev["_stalePorts"] = string.Join(",", stale.Select(p => p.Port));
+                ev["_livePeer"] = fresh.Select(p => p.Peer).FirstOrDefault()
+                                 ?? stale.Select(p => p.Peer).FirstOrDefault() ?? "";
+
+                if (fresh.Count > 0)
                     return new CheckResult("port-vd", CheckStatus.Pass,
-                        $"{established.Count} 个端口上有活动会话：{string.Join("、", established.Select(p => p.Port.ToString()))}",
-                        "PC 侧串流通道是通的。如果这时候头显说连不上，问题在头显侧或账号侧，不在这台电脑。",
+                        $"{fresh.Count} 个通道刚建立：{string.Join("、", fresh.Select(p => p.Port.ToString()))}",
+                        "PC 侧通道是通的。如果这时候头显说连不上，问题在头显侧或账号侧，不在这台电脑。",
                         ev, Array.Empty<FixAction>());
+
+                if (stale.Count > 0)
+                    return new CheckResult("port-vd", CheckStatus.Warn,
+                        $"{stale.Count} 个通道是残留套接字（已存在 {stale.Max(p => DescribeAge(p.Since!.Value))}）",
+                        "Windows 只有在对端发 FIN 或超时后才改状态。头显早就退出了、这边套接字还挂着时，"
+                        + "表现就是「界面上像连着、实际什么都不发生」。重��� Streamer 能立刻清掉。",
+                        ev, Fixes.RestartStreamer(),
+                        "先确认头显此刻是不是真的在串流；如果早就退出了，重启 Streamer 即可，别去动路由器。");
 
                 var foreign = ports.Where(p => p.State != PortState.Free && !IsVd(p.Owner)).ToList();
                 if (foreign.Count > 0)

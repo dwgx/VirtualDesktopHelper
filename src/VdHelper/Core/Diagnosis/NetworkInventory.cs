@@ -44,7 +44,7 @@ public sealed record AdapterView(
 /// <summary>What a socket on a VD port is doing right now.</summary>
 public enum PortState { Free, Bound, Listen, Established }
 
-public sealed record PortView(int Port, PortState State, string Owner, string Peer);
+public sealed record PortView(int Port, PortState State, string Owner, string Peer, DateTime? Since);
 
 public static class NetworkInventory
 {
@@ -126,6 +126,7 @@ public static class NetworkInventory
             + "Where-Object { $_.LocalPort -in @(" + string.Join(",", wanted) + ") } | "
             + "ForEach-Object { \"$($_.LocalPort)|$($_.State)|$($_.OwningProcess)|\" "
             + "+ \"$($_.RemoteAddress):$($_.RemotePort)|\" "
+            + "+ \"$(($_.CreationTime).ToString('yyyy-MM-dd HH:mm:ss'))|\" "
             + "+ (Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName }";
 
         var lines = await Checks.PowerShellRunner.LinesAsync(script, ct).ConfigureAwait(false);
@@ -133,7 +134,7 @@ public static class NetworkInventory
         foreach (var line in lines)
         {
             var parts = line.Split('|');
-            if (parts.Length < 5 || !int.TryParse(parts[0].Trim(), out var port)) continue;
+            if (parts.Length < 6 || !int.TryParse(parts[0].Trim(), out var port)) continue;
             var state = parts[1].Trim() switch
             {
                 "Established" => PortState.Established,
@@ -141,7 +142,8 @@ public static class NetworkInventory
                 "Bound" => PortState.Bound,
                 _ => PortState.Bound,
             };
-            views.Add(new PortView(port, state, parts[4].Trim(), parts[3].Trim()));
+            var since = DateTime.TryParse(parts[4].Trim(), out var parsed) ? parsed : (DateTime?)null;
+            views.Add(new PortView(port, state, parts[5].Trim(), parts[3].Trim(), since));
         }
 
         // One row per port: an Established session outranks a Bind socket on the same port.
@@ -152,7 +154,7 @@ public static class NetworkInventory
             merged.Add(forPort.FirstOrDefault(v => v.State == PortState.Established)
                        ?? forPort.FirstOrDefault(v => v.State == PortState.Listen)
                        ?? forPort.FirstOrDefault(v => v.State == PortState.Bound)
-                       ?? new PortView(port, PortState.Free, "-", "-"));
+                       ?? new PortView(port, PortState.Free, "-", "-", null));
         }
         return (merged, string.Join(" ;; ", lines));
     }

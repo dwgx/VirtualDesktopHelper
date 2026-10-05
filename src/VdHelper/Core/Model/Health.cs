@@ -43,7 +43,10 @@ public sealed record FixAction(
     string Backup,
     string Rollback,
     FixRisk Risk,
-    Func<CancellationToken, Task<FixResult>> Apply);
+    Func<CancellationToken, Task<FixResult>> Apply,
+    /// <summary>Set when applying raises a UAC prompt. Measured: this can take 90 s waiting for a
+    /// human, so the UI has to say so instead of looking hung.</summary>
+    bool NeedsElevation = false);
 
 public sealed record CheckResult(
     string Id,

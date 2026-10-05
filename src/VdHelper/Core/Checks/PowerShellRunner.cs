@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text;
 
 namespace VdHelper.Core.Checks;
@@ -50,11 +50,11 @@ public static class PowerShellRunner
         psi.ArgumentList.Add("-Command");
         psi.ArgumentList.Add(script);
 
-        if (asAdministrator)
-        {
-            psi.Verb = "runas";
-            psi.UseShellExecute = false;
-        }
+        // NOTE: ProcessStartInfo.Verb is silently ignored when UseShellExecute is false, which is
+        // what we need for redirected output. An earlier version set Verb = "runas" here and every
+        // "elevated" fix quietly ran unelevated. Elevation must be requested INSIDE the script with
+        // `Start-Process ... -Verb RunAs -Wait`; see Fixes.ElevatedAsync.
+        _ = asAdministrator;
 
         using var p = new Process { StartInfo = psi };
         p.Start();

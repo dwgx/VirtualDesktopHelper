@@ -15,6 +15,10 @@ public sealed class FixRow : INotifyPropertyChanged
     public required FixAction Action { get; init; }
     public string Title => Action.Title;
     public string Risk => Action.Risk.ToString();
+
+    public string RunHint => Action.NeedsElevation
+        ? "执行中（会弹 UAC，请点「是」——本机实测这一等可能要 1 分半）"
+        : "执行中…";
     public string What => Action.What;
     public string Backup => Action.Backup;
     public string Rollback => Action.Rollback;
@@ -30,7 +34,7 @@ public sealed class FixRow : INotifyPropertyChanged
     {
         ApplyCommand = new AsyncRelayCommand(async () =>
         {
-            State = "执行中…";
+            State = RunHint;
             var result = await Action.Apply(CancellationToken.None);
             State = result.Success ? "已执行" : "失败";
             LastMessage = result.Message;
