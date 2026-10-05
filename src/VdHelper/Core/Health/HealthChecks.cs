@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+﻿﻿using System.Globalization;
 using VdHelper.Core.Checks;
 using VdHelper.Core.Diagnosis;
 using VdHelper.Core.Model;
@@ -224,15 +224,9 @@ public static class HealthChecks
     /// To the user that looks like "connected but nothing happens", and it is its own failure
     /// mode rather than a port problem, so it gets its own check.
     /// </summary>
-    /// <summary>Same /24 — enough to tell a LAN peer from a cloud relay, and no more than claimed.</summary>
-    private static bool SameNet(System.Net.IPAddress a, System.Net.IPAddress b)
-    {
-        var x = a.GetAddressBytes();
-        var y = b.GetAddressBytes();
-        if (x.Length != 4 || y.Length != 4) return false;
-        for (var i = 0; i < 3; i++) if (x[i] != y[i]) return false;
-        return true;
-    }
+    // This used to be a private SameNet here. It is NetworkInventory.IsLanPeer now, because
+    // udp-discovery was reading the same Established set and answering the opposite question about
+    // it — one definition is what stops that coming back.
 
     private static ICheck StaleSessionCheck() =>
         CheckFactory.Delegate(
@@ -271,7 +265,7 @@ public static class HealthChecks
                     && System.Net.IPAddress.TryParse(p.Peer.Split(':')[0], out var ip)
                     && System.Net.IPAddress.IsLoopback(ip)
                     || (System.Net.IPAddress.TryParse(p.Peer.Split(':')[0], out var peerIp)
-                        && localNets.Any(l => SameNet(l, peerIp)));
+                        && localNets.Any(l => NetworkInventory.IsLanPeer(l, peerIp)));
 
                 var lan = fresh.Where(IsLan).ToList();
                 // Named for what it is: sockets to Virtual Desktop's servers, not relays.

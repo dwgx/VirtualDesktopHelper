@@ -108,6 +108,26 @@ public static class NetworkInventory
     public static IReadOnlyList<int> VdPorts { get; } = [38810, 38820, 38830, 38840];
 
     /// <summary>
+    /// Same /24 — enough to tell a LAN peer from a cloud relay, and no more than claimed.
+    /// <para>
+    /// One definition, because two checks were answering opposite questions about the same socket
+    /// set. The Streamer opens an outbound connection to public endpoints such as 40.89.161.236:38812
+    /// whenever it starts; that is Established and it is not a stream. session-stale said so in a
+    /// paragraph of comment while udp-discovery, reading the same PortState.Established set at the
+    /// same moment, printed 串流中. session-stale had its own private copy of this test, which is how
+    /// the two drifted apart.
+    /// </para>
+    /// </summary>
+    public static bool IsLanPeer(System.Net.IPAddress remote, System.Net.IPAddress local)
+    {
+        var x = remote.GetAddressBytes();
+        var y = local.GetAddressBytes();
+        if (x.Length != 4 || y.Length != 4) return false;
+        for (var i = 0; i < 3; i++) if (x[i] != y[i]) return false;
+        return true;
+    }
+
+    /// <summary>
     /// One snapshot of every socket on the VD ports, in ANY state.
     /// <para>
     /// The earlier version filtered to <c>-State Listen</c> and therefore reported all four

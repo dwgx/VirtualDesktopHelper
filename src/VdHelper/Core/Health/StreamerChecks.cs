@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+﻿﻿using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -281,10 +281,23 @@ public static class StreamerChecks
 
                 var (tcp, _) = await NetworkInventory
                     .ObserveVdPortsAsync(NetworkInventory.VdPorts, ct).ConfigureAwait(false);
-                var live = tcp.Where(p => p.State == PortState.Established).ToList();
+                var established = tcp.Where(p => p.State == PortState.Established).ToList();
+                var localNets = NetworkInventory.PrimaryCandidates()
+                    .Select(a => a.PrimaryIPv4!).Where(ip => ip is not null).ToList();
+                // Peer is "address:port", so it has to be split before IPAddress.TryParse — otherwise
+                // every socket, the headset's included, parses as false and lands in the cloud bucket.
+                bool IsLan(PortView p) =>
+                    System.Net.IPAddress.TryParse(p.Peer.Split(':')[0], out var ip)
+                    && ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
+                    && localNets.Any(l => NetworkInventory.IsLanPeer(ip, l));
+                var live = established.Where(IsLan).ToList();
+                var cloud = established.Where(p => !IsLan(p)).ToList();
                 ev["是否有活动会话"] = live.Count > 0
-                    ? "是（" + string.Join("、", live.Select(p => p.Port.ToString())) + "）"
+                    ? "是（" + string.Join("、", live.Select(p => $"{p.Port}→{p.Peer}")) + "）"
                     : "否";
+                if (cloud.Count > 0)
+                    ev["到公网的已建立连接（非串流）"] = string.Join("、",
+                        cloud.Select(p => $"{p.Port}→{p.Peer}"));
 
                 if (ev.ContainsKey("UDP 38850"))
                     return new CheckResult("udp-discovery", CheckStatus.Pass,
@@ -305,7 +318,7 @@ public static class StreamerChecks
 
                 if (live.Count > 0)
                     return new CheckResult("udp-discovery", CheckStatus.Pass,
-                        "串流中，Streamer 已释放发现端口（正常）",
+                        "串流中：到头显的通道已建立，Streamer 已释放发现端口（正常）",
                         "实测：Streamer 空闲时绑 UDP 38850，进入会话后把它释放掉。"
                         + "此时再报「发现通道没有活动」就是假警报。", ev, Array.Empty<FixAction>());
 
