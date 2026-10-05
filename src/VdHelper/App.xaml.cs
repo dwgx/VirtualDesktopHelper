@@ -57,6 +57,7 @@ public static class SelfTest
         try
         {
             var report = await HealthEngine.RunAsync(CancellationToken.None);
+            var changes = HealthHistory.Save(report);
             sb.AppendLine($"VDHelper selftest  verdict={report.Verdict}  {report.VerdictText}");
             foreach (var r in report.Results)
             {
@@ -67,6 +68,16 @@ public static class SelfTest
                     sb.AppendLine($"            FIX[{f.Risk}] {f.Title} — {f.What} | rollback: {f.Rollback}");
                 if (r.Guidance is not null)
                     sb.AppendLine($"            GUIDE: {r.Guidance}");
+            }
+            if (changes.Count > 0)
+            {
+                sb.AppendLine($"与上次相比有 {changes.Count} 处变化：");
+                foreach (var c in changes)
+                    sb.AppendLine($"  [{c.Id}] {c.Before}  ->  {c.After}");
+            }
+            else
+            {
+                sb.AppendLine("与上次相比没有变化。");
             }
         }
         catch (Exception ex)

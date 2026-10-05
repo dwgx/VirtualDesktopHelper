@@ -26,6 +26,7 @@
 | 通过 | **av** | 已注册杀软：Windows Defender :: 401664 |
 | 通过 | **route-metric** | 有线网卡优先级 10，没有虚拟网卡排在它前面 |
 | 通过 | **link-type** | PC 走有线（Ethernet） |
+| Unknown | **lan-reach** | 还没填头显 IP，无法测可达性 |
 
 ## 检查项定义与来源
 

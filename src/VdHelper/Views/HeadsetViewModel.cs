@@ -27,6 +27,22 @@ public sealed class HeadsetViewModel : INotifyPropertyChanged
 
     public HeadsetViewModel() => RefreshCommand = new AsyncRelayCommand(LoadAsync);
 
+    /// <summary>Persisted headset IP; drives the lan-reach check on the first screen.</summary>
+    public string HeadsetIp
+    {
+        get => Core.Adb.ConfigFile.Read<string>(Core.Health.ReachabilityCheck.IpKey) ?? "";
+        set
+        {
+            Core.Adb.ConfigFile.Write(
+                Core.Health.ReachabilityCheck.IpKey,
+                string.IsNullOrWhiteSpace(value) ? "" : value.Trim());
+            Raise(nameof(HeadsetIp));
+            Raise(nameof(SaveHint));
+        }
+    }
+
+    public string SaveHint => HeadsetIp.Length > 0 ? "已保存" : "";
+
     public string AdbStatus
     {
         get => _adbStatus;
