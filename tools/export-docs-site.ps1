@@ -754,6 +754,40 @@ if ($notePara.Count -gt 0) {
 [void]$sb.AppendLine(('  <p class="lead2">同一份源、同一次解析，另输出成可直接粘进终端或 issue 的纯文本。改检测项只需要改 <code>' + (Esc-Plain $Checklist) + '</code>，然后重跑本脚本。</p>'))
 [void]$sb.AppendLine(('  <details><summary>展开 ' + $rawTableLines.Count + ' 行 Markdown 表格源</summary><pre>' + (Esc-Plain ($rawTableLines -join "`n")) + '</pre></details>'))
 [void]$sb.AppendLine('</section>')
+
+# ---- 症状索引：从 Symptom.cs 解析，用户按症状进页面时先看哪几项 ----
+# NOTE: every statement here is deliberately single-line. On this machine PowerShell (both 5.1 and 7)
+# fails to parse a line continuation whose next line starts with whitespace followed by '+', so the
+# usual multi-line string concatenation style produces "Missing closing ')'".
+$symptomSrc = Join-Path $Root 'src/VdHelper/Core/Model/Symptom.cs'
+$symptomCards = @()
+if (Test-Path -LiteralPath $symptomSrc) {
+    $sText = Get-Content -Raw -Encoding UTF8 $symptomSrc
+    $entryRe = [regex]'new\("(?<id>S\d+)",\s*"(?<title>[^"]*)",\s*\[(?<phrases>(?:[^\]]|\](?!,))*)\],\s*\[(?<checks>(?:[^\]]|\](?!,))*)\],\s*"(?<first>[^"]*)"'
+    foreach ($m in $entryRe.Matches($sText)) {
+        $phrases = @([regex]::Matches($m.Groups['phrases'].Value, '"([^"]+)"') | ForEach-Object { $_.Groups[1].Value })
+        $ids = @([regex]::Matches($m.Groups['checks'].Value, '"([a-z][a-z0-9-]+)"') | ForEach-Object { $_.Groups[1].Value })
+        $symptomCards += [pscustomobject]@{ Id = $m.Groups['id'].Value; Title = $m.Groups['title'].Value; Phrases = $phrases; Checks = $ids; First = $m.Groups['first'].Value }
+    }
+}
+
+[void]$sb.AppendLine('<section id="symptom">')
+[void]$sb.AppendLine('  <h2>按症状进：先看哪几项</h2>')
+$symLead = '  <p class="lead2">下面的症状类直接来自源码 <code>src/VdHelper/Core/Model/Symptom.cs</code>，与工具第一屏的芯片一一对应。当前解析出 ' + $symptomCards.Count + ' 类。</p>'
+[void]$sb.AppendLine($symLead)
+foreach ($c in $symptomCards) {
+    [void]$sb.AppendLine(('  <div class="card"><h3>' + (Esc-Plain ($c.Id + ' ' + $c.Title)) + '</h3>'))
+    [void]$sb.AppendLine(('    <p class="lead2">用户原话：' + (Esc-Plain ($c.Phrases -join ' / ')) + '</p>'))
+    [void]$sb.AppendLine(('    <p>' + (Esc-Plain $c.First) + '</p>'))
+    [void]$sb.AppendLine('    <p class="plain">')
+    foreach ($id in $c.Checks) {
+        [void]$sb.AppendLine(('      <code>' + (Esc-Plain $id) + '</code>'))
+    }
+    [void]$sb.AppendLine('    </p>')
+    [void]$sb.AppendLine('  </div>')
+}
+[void]$sb.AppendLine('</section>')
+
 [void]$sb.AppendLine('</div>')
 
 $checksDesc = 'VDHelper 的 PC 侧检测项全表：编号、症状、可直接粘贴的检查命令、通过判据、修复动作、回滚方式与风险级别。表格由 research 清单自动生成。'

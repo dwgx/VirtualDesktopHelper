@@ -266,6 +266,109 @@ footer a{color:var(--mut)}
 | UDP 广播被交换机或 VPN 客户端吞掉 | 11, 16, 17 |
 | ICS 开启后 NAT 行为改变 | 18 |</pre></details>
 </section>
+<section id="symptom">
+  <h2>按症状进：先看哪几项</h2>
+  <p class="lead2">下面的症状类直接来自源码 <code>src/VdHelper/Core/Model/Symptom.cs</code>，与工具第一屏的芯片一一对应。当前解析出 7 类。</p>
+  <div class="card"><h3>S1 头显里看不见电脑</h3>
+    <p class="lead2">用户原话：no computer found / no computer detected / big yellow sign / doesn't see the PC / servers unreachable, only showing local computers</p>
+    <p>先看 PC 到底有没有在广播：Streamer 进程、UDP 38850、服务是否被拉起来。这一类是「PC 根本没出现」，不是网络慢。</p>
+    <p class="plain">
+      <code>streamer-proc</code>
+      <code>udp-discovery</code>
+      <code>svc-vd</code>
+      <code>svc-log</code>
+      <code>cfg-streamer</code>
+      <code>accounts-persisted</code>
+      <code>vpn-proc</code>
+      <code>headset-deep</code>
+      <code>lan-reach</code>
+      <code>fw-vd</code>
+      <code>fw-pair</code>
+      <code>net-profile</code>
+    </p>
+  </div>
+  <div class="card"><h3>S2 能看到但连不上</h3>
+    <p class="lead2">用户原话：computer is unreachable / PC is unreachable / failed to see any computer at all / can't connect to a computer contact support</p>
+    <p>电脑已经被发现，问题在后面的握手：先确认头显 IP 能不能 ping 通，再看防火墙与出口网卡。</p>
+    <p class="plain">
+      <code>session-stale</code>
+      <code>port-vd</code>
+      <code>lan-reach</code>
+      <code>fw-pair</code>
+      <code>fw-vd</code>
+      <code>fw-outbound</code>
+      <code>net-profile</code>
+      <code>route-metric</code>
+      <code>vpn-proc</code>
+      <code>net-apipa</code>
+      <code>net-virtual</code>
+      <code>ics</code>
+      <code>nat-type</code>
+    </p>
+  </div>
+  <div class="card"><h3>S3 说不在同一网络</h3>
+    <p class="lead2">用户原话：not on same network / not on same local network</p>
+    <p>这一类是子网判定：用户以为同网和实际同网经常不一致，填了头显 IP 就能直接判。</p>
+    <p class="plain">
+      <code>lan-reach</code>
+      <code>route-metric</code>
+      <code>net-primary</code>
+      <code>net-profile</code>
+      <code>net-virtual</code>
+    </p>
+  </div>
+  <div class="card"><h3>S4 卡在测带宽</h3>
+    <p class="lead2">用户原话：stuck on measuring bandwidth / won't get past measuring bandwidth / keeps measuring bandwidth</p>
+    <p>带宽探测阶段就失败：先看网卡协商速率和自动调码率开关，不是渲染问题。</p>
+    <p class="plain">
+      <code>link-rate</code>
+      <code>cfg-streamer</code>
+      <code>av</code>
+      <code>link-type</code>
+      <code>vpn-proc</code>
+      <code>net-apipa</code>
+    </p>
+  </div>
+  <div class="card"><h3>S5 有画面但黑的 / 没画面</h3>
+    <p class="lead2">用户原话：black screen / blank screen / I can hear audio but no visuals / shows no display</p>
+    <p>「有声音没画面」是显示链路问题：先查有没有活动 RDP 会话占着显示器，再查 PC 是不是走了无线。</p>
+    <p class="plain">
+      <code>session-stale</code>
+      <code>rdp-session</code>
+      <code>link-type</code>
+      <code>cfg-streamer</code>
+      <code>svc-log</code>
+      <code>streamer-proc</code>
+      <code>net-primary</code>
+    </p>
+  </div>
+  <div class="card"><h3>S6 连上就掉 / 定时卡</h3>
+    <p class="lead2">用户原话：keeps disconnecting / disconnects after 30 seconds / freezes exactly at 5-7 mins / 60-second stutter / worked for hours the first time, never since</p>
+    <p>周期性掉线要先看服务与网络抖动的来源；注意不同用户的周期完全不同，别用同一个结论套。</p>
+    <p class="plain">
+      <code>session-stale</code>
+      <code>streamer-proc</code>
+      <code>svc-log</code>
+      <code>fw-defender</code>
+      <code>net-apipa</code>
+      <code>net-virtual</code>
+      <code>ics</code>
+      <code>lan-reach</code>
+    </p>
+  </div>
+  <div class="card"><h3>S7 画质差 / 不跟手</h3>
+    <p class="lead2">用户原话：choppy / stutter / bitrate only 60-70 / black bars when turning my head / blurry</p>
+    <p>画质与延迟：链路速率、接入方式、码率与编解码设置是第一梯队，别一上来换路由器。</p>
+    <p class="plain">
+      <code>link-rate</code>
+      <code>link-type</code>
+      <code>cfg-streamer</code>
+      <code>route-metric</code>
+      <code>vpn-proc</code>
+      <code>av</code>
+    </p>
+  </div>
+</section>
 </div>
 
 <footer><div class="wrap"><div>本站是 VDHelper 的个人技术文档，与 Virtual Desktop, Inc. 无隶属关系，非官方网站。仅供学习与互操作性研究，所有商标版权归原作者所有。</div><div>页面由 <code>tools/export-docs-site.ps1</code> 从仓库源文件生成</div></div></footer>

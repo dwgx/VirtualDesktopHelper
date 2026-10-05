@@ -17,7 +17,7 @@
 | 警告 | **fw-defender** | Defender 防火墙：Domain     True / Private   False / Public    False |
 | 通过 | **svc-vd** | VirtualDesktop.Service.exe Running Automatic |
 | 通过 | **port-vd** | 4 个端口由 Virtual Desktop 持有，没有被别的程序抢占 |
-| 阻断 | **session-stale** | 1 个通道是残留套接字（最早建立于 14 分钟前） |
+| 阻断 | **session-stale** | 1 个通道是残留套接字（最早建立于 51 分钟前） |
 | 通过 | **streamer-proc** | Streamer 进程运行中（1 个） |
 | 警告 | **svc-log** | 服务日志有 5 条历史 ERROR（最近一次 2026-09-18 15:37:35.6962），但 Streamer 正在运行 |
 | 通过 | **udp-discovery** | UDP 38850 正在监听（发现/配对协议就绪） |
