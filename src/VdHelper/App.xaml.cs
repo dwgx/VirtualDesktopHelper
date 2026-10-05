@@ -295,7 +295,15 @@ public static class ApplyFix
             matched++;
             if (wantedList)
             {
-                Console.WriteLine($"{fix.Id}\t[{fix.Risk}]\t{result.Id}\t{fix.Title}");
+                if (matched > 1) Console.WriteLine();
+                Console.WriteLine($"{fix.Id}  [{fix.Risk} 风险]"
+                    + (fix.NeedsElevation ? "  会弹 UAC" : "  不需要管理员"));
+                Console.WriteLine($"  做什么：{fix.Title}");
+                Console.WriteLine($"  出自：{result.Id} — {result.Summary}");
+                if (!string.IsNullOrWhiteSpace(fix.What)) Console.WriteLine("  说明：" + fix.What);
+                if (!string.IsNullOrWhiteSpace(fix.Backup)) Console.WriteLine("  备份：" + fix.Backup);
+                if (!string.IsNullOrWhiteSpace(fix.Rollback)) Console.WriteLine("  回滚：" + fix.Rollback);
+                Console.WriteLine($"  执行：VdHelper.exe --apply {fix.Id}");
                 continue;
             }
 
