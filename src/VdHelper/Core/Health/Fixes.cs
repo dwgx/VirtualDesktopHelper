@@ -38,20 +38,26 @@ public static class Fixes
     public static IReadOnlyList<FixAction> DisableUnusableAdapters() =>
         Array.Empty<FixAction>();
 
-    public static IReadOnlyList<FixAction> RestoreVdRule() =>
+    public static IReadOnlyList<FixAction> RestoreVdRule()
+    {
+        // A firewall rule scoped to a program path only works if that path is where the program
+        // actually is. Build it from the resolved exe rather than the default-install constant.
+        var exe = StreamerChecks.ResolveStreamerExe();
+        var add = "netsh advfirewall firewall add rule name=\"Virtual Desktop Streamer\" dir=in "
+            + "action=allow program=\"" + exe + "\" enable=yes profile=any";
+        return
     [
         new FixAction(
             "fw-restore-vd",
             "重建 Virtual Desktop 入站放行规则",
-            @"netsh advfirewall firewall add rule name=""Virtual Desktop Streamer"" dir=in action=allow program=""C:\Program Files\Virtual Desktop Streamer\VirtualDesktop.Streamer.exe"" enable=yes profile=any",
+            add,
             "添加前先导出：`netsh advfirewall firewall export <备份文件>`；同名规则若已存在需先删除。",
             @"netsh advfirewall firewall delete rule name=""Virtual Desktop Streamer""",
             FixRisk.Medium,
-            ct => RunPsAsync(
-                @"netsh advfirewall firewall add rule name=""Virtual Desktop Streamer"" dir=in action=allow program=""C:\Program Files\Virtual Desktop Streamer\VirtualDesktop.Streamer.exe"" enable=yes profile=any",
-                "Virtual Desktop Streamer", ct),
+            ct => RunPsAsync(add, "Virtual Desktop Streamer", ct),
             NeedsElevation: true),
     ];
+    }
 
     public static IReadOnlyList<FixAction> StartVdService() =>
     [
@@ -282,16 +288,38 @@ public static class Fixes
         new FixAction(
             "svc-repair",
             "以管理员身份重装 Virtual Desktop 服务",
-            "msiexec /i \"C:\\Program Files\\Virtual Desktop Streamer\\VirtualDesktop.Service.msi\" /qn，然后重启服务",
-            "先导出当前服务配置：`sc.exe qc VirtualDesktop.Service > %TEMP%\\vdservice-before.txt`；安装包不删除用户数据。",
+            "msiexec /i \"<Streamer 所在目录>\\VirtualDesktop.Service.msi\" /qn，然后重启服务。"
+            + "安装包按 Streamer 可执行文件的实际位置推导，不写死默认安装目录；找不到时会直接告诉你，"
+            + "不会拿一个不存在的路径去跑 msiexec。",
+            "先导出当前服务配置：`sc.exe qc VirtualDesktop.Service.exe > %TEMP%\\vdservice-before.txt`；安装包不删除用户数据。",
             "msiexec /i \"...\\VirtualDesktop.Service.msi\" /qn（重装即恢复默认账户绑定）",
             FixRisk.Medium,
-            ct => RunPsAsync(
-                "Start-Process msiexec -ArgumentList '/i \"C:\\Program Files\\Virtual Desktop Streamer\\VirtualDesktop.Service.msi\" /qn' -Verb RunAs -Wait",
-                "Virtual Desktop 服务", ct),
+            ct => ReinstallServiceAsync(ct),
             NeedsElevation: true),
     ];
 
+
+    /// <summary>
+    /// Reinstalls the VD service from the MSI that sits beside the Streamer executable. The path is
+    /// derived rather than assumed: pointing msiexec at a file that is not there fails with a message
+    /// that says nothing useful, so say plainly that the installer was not found.
+    /// </summary>
+    private static async Task<FixResult> ReinstallServiceAsync(CancellationToken ct)
+    {
+        var msi = Path.Combine(Path.GetDirectoryName(StreamerChecks.ResolveStreamerExe()) ?? "",
+                               "VirtualDesktop.Service.msi");
+        if (!File.Exists(msi))
+            return new FixResult(false,
+                "在 Streamer 所在目录下没找到 VirtualDesktop.Service.msi（找的是：" + msi + "）。"
+                + "这多半是便携安装或安装目录不完整，请到 Virtual Desktop 官网重新下载安装包，"
+                + "或先用「安装包」手动装一次服务。");
+
+        var script = "Start-Process msiexec -ArgumentList '/i \"" + msi + "\" /qn' -Verb RunAs -Wait";
+        var r = await PowerShellRunner.RunAsync(script, ct: ct).ConfigureAwait(false);
+        return r.Ok
+            ? new FixResult(true, "Virtual Desktop 服务已处理", r.Combined)
+            : new FixResult(false, "重装失败：" + r.Combined);
+    }
     private static async Task<FixResult> RunPsAsync(string script, string subject, CancellationToken ct)
     {
         var r = await PowerShellRunner.RunAsync(script, ct: ct).ConfigureAwait(false);
