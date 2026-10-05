@@ -1,0 +1,39 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build
+        run: dotnet build src/VdHelper/VdHelper.csproj -c Release
+
+      # Headless smoke: exit 0 = streamable, 3 = at risk, 4 = blocked, 5 = the run itself failed.
+      # 3 and 4 are legitimate findings on a CI runner, so only 5 (and a crash) fails the job.
+      - name: Self test
+        run: |
+          $ErrorActionPreference = 'Continue'
+          & src/VdHelper/bin/Release/net10.0-windows/VdHelper.exe --selftest --out selftest.txt
+          $code = $LASTEXITCODE
+          Get-Content selftest.txt
+          if ($code -eq 5) { throw "self test failed to run (exit $code)" }
+          if ($code -gt 5 -or $code -lt 0) { throw "self test crashed (exit $code)" }
+
+      - name: Publish
+        run: dotnet publish src/VdHelper/VdHelper.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VdHelper-win-x64
+          path: out/**

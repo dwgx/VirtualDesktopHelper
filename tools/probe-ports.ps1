@@ -1,4 +1,4 @@
-<#
+﻿<#
   probe-ports.ps1 — 只读 LAN 探测：谁在线、VD 端口是否在听、发现广播能否到达。
   用途：既是研究工具，也是未来诊断引擎的命令行内核原型。
   用法： powershell -NoProfile -ExecutionPolicy Bypass -File probe-ports.ps1 [-Subnet 192.168.11] [-Ports 38810,38820,38830,38840]

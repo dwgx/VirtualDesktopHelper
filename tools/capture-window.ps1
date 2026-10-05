@@ -1,4 +1,4 @@
-<#
+﻿<#
   capture-window.ps1 — 截图某个进程的主窗口，用于人工核对 UI 真的画出来了。
   用法： powershell -NoProfile -ExecutionPolicy Bypass -File capture-window.ps1 -Process VdHelper -Out _shot.png
 #>

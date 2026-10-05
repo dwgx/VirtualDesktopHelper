@@ -6,13 +6,11 @@ using VdHelper.Core.Mvvm;
 
 namespace VdHelper.Views;
 
-public sealed class HeadsetRow : INotifyPropertyChanged
+public sealed class HeadsetRow
 {
     public required string Label { get; init; }
     public required string Value { get; init; }
-    public event PropertyChangedEventHandler? PropertyChanged;
 }
-
 public sealed class HeadsetViewModel : INotifyPropertyChanged
 {
     private static readonly Lazy<HeadsetViewModel> Instance = new(() => new HeadsetViewModel());
