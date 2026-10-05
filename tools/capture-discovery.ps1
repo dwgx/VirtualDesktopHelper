@@ -60,13 +60,62 @@ function Test-Admin {
 function Show-Findings([string]$path) {
     $lines = @(Get-Content -LiteralPath $path)
     Write-Host ''
-    Write-Host ("共 {0} 行，来自 {1}" -f $lines.Count, $path) -ForegroundColor Cyan
 
-    $presence = @($lines | Where-Object { $_ -match '\b38860\b' })
-    $hits = @($lines | Where-Object { $_ -match '\b38850\b' })
+    # Judged on every line in the file, so a pktmon header that prints the capture filter
+    # -- "# Filter: --port-range 38850-38860" -- counted as two sightings, and this then said it
+    # had seen the PC's presence broadcast. A file containing nothing but that header produced
+    # "看到 2 行目的/来源端口 38860 —— 那是 PC 侧的「我在」广播". That manufactures the answer to the
+    # one question the capture exists to ask.
+    #
+    # Only records count. etl2txt prefixes each captured packet with a [nn] timestamp; comments
+    # and the banner do not have one.
+    # [未验证] the exact etl2txt text has never been seen here -- no capture has been taken,
+    # because pktmon needs elevation -- so this rule is checked against the header and empty
+    # cases below, not against a real dump.
+    $records = @($lines | Where-Object { $_ -match '^\s*\[\d+\]' })
+    $skipped = $lines.Count - $records.Count
 
+    # One captured packet is several consecutive lines sharing a [nn] index -- one per protocol
+    # layer. Judging each line on its own breaks twice over: a port on the UDP line while the
+    # address is on the IPv4 line meant the broadcast test could never fire. Verified on a sample
+    # shaped like this one: it counted the 38850 packet and still reported 广播 0.
+    #
+    # So the unit is the record block, not the line. [未验证] against real etl2txt output -- that
+    # still needs the elevated capture.
+    $blocks = New-Object System.Collections.Generic.List[object]
+    $current = $null
+    $currentIdx = ''
+    foreach ($l in $records) {
+        $idx = ([regex]::Match($l, '^\s*\[(\d+)\]')).Groups[1].Value
+        if ($null -eq $current -or $idx -ne $currentIdx) {
+            $current = New-Object System.Collections.Generic.List[string]
+            $blocks.Add($current)
+            $currentIdx = $idx
+        }
+        $current.Add($l)
+    }
+
+    $presence = @($blocks | Where-Object { ($_ -join ' ') -match '\b38860\b' })
+    $hits = @($blocks | Where-Object { ($_ -join ' ') -match '\b38850\b' })
+    $broadcast = @($hits | Where-Object { ($_ -join ' ') -match '255\.255\.255\.255' })
+
+    Write-Host ("共 {0} 行，其中 {1} 个抓包记录，来自 {2}" -f $lines.Count, $records.Count, $path) -ForegroundColor Cyan
+
+
+    if ($records.Count -eq 0) {
+        Write-Host ''
+        Write-Host '这份文件里没有任何抓包记录行（etl2txt 的记录行以 [nn] 开头）。' -ForegroundColor Yellow
+        Write-Host '所以这次什么都没测到——不是「没广播」。也可能是这份文件根本不是 etl2txt 的输出。' -ForegroundColor Yellow
+        if ($skipped -gt 0) {
+            Write-Host ("（{0} 行是注释或抬头，已跳过；只有 [nn] 开头的记录行算数。）" -f $skipped)
+        }
+        return
+    }
+    if ($skipped -gt 0) {
+        Write-Host ("（另有 {0} 行是注释或抬头，未计入。）" -f $skipped)
+    }
     if ($presence.Count -gt 0) {
-        Write-Host ("另外看到 {0} 行目的/来源端口 38860 —— 那是 PC 侧的" -f $presence.Count) -ForegroundColor Cyan
+        Write-Host ("另外看到 {0} 个包的端口是 38860 —— 那是 PC 侧的" -f $presence.Count) -ForegroundColor Cyan
         Write-Host '「我在」广播：Streamer 启动后会往 255.255.255.255:38860 发空包（0 字节载荷）。'
         Write-Host '看到它就说明 PC 这一侧在广播；它和 38850（发现/配对协议）是两回事。'
     }
@@ -81,9 +130,8 @@ function Show-Findings([string]$path) {
     $recv = @($hits | Where-Object { $_ -match 'UdpRecv|Receiving|\bin\b' })
 
     Write-Host ("命中 {0} 行（发出 {1} / 收到 {2}）" -f $hits.Count, $sent.Count, $recv.Count) -ForegroundColor Cyan
-    $broadcast = @($hits | Where-Object { $_ -match '255\.255\.255\.255' })
     if ($broadcast.Count -gt 0) {
-        Write-Host ("其中目的地址是广播的有 {0} 行 —— 发现包就是广播，这一段有实据。" -f $broadcast.Count) -ForegroundColor Green
+        Write-Host ("其中目的地址是广播的有 {0} 个包 —— 发现包就是广播，这一段有实据。" -f $broadcast.Count) -ForegroundColor Green
     }
     else {
         Write-Host '没有目的地址为广播的行。发现包应当发往 255.255.255.255:38850。' -ForegroundColor Yellow
