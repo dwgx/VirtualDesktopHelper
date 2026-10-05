@@ -17,7 +17,7 @@
 | 警告 | **fw-defender** | Defender 防火墙：Domain     True / Private   False / Public    False |
 | 通过 | **svc-vd** | VirtualDesktop.Service.exe Running Automatic |
 | 通过 | **port-vd** | 4 个端口由 Virtual Desktop 持有，没有被别的程序抢占 |
-| 阻断 | **session-stale** | 1 个通道是残留套接字（最早建立于 1 小时 52 分前） |
+| 阻断 | **session-stale** | 1 个通道是残留套接字（最早建立于 2 小时 1 分前） |
 | 通过 | **streamer-proc** | Streamer 进程运行中（1 个） |
 | 警告 | **svc-log** | 服务日志有 5 条历史 ERROR（最近一次 2026-09-18 15:37:35.6962），但 Streamer 正在运行 |
 | 通过 | **udp-discovery** | UDP 38850 正在监听（发现/配对协议就绪） |
@@ -27,7 +27,7 @@
 | 通过 | **av** | 已注册杀软：Windows Defender :: 397568 |
 | 通过 | **route-metric** | 有线网卡优先级 10，没有虚拟网卡排在它前面 |
 | 通过 | **link-type** | PC 走有线（Ethernet） |
-| 阻断 | **lan-reach** | 头显 192.168.11.14 ping 不通 |
+| 阻断 | **lan-reach** | 头显 192.168.11.14 ping 不通（但 ARP 缓存里有它） |
 | 通过 | **link-rate** | Ethernet 协商速率 1 Gbps |
 | 通过 | **vpn-proc** | 没有发现 VPN/代理客户端进程 |
 | 通过 | **rdp-session** | 只有本机 console 会话（1 条），没有远程桌面在跑 |

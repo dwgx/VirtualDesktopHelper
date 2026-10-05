@@ -47,6 +47,21 @@ public static class ReachabilityCheck
                         "填的头显 IP 不是合法地址", ip, ev, Array.Empty<FixAction>(),
                         "例如 192.168.11.23。");
 
+                // Windows' own neighbour cache is better evidence than our guess: if the ARP entry
+                // is absent the device is not on this link at all (as opposed to "firewalled").
+                var neighbor = await PowerShellRunner.LinesAsync(
+                    "Get-NetNeighbor -IPAddress " + (address.ToString()) + " -ErrorAction SilentlyContinue | "
+                    + "ForEach-Object { \"$($_.State)|$($_.LinkLayerAddress)\" }", ct).ConfigureAwait(false);
+                // Only Reachable means the device answered recently. Stale is a leftover entry
+                // whose lifetime has expired — treating it as "on the link" would hide a departed
+                // device behind reassuring wording.
+                var reachable = neighbor.Count > 0
+                    && neighbor.Any(n => n.StartsWith("Reachable", StringComparison.OrdinalIgnoreCase));
+                ev["邻居表"] = neighbor.Count == 0
+                    ? "(ARP 缓存里没有这台设备 → 它当前不在这个链路上)"
+                    : string.Join(" ;; ", neighbor)
+                      + (reachable ? "（状态可达）" : "（状态陈旧：这条记录已经过期，不能当作它还在）");
+
                 var sameSubnet = local?.PrimaryIPv4 is not null
                     && SameSubnet(local.PrimaryIPv4, address);
                 ev["同网段"] = sameSubnet ? "是" : "否";
@@ -71,13 +86,20 @@ public static class ReachabilityCheck
                         "网络层通。如果头显里还是「连不上」，问题在 VD 应用侧或账号侧，不在网络。",
                         ev, Array.Empty<FixAction>());
 
+                var absent = !reachable;
                 return new CheckResult("lan-reach", CheckStatus.Block,
-                    $"头显 {ip} ping 不通",
-                    "PC 到头显的网络层就不通，VD 发现与连接都不可能成功。这是必须先解决的一环。",
+                    $"头显 {ip} ping 不通"
+                    + (absent ? "（ARP 缓存里也没有它）" : "（但 ARP 缓存里有它）"),
+                    absent
+                        ? "两件事同时成立：它不在这个链路上，而且它上次的地址也不再通。"
+                        + "最常见的是头显改了 IP（DHCP 续租后跳号）、连到了访客网络、或者根本没连 Wi-Fi。"
+                        : "ARP 缓存里有它，说明它在这条链路上，只是 ping 被挡或它不响应 ICMP —— "
+                        + "这种情况更像 AP 隔离或来宾网络。",
                     ev, Array.Empty<FixAction>(),
-                    sameSubnet
-                        ? "同网段还不通：查 AP 隔离 / 访客网络 / 无线与有线隔离 / 头显连的是 5GHz 还是 2.4GHz。"
-                        : "不同网段：让头显连到和 PC 同一个 SSID，并确认路由器没有开访客网络或 AP 隔离。");
+                    absent
+                        ? "先在头显「设置 → Wi-Fi」里看一眼当前 IP，填回上面那个框；"
+                        + "IP 变了是「昨天还好好的」类故障里最常见的一种，填对了这一项立刻变绿。"
+                        : "同网段还不通：查 AP 隔离 / 访客网络 / 无线与有线隔离 / 头显连的是 5GHz 还是 2.4GHz。");
             });
 
     public static bool SameSubnet(IPAddress a, IPAddress b)
