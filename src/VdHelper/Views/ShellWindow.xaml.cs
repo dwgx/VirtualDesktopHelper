@@ -71,6 +71,20 @@ public partial class ShellWindow : Window, INotifyPropertyChanged
         ApplyReport(report, streamed: true);
     }
 
+
+    /// <summary>"（通过 → 警告）" when a check's verdict moved, so the bar agrees with the reports.</summary>
+    private static string Arrow(HealthHistory.Change c) =>
+        !c.StatusMoved ? "" : $"（{Cn(c.FromStatus)}→{Cn(c.ToStatus)}）";
+
+    private static string Cn(string? s) => s switch
+    {
+        "Pass" => "通过",
+        "Warn" => "警告",
+        "Block" => "阻断",
+        "Unknown" => "未知",
+        _ => s ?? "?",
+    };
+
     private void ApplyReport(HealthReport report, bool streamed = false)
     {
         _current = this;
@@ -94,7 +108,7 @@ public partial class ShellWindow : Window, INotifyPropertyChanged
             : "";
 
         StatusText = $"通过 {pass} · 警告 {warn} · 阻断 {block} — {report.VerdictText}"
-            + (_changes.Count > 0 ? $" · 与上次相比 {string.Join("、", _changes.Take(3).Select(c => c.Id))}" : "")
+            + (_changes.Count > 0 ? $" · 与上次相比 {string.Join("、", _changes.Take(3).Select(c => c.Id + Arrow(c)))}" : "")
             + trend;
         Raise(nameof(Verdict));
         Raise(nameof(VerdictText));
