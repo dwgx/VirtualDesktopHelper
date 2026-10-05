@@ -40,6 +40,30 @@ public partial class App : Application
             return;
         }
 
+        if (args.Contains("--deep-ui"))
+        {
+            // Exercises the exact command object the button is bound to, without depending on
+            // synthetic mouse input (which does not reach the window in this environment).
+            // AttachConsole first: any write to a redirected pipe before this point deadlocks.
+            AttachConsole(-1);
+            var vm = new Views.HealthViewModel();
+            vm.DeepProbeCommand!.Failed += ex =>
+                Console.Error.WriteLine("深度探测失败: " + ex);
+            vm.DeepProbeCommand.Execute(null);
+            var task = vm.DeepProbeCommand.ExecutionTask;
+            if (task is not null) await task;
+            Console.WriteLine(vm.DeepProbeText);
+            Shutdown(0);
+            return;
+        }
+
+        if (args.Contains("--deep"))
+        {
+            AttachConsole(-1);
+            Shutdown(await LossProbe.RunDeepAsync(args));
+            return;
+        }
+
         // --report-html is checked before --report: both are prefixes of the same idea and the
         // HTML one is the rarer path, so it must not fall through to the Markdown writer.
         if (args.Contains("--report-html") || args.Contains("--report"))

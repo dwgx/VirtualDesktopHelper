@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using VdHelper.Core.Health;
 using VdHelper.Core.Model;
 using VdHelper.Core.Mvvm;
 
@@ -108,11 +109,43 @@ public sealed class HealthViewModel
         ? "先选你遇到的现象——这两类故障的根因几乎不重叠，选对能省掉一半排查。"
         : $"{_selected!.Class!.FirstLook}\n用户原话：{_selected.Class.PhraseLine}";
 
+
+    /// <summary>
+    /// On-demand deep probe. The pass itself takes only a quick loss sample because it runs on every
+    /// health check; this is the 20-sample run you press when the picture keeps stuttering.
+    /// </summary>
+    public AsyncRelayCommand? DeepProbeCommand { get; private set; }
+
+    private string _deepText = "";
+    public string DeepProbeText
+    {
+        get => _deepText;
+        private set { _deepText = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DeepProbeText))); }
+    }
+
     public HealthViewModel()
     {
         Symptoms.Add(new SymptomTab(this, null, "全部"));
         foreach (var s in SymptomCatalog.All)
             Symptoms.Add(new SymptomTab(this, s, s.Title));
+
+        DeepProbeCommand = new AsyncRelayCommand(async () =>
+        {
+            DeepProbeText = "正在做深度丢包探测（每目标 20 次采样，约 20 秒）…";
+            var lines = new List<string>();
+            var worst = 0.0;
+            foreach (var (label, host) in LossProbe.Targets())
+            {
+                var s = await LossProbe.MeasureAsync(host, LossProbe.DefaultSamples, 800).ConfigureAwait(true);
+                worst = Math.Max(worst, s.LossPercent);
+                lines.Add($"{label} {host}  {s.Received}/{s.Sent} 收到 · 丢包 {s.LossPercent:F0}% · "
+                    + $"延迟 {s.MinMs:F0}/{s.AvgMs:F0}/{s.MaxMs:F0} ms · 抖动 {s.JitterMs:F1} ms");
+            }
+            lines.Add(worst >= 5
+                ? "测到丢包。网关也丢 → 问题在 PC 到路由器这一段；只有头显丢 → Wi-Fi 那一段。"
+                : "这一次没测到丢包。随机丢包不会每次都赶上，画面卡的时候再按一次。");
+            DeepProbeText = string.Join("\n", lines);
+        });
     }
 
     public static void Publish(HealthReport report)

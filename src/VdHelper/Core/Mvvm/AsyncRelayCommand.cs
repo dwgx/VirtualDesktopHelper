@@ -1,4 +1,4 @@
-using System.Windows.Input;
+﻿using System.Windows.Input;
 
 namespace VdHelper.Core.Mvvm;
 
@@ -11,12 +11,26 @@ public sealed class AsyncRelayCommand(Func<Task> execute, Func<bool>? canExecute
 
     public bool CanExecute(object? parameter) => !_running && (canExecute?.Invoke() ?? true);
 
+    /// <summary>Set while a run is in flight so callers can await it instead of guessing.</summary>
+    public Task? ExecutionTask { get; private set; }
+
+    /// <summary>Raised when a run throws. Without this an <c>async void</c> failure would tear
+    /// down the whole app mid-session, taking the user's evidence with it.</summary>
+    public event Action<Exception>? Failed;
+
     public async void Execute(object? parameter)
     {
         if (!CanExecute(parameter)) return;
         _running = true;
         RaiseCanExecuteChanged();
+        ExecutionTask = RunAsync();
+        await ExecutionTask;
+    }
+
+    private async Task RunAsync()
+    {
         try { await execute(); }
+        catch (Exception ex) { Failed?.Invoke(ex); }
         finally
         {
             _running = false;

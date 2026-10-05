@@ -43,8 +43,8 @@ public static class SymptomCatalog
 
         new("S4", "卡在测带宽",
             ["stuck on measuring bandwidth", "won't get past measuring bandwidth", "keeps measuring bandwidth"],
-            ["link-rate", "cfg-streamer", "cfg-version", "proc-tuner", "av", "link-type",
-             "vpn-proc", "net-apipa"],
+            ["net-loss", "link-rate", "cfg-streamer", "cfg-version", "proc-tuner", "av",
+             "link-type", "vpn-proc", "net-apipa"],
             "带宽探测阶段就失败：先看网卡协商速率和自动调码率开关，不是渲染问题。"),
 
         new("S5", "有画面但黑的 / 没画面",
@@ -62,7 +62,7 @@ public static class SymptomCatalog
 
         new("S7", "画质差 / 不跟手",
             ["choppy", "stutter", "bitrate only 60-70", "black bars when turning my head", "blurry"],
-            ["gpu-throttle", "gpu-encoder", "link-rate", "link-type", "gpu-pick", "cfg-streamer",
+            ["gpu-throttle", "gpu-encoder", "net-loss", "link-rate", "link-type", "gpu-pick", "cfg-streamer",
              "cfg-version", "proc-tuner", "route-metric", "vpn-proc", "av", "nic-powersave"],
             "画质与延迟：链路速率、接入方式、码率与编解码设置是第一梯队，别一上来换路由器。"),
     ];
