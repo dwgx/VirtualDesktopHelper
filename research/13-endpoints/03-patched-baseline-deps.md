@@ -341,7 +341,7 @@ if (hasQueriedRegistry && !IsComputerRegistryOffline)
 | 维度 | 改了吗 | 证据 |
 |---|---|---|
 | 端口 | **没改** | `binary_patch.py` 全文没有任何 socket/端口/host 相关补丁；5 个 entry 的补丁点逐条列在 §3.2 表 |
-| 发现协议 | **没改** | `ComputerDiscoveryClient` 所在 blob 成员不在 patched 输出列表；`extracted` vs `patched` 的 `Xenko.dll` diff 12 个区间也都不在网络代码区 |
+| 发现协议 | **没改** | `ComputerDiscoveryClient` 所在 blob 成员（真正的 `VirtualDesktop.Net` = idx54）不在 `binary_patch.py` 提取的 `43/49/52/61/81` 之列，也不在 `patched_assemblies\` 输出里；且 entry #52 相对 blob 原像的 diff 只有 130 字节 / 38 区间，`UdpClient` / `Socket` / `Networking` 一处未碰（§7 ④） |
 | 证书校验（TLS） | **没改，也没有任何自签名放行** | 六棵反编译树（同 §2 D13 的 grep）6/6 命中 0；两个 registry 端点都是 `https://` |
 | APK 签名（发布签名） | **改了，而且这是唯一影响网络行为的改动** | `build_v13_anim.py:64-93` / `build_v12_no_aot.py:64-93` 删除 `META-INF` 旧签名后用 `vdpatch` 重签（`SIGNING.md:34-43`）；`SIGNING.md:18` 证书 SHA-256 `aad0b756…` |
 | 更新检查 | **没改，且本来就不出网** | `CheckForStreamerUpdateAsync` 用 LAN 消息（`NetworkManager.cs:2610`） |
@@ -446,9 +446,9 @@ for idx, name in [(52,'Xenko.dll'), (49,'Xenko.OpenXR.dll'), (43,'VirtualDesktop
     print(f'entry #{idx:3d} blob={sha(e)} len={len(e):>8d} | match={ex==e}')
 PY
 python v3.py
-```
 
 # ④ ★ 决定性证据：不经过任何文件名，直接比 blob 原像 vs 补丁产物
+
 cat > v4.py <<'PY'
 import struct, lz4.block
 BLOB = r'F:\Project\VirtualDesktop\analysis\apk_patch\libassemblies.arm64-v8a.blob.so'
@@ -481,6 +481,7 @@ for o, name in ((0x318cc,'UserSettings 1778352230'), (0x13126,'InputSystem..ctor
 PY
 python v4.py
 ```
+
 ①②③④ 的实跑输出（本机跑过，未改 `F:\` 任何文件）：
 
 ```

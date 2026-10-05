@@ -496,20 +496,39 @@ R73「in order to find your PC VD has to talk to a server on the Internet from y
 | 4 | `HasValidIdentity` 的读取（`:814`） | `NetworkManager.cs:814` | false ⇒ 广播回来的条目一条都不遍历（闸门 3b） |
 | 5 | `hadValidIdentity` 快照（`:633` → `:818`） | `NetworkManager.cs:633/818` | false ⇒ 即使 4 放行，入库仍被丢弃（闸门 4） |
 
-**已核实的两点（我自己复跑过，不是转述）**：
+**已核实的三点（我自己复跑过，不是转述）**：
 
-1. `CurrentProcess.Kill()` 定义在 **`VirtualDesktop.Core`**，而 XABA 条目 **idx49** 就是
+1. **开关 3（APK 签名常量）经字节级验证：补丁没有改它。**
+   `UserSettings` 被合并进 XABA 条目 **idx52（`Xenko.dll`，529,408 B）**，
+   常量以 IL `ldc.i4` 形式落在文件偏移 `0x318cc`：
+
+   ```
+   $ python -c "blob=open('idx52','rb').read(); pat=open('.../patched_assemblies/Xenko.dll','rb').read(); ..."
+   len 529408 529408
+   diff bytes: 130      ranges: 38
+   0x318cc inside-diff-range= False blob= 20 66 80 ff 69 patched= 20 66 80 ff 69
+   0x13126 inside-diff-range= False blob= 20 7c 80 ff 69 patched= 20 7c 80 ff 69
+   ```
+
+   `20 66 80 ff 69` = `ldc.i4 0x69FF8066` = **`ldc.i4 1778352230`**；
+   `20 7c 80 ff 69` = `ldc.i4 0x69FF807C` = `ldc.i4 1778352252`（同族的另一个常量）。
+   两个常量都**落在 130 字节改动区间之外且逐字节相同**。
+   ⇒ **签名检查原封未动**。补丁 APK 是重签名的，所以这个检查在补丁基线上**必然返回 false**
+   ⇒ **闸门 3 未被放行 ⇒ `FindComputersAsync` 根本不被调用 ⇒ 连广播都不发。**
+   （在此之前我只能写「grep 0 命中 = grep 不到 ≠ 没处理」；现在是正面结论。）
+2. `CurrentProcess.Kill()` 定义在 **`VirtualDesktop.Core`**，XABA 条目 **idx49** 就是
    `VirtualDesktop.Core.dll`（40,448 B，md5 `27bf89c9e588afe47f82094e2afab477`）；
    `binary_patch.py:226-254` 在该条目上打 RVA `0x3ADC`，
    `patched_assemblies/Xenko.OpenXR.dll`（40,448 B）与 `extracted` 的 idx49 **实测只差 14 字节**。
    ⇒ **被 NOP 的确实是 `CurrentProcess.Kill()`**，但**输出文件名是错的**（见 §0.2）。
-2. 在 `F:/Project/VirtualDesktop/analysis/apk_patch/` 全树（`*.py` / `*.md` / `*.json`）
-   grep `1778352230` / `GetHasValidIdentityAsync` / `HasValidIdentity` → **0 命中**。
-   这是「grep 不到」，**不是**「没处理」（AOT / 二进制级改动 grep 覆盖不到）。
-   开关 4/5 在源码层根本不可见，也只能靠实机验证。
+3. 在 `F:/Project/VirtualDesktop/analysis/apk_patch/` 全树（`*.py` / `*.md` / `*.json`）
+   grep `1778352230` / `GetHasValidIdentityAsync` / `HasValidIdentity` → **0 命中**，
+   与第 1 条的字节级结果一致：**源码层与二进制层都未处理**。
+   开关 4/5（`NetworkManager.cs:814` / `:633→:818`）在源码层根本不可见，只能靠实机验证。
 
-> **仍需实机确认的唯一一件事**：在设备上抓一次包，看有没有发往 `255.255.255.255:38850` 的 UDP。
-> 抓到 = 闸门 3 已被补丁放行，失败原因落在开关 4/5；抓不到 = 开关 3 未处理。
+> **仍需实机确认的一件事**（现在只剩验证，不剩判定）：
+> 在设备上抓一次包，看有没有发往 `255.255.255.255:38850` 的 UDP。
+> 按第 1 条，**预期结果是抓不到**；抓到了就说明还有本轮没定位到的改写路径，那才是意外。
 > 本轮无 adb，做不了，已标 `[未验证]` 并报给 Main。
 
 ---

@@ -66,7 +66,16 @@ public sealed class ParameterRow : INotifyPropertyChanged
         var b = s.GetBool(info.Key);
         if (b is not null) return b.Value ? "true" : "false";
         var raw = s.GetRaw(info.Key);
-        if (raw is not null) return raw.Length > 60 ? raw[..60] + "…" : raw;
+        if (raw is not null)
+        {
+            // GetRaw hands back the JSON representation, so a string arrives wrapped in quotes —
+            // which is why anchoring the match at ^AQAA silently did nothing. Match on content,
+            // the same way ReportWriter's backstop does, and keep the quotes out of the display.
+            var shown = raw.Trim().Trim('"');
+            if (System.Text.RegularExpressions.Regex.IsMatch(shown, @"AQAA[A-Za-z0-9+/=]{16,}"))
+                return "(已加密的 DPAPI 密文 · 不显示)";
+            return shown.Length > 60 ? shown[..60] + "…" : shown;
+        }
         return "(未设置 → 用默认值 " + info.Default + ")";
     }
 
