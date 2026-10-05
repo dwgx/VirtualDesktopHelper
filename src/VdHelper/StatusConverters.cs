@@ -29,7 +29,7 @@ public sealed class StatusToBrushConverter : IValueConverter
     /// measured 3.38:1 to 4.49:1, all four below WCAG AA's 4.5:1 for body text, while PassBrush /
     /// WarnBrush / BlockBrush sat unused in App.xaml at 8.93 / 8.37 / 5.27. Two palettes, the
     /// compliant one dead. Ratios recomputed against #101010 after the change: 8.93 / 8.37 / 5.27 /
-    /// 7.24 — every state now passes.
+    /// 5.86 — every state passes AA with room to spare.
     /// </summary>
     private static Brush Resource(string key) =>
         Application.Current?.TryFindResource(key) as Brush
