@@ -21,9 +21,26 @@ public static class HealthHistory
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "VirtualDesktopHelper", "history");
 
-    public sealed record Entry(DateTime At, string Verdict, Dictionary<string, string> Checks);
+    /// <summary>
+    /// One stored run. Status is kept per check, not just the summary text, because the text diff
+    /// cannot answer the question people actually ask: "did this one get worse or better?". A check
+    /// whose summary happens to read the same while its verdict flips would show no change at all.
+    /// </summary>
+    public sealed record Entry(
+        DateTime At,
+        string Verdict,
+        Dictionary<string, string> Checks,
+        Dictionary<string, string> Status);
 
-    public sealed record Change(string Id, string Before, string After, bool IsNew);
+    public sealed record Change(
+        string Id, string Before, string After, bool IsNew,
+        string? FromStatus = null, string? ToStatus = null)
+    {
+        /// <summary>True when the check's verdict moved, regardless of what the text says.</summary>
+        public bool StatusMoved =>
+            !string.IsNullOrEmpty(FromStatus) && !string.IsNullOrEmpty(ToStatus)
+            && !FromStatus.Equals(ToStatus, StringComparison.Ordinal);
+    }
 
     public sealed record Snapshot(DateTime At, HealthVerdict Verdict, string Headline, int Logic);
 
@@ -42,7 +59,8 @@ public static class HealthHistory
     public static IReadOnlyList<Change> Save(HealthReport report)
     {
         var now = new Entry(DateTime.Now, report.Verdict.ToString(),
-            report.Results.ToDictionary(r => r.Id, r => r.Summary));
+            report.Results.ToDictionary(r => r.Id, r => r.Summary),
+            report.Results.ToDictionary(r => r.Id, r => r.Status.ToString()));
 
         var previous = Load();
         var changes = Diff(previous, now);
@@ -91,8 +109,15 @@ public static class HealthHistory
                 changes.Add(new Change(id, "(新增检测项)", summary, true));
                 continue;
             }
-            if (!old.Equals(summary, StringComparison.Ordinal))
-                changes.Add(new Change(id, old, summary, false));
+            before.Status.TryGetValue(id, out var fromStatus);
+            after.Status.TryGetValue(id, out var toStatus);
+            var textMoved = !old.Equals(summary, StringComparison.Ordinal);
+            var verdictMoved = !string.IsNullOrEmpty(fromStatus) && !string.IsNullOrEmpty(toStatus)
+                && !fromStatus.Equals(toStatus, StringComparison.Ordinal);
+            // Either kind of move is a change. Before, a verdict that flipped while the wording
+            // happened to stay identical reported nothing at all.
+            if (textMoved || verdictMoved)
+                changes.Add(new Change(id, old, summary, false, fromStatus, toStatus));
         }
         if (before is not null)
             foreach (var id in before.Checks.Keys)
@@ -113,6 +138,7 @@ public static class HealthHistory
                 headline = report.VerdictText,
                 logic = LogicVersion,
                 checks = entry.Checks,
+                status = entry.Status,
             });
             File.WriteAllText(Path.Combine(Dir, $"run-{entry.At:yyyyMMdd-HHmmss}.json"), payload);
 
@@ -139,7 +165,13 @@ public static class HealthHistory
             var checks = new Dictionary<string, string>();
             foreach (var p in root.GetProperty("checks").EnumerateObject())
                 checks[p.Name] = p.Value.GetString() ?? "";
-            return new Entry(at, "", checks);
+            var status = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (root.TryGetProperty("status", out var st) && st.ValueKind == JsonValueKind.Object)
+                foreach (var p in st.EnumerateObject())
+                    if (p.Value.ValueKind == JsonValueKind.String) status[p.Name] = p.Value.GetString() ?? "";
+            // Runs written before Status existed simply have none; comparisons treat that as unknown
+            // rather than pretending the verdict was Pass.
+            return new Entry(at, "", checks, status);
         }
         catch (Exception ex) when (ex is IOException or JsonException or KeyNotFoundException)
         {

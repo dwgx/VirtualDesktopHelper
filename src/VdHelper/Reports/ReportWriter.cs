@@ -257,6 +257,19 @@ public static class ReportWriter
 
     private static string IsNew(HealthHistory.Change c) => c.IsNew ? "（新增）" : "";
 
+    /// <summary>"通过 → 警告" when the verdict moved, even if the wording did not.</summary>
+    private static string StatusMove(HealthHistory.Change c) =>
+        !c.StatusMoved ? "" : "（" + Cn(c.FromStatus) + " → " + Cn(c.ToStatus) + "）";
+
+    private static string Cn(string? status) => status switch
+    {
+        "Pass" => "通过",
+        "Warn" => "警告",
+        "Block" => "阻断",
+        "Unknown" => "未知",
+        _ => status ?? "?",
+    };
+
     private static string Stats(Meta m) =>
         $"通过 {m.Pass} / 警告 {m.Warn} / 阻断 {m.Block} / 未知 {m.Unknown}，共 {m.Total} 项";
 
@@ -417,7 +430,7 @@ public static class ReportWriter
             sb.AppendLine($"共 {c.List.Count} 处：");
             sb.AppendLine();
             foreach (var x in c.List)
-                sb.AppendLine($"- `{Esc(x.Id)}`{IsNew(x)}：{Redact(x.Before)} → **{Redact(x.After)}**");
+                sb.AppendLine($"- `{Esc(x.Id)}`{StatusMove(x)}{IsNew(x)}：{Redact(x.Before)} → **{Redact(x.After)}**");
             sb.AppendLine();
             return sb.ToString();
         }
@@ -581,7 +594,7 @@ public static class ReportWriter
             }
             sb.AppendLine($"<p>共 {c.List.Count} 处：</p><ul>");
             foreach (var x in c.List)
-                sb.AppendLine($"<li><code>{E(x.Id)}</code>{E(IsNew(x))}：{E(Redact(x.Before))} → <b>{E(Redact(x.After))}</b></li>");
+                sb.AppendLine($"<li><code>{E(x.Id)}</code>{E(StatusMove(x))}{E(IsNew(x))}：{E(Redact(x.Before))} → <b>{E(Redact(x.After))}</b></li>");
             sb.AppendLine("</ul>");
             return sb.ToString();
         }

@@ -225,7 +225,7 @@ public static class SelfTest
             {
                 sb.AppendLine($"与上次相比有 {changes.Count} 处变化：");
                 foreach (var c in changes)
-                    sb.AppendLine($"  [{c.Id}] {c.Before}  ->  {c.After}");
+                    sb.AppendLine($"  [{c.Id}]" + StatusMove(c) + $" {c.Before}  ->  {c.After}");
             }
             else
             {
@@ -269,6 +269,17 @@ public static class SelfTest
             _ => 5,
         };
     }
+
+    private static string StatusMove(HealthHistory.Change c) => !c.StatusMoved ? "" : "  (" + Cn(c.FromStatus) + " → " + Cn(c.ToStatus) + ")";
+
+    private static string Cn(string? status) => status switch
+    {
+        "Pass" => "通过",
+        "Warn" => "警告",
+        "Block" => "阻断",
+        "Unknown" => "未知",
+        _ => status ?? "?",
+    };
 }
 
 /// <summary>Headless remediation: <c>--apply &lt;fixId&gt;</c> runs one repair and reports it.</summary>
@@ -335,8 +346,10 @@ public static class ApplyFix
             Console.WriteLine("（上面这句判定是修复之前算的。重跑一次 --selftest 看现在的状态。）" + report.VerdictText);
         return 0;
     }
+
+    /// <summary>"通过 → 警告" next to the id, when the verdict moved regardless of the wording.</summary>
 }
-/// <summary>
+
 /// Headless parameter write: <c>--set-param &lt;key&gt; &lt;jsonValue&gt;</c>.
 /// Refuses to touch the file while the Streamer is running — its 2 s debounced save would
 /// overwrite us (research/04-streamer-settings), so a silent data loss is not an option.
