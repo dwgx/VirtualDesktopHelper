@@ -95,7 +95,8 @@ public static class ReportWriter
         HealthVerdict Verdict, string Word, string Text,
         IReadOnlyList<int> LivePorts, string LivePeer,
         int Pass, int Warn, int Block, int Unknown, int Total,
-        DateTime At, string Machine, string User, string Os);
+        DateTime At, string Machine, string User, string Os,
+        string FocusTag);
 
     private sealed record Group(
         string ClassId, string Title, string? PhraseLine, string? FirstLook,
@@ -133,7 +134,7 @@ public static class ReportWriter
         Func<Changes, string> tail,
         Func<string[], string> disclaimer)
     {
-        var meta = BuildMeta(report, DateTime.Now);
+        var meta = BuildMeta(report, DateTime.Now, focus);
         var groups = Group_By(report, focus);
         var sb = new StringBuilder();
 
@@ -149,7 +150,15 @@ public static class ReportWriter
         return sb.ToString();
     }
 
-    private static Meta BuildMeta(HealthReport report, DateTime at) => new(
+    /// <summary>
+    /// The flags that produced this report. When a symptom class was chosen, name it — printing
+    /// "[--symptom Sx]" on a report that was in fact generated with S1 tells the reader nothing about
+    /// the artifact in their hands.
+    /// </summary>
+    private static string UsageSuffix(Meta m) =>
+        string.IsNullOrEmpty(m.FocusTag) ? "" : " " + m.FocusTag;
+
+    private static Meta BuildMeta(HealthReport report, DateTime at, SymptomClass? focus) => new(
         report.Verdict, VerdictWord(report.Verdict), Redact(report.VerdictText),
         report.LiveSessionPorts, Redact(report.LiveSessionPeer),
         report.Results.Count(r => r.Status == CheckStatus.Pass),
@@ -157,7 +166,9 @@ public static class ReportWriter
         report.Results.Count(r => r.Status == CheckStatus.Block),
         report.Results.Count(r => r.Status == CheckStatus.Unknown),
         report.Results.Count,
-        at, Environment.MachineName, Environment.UserName, Environment.OSVersion.VersionString);
+        at, Environment.MachineName, Environment.UserName, Environment.OSVersion.VersionString,
+        // Print the class that was actually used, not the Sx placeholder.
+        focus is null ? "" : "--symptom " + focus.Id);
 
     /// <summary>
     /// With a focus, one group in that class's own walk order — the order is the documented
@@ -212,9 +223,11 @@ public static class ReportWriter
         var shown = groups.Sum(g => g.Results.Count);
         if (focus is null)
             return new Intro("未指定症状类：以下是整轮体检结果，按症状类分组。", "", "", shown, 0, true);
+        // The phrase and first-look lines are not repeated here: the one group below prints both
+        // already, and a report people paste into issue threads should not say everything twice.
         return new Intro(
             $"本报告只针对症状类 {focus.Id}「{focus.Title}」——这一类对应你描述的那句人话。",
-            focus.PhraseLine, focus.FirstLook, shown, report.Results.Count - shown, false);
+            "", "", shown, report.Results.Count - shown, false);
     }
 
     /// <summary>
@@ -293,7 +306,7 @@ public static class ReportWriter
         public static string Head(Meta m) => $"""
             # VDHelper 体检报告
 
-            > 生成方式：`VdHelper.exe --report <file> [--symptom Sx]`。可直接贴到社区求助或 GitHub issue。
+            > 生成方式：`VdHelper.exe --report <file>{UsageSuffix(m)}`。可直接贴到社区求助或 GitHub issue。
             > 脱敏口径：不写任何 DPAPI 密文、令牌、账户条目内容；机器名 / 用户名 / 局域网地址保留。
 
             ## 1. 结论
@@ -483,7 +496,7 @@ public static class ReportWriter
             </head>
             <body><main>
             <h1>VDHelper 体检报告</h1>
-            <p class="lead">由 <code>VdHelper.exe --report-html &lt;file&gt; [--symptom Sx]</code> 生成：单文件、内联样式、UTF-8，可直接贴到社区求助或 GitHub issue。原始输出默认折叠。脱敏口径同 Markdown 版——不写任何 DPAPI 密文、令牌、账户条目内容，机器名 / 用户名 / 局域网地址保留。</p>
+            <p class="lead">由 <code>VdHelper.exe --report-html &lt;file&gt;{UsageSuffix(m)}</code> 生成：单文件、内联样式、UTF-8，可直接贴到社区求助或 GitHub issue。原始输出默认折叠。脱敏口径同 Markdown 版——不写任何 DPAPI 密文、令牌、账户条目内容，机器名 / 用户名 / 局域网地址保留。</p>
             <h2 id="verdict">1. 结论</h2>
             <div class="verdict" style="border-left-color:var(--{VerdictClass(m.Verdict)})"><span class="badge b-{VerdictClass(m.Verdict)}">{E(m.Word)}</span><span class="say">{E(m.Text)}</span></div>
             <dl class="meta">
