@@ -121,7 +121,9 @@
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate>
-                    <Expander Background="Transparent" BorderThickness="0">
+                    <Expander Background="Transparent" BorderThickness="0"
+                                AutomationProperties.Name="{Binding AccessibilityName}"
+                                AutomationProperties.HelpText="{Binding Detail}">
                         <Expander.Header>
                             <Grid Background="Transparent">
                                 <Grid.ColumnDefinitions>

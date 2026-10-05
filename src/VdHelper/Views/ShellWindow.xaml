@@ -39,6 +39,7 @@
                                      Fill="{Binding Verdict, Converter={StaticResource StatusBrush}}" />
                                <TextBlock FontFamily="{StaticResource UiFont}" FontSize="{StaticResource BodySize}"
                                           Text="{Binding VerdictText}"
+                                          AutomationProperties.Name="{Binding VerdictText}"
                                           Foreground="{Binding Verdict, Converter={StaticResource StatusBrush}}" />
                            </StackPanel>
                 <Button Grid.Column="2" Content="—" Width="46" MinWidth="46" Padding="0" FontSize="15"

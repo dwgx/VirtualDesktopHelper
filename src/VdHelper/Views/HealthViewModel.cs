@@ -63,6 +63,23 @@ public sealed class CheckRow : INotifyPropertyChanged
     public required string Title { get; init; }
     public CheckStatus Status => Result.Status;
     public string Summary => Result.Summary;
+
+    /// <summary>
+    /// What a screen reader announces for this row. Without it the expander reads as an unnamed
+    /// control and the verdict is only in the colour and the shape — which is exactly the part a
+    /// screen reader cannot see. The official Streamer's XAML carries no AutomationProperties.Name
+    /// anywhere in its tree, so there is nothing to copy here; this is us being better than the
+    /// thing we are imitating.
+    /// </summary>
+    public string AccessibilityName => $"{Title}，{StatusText}：{Summary}";
+
+    private string StatusText => Status switch
+    {
+        CheckStatus.Pass => "通过",
+        CheckStatus.Warn => "警告",
+        CheckStatus.Block => "阻断",
+        _ => "未知",
+    };
     public string Detail => Result.Detail;
     public string EvidenceText => string.Join("\n", Result.Evidence
         .Where(kv => !kv.Key.StartsWith('_'))
