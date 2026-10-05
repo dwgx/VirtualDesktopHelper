@@ -13,6 +13,7 @@ Windows 端 **Virtual Desktop 串流检测 / 诊断 / 修复工具**。
 | 本机体检 | PC 侧网卡 / 防火墙 / 服务 / 配置 / GPU 有没有断链（**36 项**） | 无 |
 | 串流参数 | Streamer 111 个配置键的当前值与含义（DPAPI 密文不显示） | 无 |
 | 头显诊断 | 通过 adb 读头显的包、权限、网络，**并判断应用进程是否还活着** | 头显 USB 连接并授权 |
+| ↑ 第三屏也可以直接命令行跑：`VdHelper.exe --adb`，输出可直接贴进 issue，不必截图 |
 
 顶部常驻总判定：**可串流 / 有隐患 / 阻断**。
 
@@ -67,6 +68,7 @@ Windows 端 **Virtual Desktop 串流检测 / 诊断 / 修复工具**。
 而不是给自己看的控制台流水：
 
 ```powershell
+VdHelper.exe --adb                             REM 头显侧，命令行版（第三屏的等价物）
 VdHelper.exe --report out.md --symptom S2        REM Markdown，适合贴 issue
 VdHelper.exe --report-html out.html --symptom S2  REM 单文件 HTML，原始输出折叠在 <details> 里
 ```

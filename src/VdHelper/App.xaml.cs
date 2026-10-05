@@ -72,6 +72,16 @@ public partial class App : Application
             return;
         }
 
+        // --adb runs the headset probe from the command line. It exists so the headset side is
+        // testable and pasteable without the GUI, and so a support thread can start from one
+        // command rather than a screenshot.
+        if (args.Contains("--adb"))
+        {
+            ClaimConsole();
+            Shutdown(await AdbProbe.RunAsync(args));
+            return;
+        }
+
         if (args.Contains("--deep"))
         {
             ClaimConsole();
@@ -370,5 +380,43 @@ public static class SetParam
             Console.WriteLine("写入失败：" + ex.Message);
             return 6;
         }
+    }
+}
+
+
+/// <summary>Headless run of the adb side: everything the third screen would do, in text.</summary>
+public static class AdbProbe
+{
+    public static async Task<int> RunAsync(string[] args)
+    {
+        var i = Array.IndexOf(args, "--serial");
+        var serial = i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+
+        var adbPath = Core.Adb.AdbLocator.Find();
+        var client = adbPath is null ? null : new Core.Adb.AdbClient(adbPath);
+        if (client is null)
+        {
+            Console.WriteLine("找不到 adb.exe（本机实测 PATH 里没有）。");
+            Console.WriteLine("装 Android platform-tools，或把 adb 放进 PATH 后重试；"
+                + "已知位置见 src/VdHelper/Core/Adb/AdbClient.cs 的候选表。");
+            return 3;
+        }
+
+        var check = await new Core.Adb.HeadsetDeepProbe(client).ProbeAsync(serial ?? "", CancellationToken.None)
+            .ConfigureAwait(false);
+
+        Console.WriteLine($"[{check.Status}] {check.Id}  {check.Summary}");
+        if (!string.IsNullOrWhiteSpace(check.Detail))
+            Console.WriteLine("  " + check.Detail.Replace("\n", "\n  "));
+        foreach (var (k, v) in check.Evidence)
+            Console.WriteLine($"  {k}: {v}");
+        if (!string.IsNullOrWhiteSpace(check.Guidance))
+            Console.WriteLine("  指引：" + check.Guidance);
+        foreach (var f in check.Fixes)
+            Console.WriteLine($"  可修: {f.Id} — {f.Title}（风险 {f.Risk}）");
+
+        // 3 = adb missing or no device, 4 = device reachable but something is wrong, 0 = fine.
+        return check.Status == CheckStatus.Pass ? 0
+            : check.Status == CheckStatus.Warn ? 3 : 4;
     }
 }
