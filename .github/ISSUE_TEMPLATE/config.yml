@@ -1,5 +1,12 @@
 blank_issues_enabled: false
 contact_links:
-  - name: 先看这三页，别直接开 issue
-    url: https://github.com/dwgx/VirtualDesktopHelper/blob/main/docs/faq.html
-    about: 症状分诊表与社区最贵的十个错解，多数「连不上」在这里就能定位。
+  # These point at Markdown, which GitHub renders. The generated docs site (docs/*.html) is nicer
+  # to read but is still raw HTML in a blob view until Pages is enabled, so it is deliberately not
+  # the first thing a reporter is sent to.
+  - name: 检测项全表（每项的判据与证据）
+    url: https://github.com/dwgx/VirtualDesktopHelper/blob/main/docs/checks.md
+    about: 36 项检测逐条列出，含通过判据、失败时的修复动作与回滚方式。排查前先扫一眼，多数问题在这一页就能定位。
+
+  - name: 连不上的常见原因与十个错解
+    url: https://github.com/dwgx/VirtualDesktopHelper/blob/main/README.md#先选症状再看检测
+    about: 哪些是真的断链，哪些是社区里流传但方向就是错的解法（关防火墙、端口转发、改 BIOS……）。

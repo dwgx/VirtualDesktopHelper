@@ -130,7 +130,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\check-symptom-map.ps1 
 
 ## 先读这三页
 
-检测项全表、症状分诊表、社区错解逐条纠偏——都由脚本从调研源文件生成，数字不会和代码脱节：
+检测项全表、症状分诊表、社区错解逐条纠偏——都由脚本从调研源文件生成，数字不会和代码脱节。
+
+> **下面三个是 `.html`，在 GitHub 上看到的是源码，不是渲染后的页面**（本仓库还没开 Pages）。
+> 想直接看内容，点 [`docs/checks.md`](docs/checks.md)（GitHub 会正常渲染），或本地跑一次
+> `tools/export-docs-site.ps1` 再用浏览器打开。
 
 - [常见问题 · 症状分诊 + 错解纠偏](docs/faq.html)
 - [检测项全表 · 怎么查 / 怎么判 / 怎么退](docs/checks.html)

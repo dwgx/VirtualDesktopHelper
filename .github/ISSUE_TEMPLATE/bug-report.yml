@@ -1,60 +1,111 @@
-﻿---
 name: 串流连不上 / 报不出问题
-about: 用 VDHelper 的报告来描述问题，不要手打症状
+description: 用 VDHelper 的报告来描述问题，不要手打症状
 title: "[体检] "
 labels: needs-headset, diagnostics
 assignees: ''
----
 
-## 先做这一步
+# This was a legacy template: front matter with name/about/title/labels and the markdown sitting
+# loose after the closing --- . GitHub treats a .yml here as an issue FORM, and a form without a
+# `body:` key fails schema validation, so the instructions that make this template useful — the
+# whole point of it — never reached anyone. Converted to the documented form shape. Same wording,
+# plus real inputs where a form beats a bullet list.
+body:
+  - type: markdown
+    value: |
+      ## 先做这一步
 
-工具已经把你的机器状态查完了，**报告比症状描述有用得多**。请把下面命令的输出贴上来：
+      工具已经把你的机器状态查完了，**报告比症状描述有用得多**。请先把下面命令的输出生成出来：
 
-```powershell
-# 双击 dist\<版本>\VdHelper.exe 也行，这里只给命令行
-VdHelper.exe --report-html issue.html
-```
+      ```powershell
+      VdHelper.exe --report-html issue.html
+      ```
 
-然后：
+      然后把 `issue.html` **作为附件拖进这个 issue**（单文件、内联样式、UTF-8，可以直接看）。
+      不方便传文件就打开它、全选、粘贴到下面的框里。
 
-1. **把 `issue.html` 作为附件拖进这个 issue**（它是单文件、内联样式、UTF-8，可以直接看）。
-   如果不方便传文件，就打开它、全选、粘贴到代码块里。
-2. 如果你只想让对方看某一类症状，加 `--symptom S1`..`S7`（S1 看不见电脑 / S2 连不上 /
-   S3 不在同一网络 / S4 卡在测速 / S5 有画面但黑 / S6 连上就掉 / S7 画质差不跟手）。
+      只要某一类症状的话，加 `--symptom S1`..`S7`（S1 看不见电脑 / S2 连不上 /
+      S3 不在同一网络 / S4 卡在测速 / S5 有画面但黑 / S6 连上就掉 / S7 画质差不跟手）。
 
-报告里已经有：结论行、机器标识、按症状类分组的每一项检测（含原始输出）、与上次的变化。
+      报告里已经有：结论行、机器标识、按症状类分组的每一项检测（含原始输出）、与上次的变化。
 
-## 如果问题在头显那边
+  - type: markdown
+    value: |
+      ## 为什么别手打症状
 
-```powershell
-VdHelper.exe --adb
-```
+      社区里九成的「连不上」最后落到同一批东西上：发现端口被占、配对开关关着、显示驱动被禁用、
+      无线信道。**这些工具都已经查了**，你手打「连不上」等于把这些线索重新丢回给猜测。
 
-第三屏的命令行版：包名、权限、Wi-Fi、**以及客户端进程是否还活着**。
-输出可直接贴进来，不必截图。先确认 adb 能不能找到设备（没连上会直接说，并给接线指引）。
+  - type: textarea
+    id: report
+    attributes:
+      label: 报告内容
+      description: 把 issue.html 里的内容粘贴到这里，或者直接拖文件当附件。两者有其一即可。
+      placeholder: |
+        从这里开始，把报告内容整段粘进来……
+    validations:
+      required: false
 
-## 为什么别手打症状
+  - type: markdown
+    value: |
+      ## 如果问题在头显那边
 
-社区里九成的「连不上」最后落到同一批东西上：发现端口被占、配对开关关着、显示驱动被禁用、
-无线信道。**这些工具都已经查了**，你手打「连不上」等于把这些线索重新丢回给猜测。
+      ```powershell
+      VdHelper.exe --adb
+      ```
 
-## 报告不能替你回答的
+      第三屏的命令行版：包名、权限、Wi-Fi、**以及客户端进程是否还活着**。
+      输出可直接贴进来，不必截图。先确认 adb 能不能找到设备（没连上会直接说，并给接线指引）。
 
-- **头显到底有没有把发现包发出来** —— 需要抓包（管理员），工具看不到这一段。
-- **头显里那个应用是不是闪退了** —— 如果它打开就退出，那是补丁/账号层面的问题，不在网络检测范围内。
-- 路由器 AP 隔离、访客网络、频段划分 —— 本机没有可编程观测点，工具只能给指引。
+  - type: markdown
+    value: |
+      ## 报告不能替你回答的
 
-## 顺手补充（工具看不到的）
+      - **头显到底有没有把发现包发出来** —— 需要抓包（管理员），工具看不到这一段。
+      - **头显里那个应用是不是闪退了** —— 如果它打开就退出，那是补丁/账号层面的问题，不在网络检测范围内。
+      - 路由器 AP 隔离、访客网络、频段划分 —— 本机没有可编程观测点，工具只能给指引。
 
-<!-- 这些是机器上看不到、但往往决定结论的。留空也行。 -->
+  - type: input
+    id: headset
+    attributes:
+      label: 头显型号与系统版本
+      placeholder: Quest 3 / v74
+    validations:
+      required: false
 
-- 头显型号与系统版本：
-- 你的 PC 是有线还是 Wi-Fi 连的：
-- 头显是 Wi-Fi 还是有线连路由器的：
-- 之前能不能连上、什么时候开始不行：
-- 换过什么（路由器 / 网线 / 固件 / 驱动）：
+  - type: input
+    id: pc-link
+    attributes:
+      label: 你的 PC 是有线还是 Wi-Fi 连的
+      placeholder: 有线
+    validations:
+      required: false
 
-## 隐私
+  - type: input
+    id: headset-link
+    attributes:
+      label: 头显是 Wi-Fi 还是有线连路由器的
+      placeholder: Wi-Fi 5GHz
+    validations:
+      required: false
 
-报告不写任何 DPAPI 密文、令牌、账户条目内容。**但会保留机器名、用户名与局域网地址** ——
-没有它们别人没法判断你的网络环境。贴到公开场合前请自己再看一眼。
+  - type: input
+    id: history
+    attributes:
+      label: 之前能不能连上、什么时候开始不行
+      placeholder: 一直可以，昨天开始
+    validations:
+      required: false
+
+  - type: input
+    id: changed
+    attributes:
+      label: 换过什么（路由器 / 网线 / 固件 / 驱动）
+    validations:
+      required: false
+
+  - type: markdown
+    value: |
+      ## 隐私
+
+      报告不写任何 DPAPI 密文、令牌、账户条目内容。**但会保留机器名、用户名与局域网地址** ——
+      没有它们别人没法判断你的网络环境。贴到公开场合前请自己再看一眼。
