@@ -1,4 +1,6 @@
 ﻿using System.Text.RegularExpressions;
+using System.IO;
+using System.Text.Json;
 using VdHelper.Core.Checks;
 using VdHelper.Core.Config;
 using VdHelper.Core.Diagnosis;
@@ -86,11 +88,58 @@ public static class WindowsStateChecks
                 // who expect VD to prompt them; someone who pairs by picking the computer's name
                 // in the client never sees them fire.
                 var status = neverConnected ? CheckStatus.Block : CheckStatus.Warn;
+
+                // ShowPairingRequests is the one problem here the tool can actually repair, and
+                // the reason it matters is mechanical rather than advisory: when a headset's token
+                // is unknown, the PC raises a pairing event and then falls off the end of the
+                // loop without sending a single byte back
+                // (localization/desktop/decompiled_streamer/VirtualDesktop.Streamer/-/-.112.cs:432-442,
+                // three `continue` paths, none of which reach the reply at :451). With the dialog
+                // suppressed, the headset is told "no computer found" for a reason no log records.
+                var fixes = new List<FixAction>();
+                if (pairingOff)
+                    fixes.Add(new FixAction(
+                        "enable-pairing-requests",
+                        "打开 ShowPairingRequests",
+                        "把 StreamerSettings.json 的 ShowPairingRequests 写成 true",
+                        "StreamerSettings.json.vdhelper.bak",
+                        "把备份文件复制回 StreamerSettings.json",
+                        FixRisk.Low,
+                        async ct =>
+                        {
+                            var p = StreamerSettings.DefaultPath;
+                            if (!File.Exists(p))
+                                return new FixResult(false, "找不到 StreamerSettings.json");
+                            if (System.Diagnostics.Process.GetProcessesByName("VirtualDesktop.Streamer").Length > 0)
+                                return new FixResult(false, "Streamer 正在运行：它有 2 秒防抖保存，会覆盖写入。先退出 Streamer 再执行。");
+                            try
+                            {
+                                using var doc = JsonDocument.Parse("true");
+                                var r = StreamerConfigWriter.Write(p, "ShowPairingRequests", doc.RootElement.Clone());
+                                if (!r.Success) return new FixResult(false, r.Message);
+
+                                // Post-condition, not just "the writer returned". Two repairs shipped
+                                // false successes earlier because they reported a command's exit code
+                                // without checking the thing they were supposed to change.
+                                using var after = JsonDocument.Parse(await File.ReadAllTextAsync(p, ct));
+                                var nowOn = after.RootElement.TryGetProperty("ShowPairingRequests", out var v)
+                                            && v.ValueKind == JsonValueKind.True;
+                                return nowOn
+                                    ? new FixResult(true, "已确认磁盘上 ShowPairingRequests=true，备份在 " + r.BackupPath)
+                                    : new FixResult(false, "写入返回成功，但重新读取文件确认不到该值 —— 已保留备份，请用备份还原");
+                            }
+                            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                                                              or System.Text.Json.JsonException)
+                            {
+                                return new FixResult(false, ex.Message);
+                            }
+                        }));
+
                 return Task.FromResult(new CheckResult("cfg-streamer", status,
                     string.Join("；", problems),
                     "这几项都会让「连不上」看起来像玄学：配对请求被静默忽略、网络告警被屏蔽、从没成功过。",
-                    ev, Array.Empty<FixAction>(),
-                    "配对请求与告警屏蔽只能在 Streamer 界面里改（设置 → 配对请求 / 告警），工具只做定位与指引。"));
+                    ev, fixes,
+                    "网络告警屏蔽只能在 Streamer 界面里改；配对开关下面这一条工具可以直接修（会先备份）。"));
             });
 
     // ---------------------------------------------------------------- Windows state

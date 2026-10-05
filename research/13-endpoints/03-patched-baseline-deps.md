@@ -87,7 +87,13 @@ website: www.vrdesktop.net"），**不是被拨的端点**（`il_ldstr_raw.json`
 | D14 | 同网段/无线/千兆判定 | 纯本地计算（`NetworkInterfaceHelper.GetPrivateAddresses`） | `NetworkManager.cs:1885` | 未触碰 |
 | D15 | 头显 Wi-Fi 连通性（`PerfStatsHelper.GetWifiMetrics`） | 本地；仅用于把警告文案从「不可达」细化成「Not connected to Wi-Fi」 | `NetworkManager.cs:2438-2441` | 未触碰 |
 | D16 | Wi-Fi 锁 `CreateWifiLock(4, "VRD")` | 设备侧，PC 不可查；抑制 Wi-Fi 休眠，与能否连上无关 | `VrApp.cs:80` | 未触碰 |
-| D17 | **`GetHasValidIdentityAsync()` 里的 APK 签名哈希门** | **需要 —— 但补丁后的重签名 APK 过不了（见 §3.3）** | `UserSettings.cs:1743`：`signature.GetHashCode() - 22 == 1778352230 && this._hasValidIdentity` | **无补丁覆盖** |
+| D17 | **`GetHasValidIdentityAsync()` 里的 APK 签名哈希门** | **需要 —— 但补丁后的重签名 APK 过不了（见 §3.3）** | `UserSettings.GetHasValidIdentityAsync`：`signature.GetHashCode() - 22 == 1778352230 && this._hasValidIdentity`。工作区 `apk_patch\decompiled\xenko\VirtualDesktop.Mobile\UserSettings.cs:1743`；`01-endpoint-inventory.md` 用另一版反编译记为 `:1509-1520`（代码字面一致，行号口径不同） | **无补丁覆盖** |
+| D18 | ICMP ping `8.8.8.8`（`TraceRoute`，NAT 分类） | **同网段 LAN 会话里不执行** | 调用点被门控：`NetworkManager.cs:678-682` `if (!computer.IsOnSameNetwork && computer.AllowRemoteConnections) TraceRoute.GetRoutingStatusAsync()`；目标地址常量 `TraceRoute.cs:274` `IPAddress.Parse("8.8.8.8")`，实参 `TraceRoute.cs:133/291` `-c 1 -W 1000 -t {ttl} 8.8.8.8`。只在**远端且不可达**时跑，只决定 "behind a double NAT / CGNAT" 这类**文案** | 未触碰 |
+| D19 | 崩溃 / 错误上报通道 | **客户端侧不存在** | 对 §2 D13 那六棵树 grep `ExceptionReporter\|SendExceptionEmail\|SmartAssemblyException\|ErrorReport` = **0 命中**；`SmartAssembly` 只出现在 `sa\SmartAssembly.Attributes.csproj` 这个**文件名**里。HTTP:80 错误上报是 Streamer 侧（`Xenko.Net` 混淆器）的，不在 Quest 侧 | — |
+
+**D18 补一句**：`8.8.8.8` 在 `01` 的清单里被描述为「无条件打」。按客户端代码它**不是**无条件的 ——
+同网段（`IsOnSameNetwork == true`）时那段 `if` 进不去。`01` 观察到的「无条件」应是在 Streamer 侧
+或未反编译的状态机里。LAN 诊断不应因此报「客户端在打外网」。
 
 ---
 
@@ -152,6 +158,19 @@ return signature.GetHashCode() - 22 == 1778352230 && this._hasValidIdentity;
 discoveryTask = GetHasValidIdentityAsync().ContinueWith(t =>
     (!t.Result) ? EmptyComputersResult : discoveryClient.FindComputersAsync(accessTokens.Item1));
 ```
+
+**这里有一个必须点破的细节，否则容易读反**（`01-endpoint-inventory.md` 的初稿就读反了）：
+`discoveryClient` 是在 `GetHasValidIdentityAsync()` **之前**就 `new` 出来的，但这**不代表广播已发出**。
+`ComputerDiscoveryClient` **没有实例构造函数** —— 我把它反编译后列全了成员，只有
+`static ComputerDiscoveryClient()`（建 `BroadcastEP` / `ListeningEP` / `ComputerSerializer` /
+`_broadcastAes`，**不建 socket、不 Send**）与 `FindComputersAsync` / `StopSearch` / `StopListening` /
+`Dispose` / `CreateBroadcastMessage`。**唯一创建 `UdpClient` 并 `Send` 的代码在 `FindComputersAsync`
+内部**（`ComputerDiscoveryClient.cs:346` `new UdpClient((AddressFamily)2)` → `:358`
+`_broadcastClient.Send(array, array.Length, BroadcastEP)`）。
+而全 store grep `FindComputersAsync` 只有 4 处命中、**唯一 call site 是
+`NetworkManager.cs:100`**，即上面那个 lambda 的 then 分支。`t.Result == false` 时该 lambda
+**根本不被求值** ⇒ 广播窗口（固定 3000 ms）不会启动。
+**构造 ≠ 发起搜索。** 这是本节成立的支点。
 
 `GetHasValidIdentityAsync()` 返回 false ⇒ `FindComputersAsync` 永不被调用 ⇒ 头显永不发
 UDP 38850 ⇒ `_computers.Count == 0` ⇒ UI 报 `"No computer found"`。
@@ -347,10 +366,10 @@ der len: 939 hashCode: 1778352252 delta to 1778352252: 0
 
 ---
 
-## 8. 与 `02-discovery-protocol.md` 的对账（它在本文写作中途落地）
+## 8. 与 `01-endpoint-inventory.md` / `02-discovery-protocol.md` 的对账（两份都在本文写作中途落地）
 
-开工时 `01` / `02` 都不存在（§0）。收工时 `02-discovery-protocol.md` 已由另一位 worker 写出。
-以下是我对它的**修正与补充**，只针对头显侧，PC 侧结论以 `02` 为准。
+开工时 `01` / `02` 都不存在（§0）。收工时两份都已由其他 worker 写出。以下是我对它们的**修正与补充**：
+PC 侧结论以 `02` 为准，端点清单以 `01` 为准，我只对「头显侧」和「补丁后还需不需要」负责。
 
 **8.1 `02` 里 Quest 侧的几行 `查不到` 是找错了文件，不是真的查不到。**
 `02` §6 第 359-361 行说「Quest 侧发给 38850 的请求包构造代码 —— `VirtualDesktop.Net.dll` 的 VD
@@ -378,5 +397,23 @@ der len: 939 hashCode: 1778352252 delta to 1778352252: 0
 头显侧代码里根本没有 38860。`report_sections\02_networking_streaming.md:48` 那张表把它
 当成头显发现端口是错的。§6 第 2 条按此结论。
 
-**8.4 `01-endpoint-inventory.md` 仍未落地**，我 §1 的出口表就是它的候选输入；若它给出不同
-端点，以它为准，但 §2 D1-D17 的「补丁后仍需要？」判定不依赖端点清单。
+**8.4 与 `01-endpoint-inventory.md` 的对账**（它在我收工前落地，我读了它的 §2.1/§2.3/§6 摘要）。
+
+- **采纳它的 §2.1 端点清单**（云端 IP 20.225.41.170 / 40.89.161.236、两个 registry HTTPS、
+  `download.vrdesktop.net/files/version.txt` 仅 PC、AI 端点、Azure Speech、8.8.8.8），
+  与我 §1 独立读出的常量**完全一致**。它额外指出远程中继端口段
+  （38811–38816 / 38821–38826 / 38831–38836 / 38841–38846，由 `% 6` 展开）。
+- **采纳它的关键机制**：`ConnectToComputerAsync` 按 `computer.UdpEndPoint` 是否为 null 分流 ——
+  只有广播发现来的 PC 才有 `UdpEndPoint`（`ComputerDiscoveryClient.cs:128`
+  `computer.UdpEndPoint = udpReceiveResult.RemoteEndPoint`），而 `UdpEndPoint` 没有 `[DataMember]`，
+  云注册表不带它。所以同网段 + 广播通 ⇒ 云端一次都不碰。这**加强**而非削弱 §3.4 的结论。
+- **它的第 2 条我判定为错，已回复纠正**（详见 §3.3 加粗段）：`discoveryClient` 提前 `new` 出来
+  **不等于**广播已发出，因为 `ComputerDiscoveryClient` 没有实例构造函数，唯一建 socket 并
+  `Send` 的代码在 `FindComputersAsync` 内部，而它只有一个 call site 且在 `t.Result == true`
+  的分支里。
+- **它说的「8.8.8.8 无条件打」「SmartAssembly 错误上报无条件发 HTTP:80」，客户端侧均不成立**：
+  前者被 `NetworkManager.cs:678-682` 的 `!IsOnSameNetwork && AllowRemoteConnections` 门控（§2 D18），
+  后者在 Quest 侧六棵反编译树里零命中（§2 D19）—— 那套上报在 Streamer 侧。
+- **分歧仍在 D16/云端点检查**：`01` 建议查 4 个云端点并「只 Warn 不 Block」，我主张
+  **整条删掉**（§4.3）。理由是客户端侧 `if (americaProofValid)` 守卫，与「连不上」无因果通路。
+  这条需要 Main 拍板。
