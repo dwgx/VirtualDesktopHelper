@@ -21,12 +21,20 @@ jobs:
 
       # Headless smoke: exit 0 = streamable, 3 = at risk, 4 = blocked, 5 = the run itself failed.
       # 3 and 4 are legitimate findings on a CI runner, so only 5 (and a crash) fails the job.
+      #
+      # Start-Process -Wait, not the & call operator: VdHelper is a WinExe (GUI subsystem), and
+      # PowerShell does NOT wait for GUI-subsystem processes. `&` returned immediately, so
+      # selftest.txt did not exist yet and $LASTEXITCODE was empty — every run since the workflow
+      # was added failed on a step that passes locally.
       - name: Self test
+        shell: pwsh
         run: |
-          $ErrorActionPreference = 'Continue'
-          & src/VdHelper/bin/Release/net10.0-windows/VdHelper.exe --selftest --out selftest.txt
-          $code = $LASTEXITCODE
-          Get-Content selftest.txt
+          $exe = 'src/VdHelper/bin/Release/net10.0-windows/VdHelper.exe'
+          $p = Start-Process -FilePath $exe -ArgumentList '--selftest','--out','selftest.txt' -Wait -PassThru -NoNewWindow
+          if (Test-Path selftest.txt) { Get-Content selftest.txt }
+          $code = $p.ExitCode
+          Write-Host "exit=$code"
+          if (-not (Test-Path selftest.txt)) { throw "self test produced no output file (exit $code)" }
           if ($code -eq 5) { throw "self test failed to run (exit $code)" }
           if ($code -gt 5 -or $code -lt 0) { throw "self test crashed (exit $code)" }
 

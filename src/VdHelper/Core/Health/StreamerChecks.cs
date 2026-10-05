@@ -236,7 +236,7 @@ public static class StreamerChecks
                         + "**所以「先开头显、后开 Streamer」就会搜不到**——不是坏了，是那 3 秒已经过去了。",
                         ev, Array.Empty<FixAction>(),
                         "顺序永远是先开 PC 上的 Streamer，再在头显里点搜索。"
-                        + "Owners 的补丁基线笔记里也记着同一条：先开 Quest VD 后开 PC Streamer 可能搜不到。");
+                        + "补丁基线的交接笔记里也记着同一条：先开 Quest VD 后开 PC Streamer 可能搜不到。");
 
                 if (live.Count > 0)
                     return new CheckResult("udp-discovery", CheckStatus.Pass,

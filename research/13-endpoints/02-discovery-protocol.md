@@ -596,8 +596,8 @@ $ grep -rhoE "\b388[0-9][0-9]\b" VD-Q/ | sort | uniq -c
 | `_accessTokenGetter` 的实现（token 是否有本地缓存） | 定义在 Quest 的启动层，不在 `VirtualDesktop.Mobile` 里。§7.4 场景 ② 依赖它，**必须实机验证** |
 | AES 的 `CipherMode` | 两端都只 `Aes.Create()` + `PaddingMode.None`，模式取默认值，基类初始化未反编译 |
 | 「提权导致 PC 端配对弹窗不可见」 | 代码里无任何提权/会话分支；`-/-.28.cs:119` 只做 `Dispatcher.BeginInvoke` |
-| `HasValidIdentity` 在补丁 APK 上的实际取值 | 需要在真机上 `adb` 读 `UserSettings`，头显当前不可达 |
-| **补丁基线上是否真的发过 `255.255.255.255:38850`** | 这是区分「闸门 3 未处理」与「闸门 3b/4 丢结果」的唯一判据，必须设备抓包。本轮无 adb |
+| ~~`HasValidIdentity` 在补丁 APK 上的实际取值~~ | **已定论，不用 adb**：补丁未改签名常量（§7.5 第 1 条字节级验证 `0x318cc` 的 `ldc.i4 1778352230` 落在 130 字节改动区间外且逐字节相同），重签名 APK 必然使 `GetHasValidIdentityAsync()` 返回 false |
+| **补丁基线上是否真的发过 `255.255.255.255:38850`** | 现在只剩验证、不剩判定：按上一条**预期抓不到**。抓到才说明存在本轮未定位的改写路径。本轮无 adb |
 | `_hasValidIdentity` 是否只在 `:778/:801` 被写 | 从唯一赋值点推出；`SettingsBase<T>` 的序列化/迁移不在 Quest 侧程序集里，看不到（§7.2）。**但 `:814`/`:818` 的读取是无条件的，不依赖这条** |
 | 38811/21/31/41 在 **PC 侧**是否对称存在 | PC 侧 `VirtualDesktop.Streamer` 反编译树里只见 38810-40/38850/38860；PC 侧远程客户端实现不在本树 → `查不到`（但这不影响端口清单，01 已双侧记录） |
 | D3 探测包在 Windows 上是否产生 ICMP 噪音 | 未实跑 |
@@ -636,6 +636,17 @@ $ grep -n "F5=u" 于 VD-R                                              → 仅 -
 
 $ cd "F:/Project/VirtualDesktop/analysis/apk_patch" && grep -rn "1778352230|GetHasValidIdentityAsync|HasValidIdentity" --include=*.py --include=*.md --include=*.json .
 → 0 命中
+
+$ python -c "blob=open('idx52','rb').read(); pat=open('.../patched_assemblies/Xenko.dll','rb').read(); ..."
+diff bytes: 130   ranges: 38
+0x318cc inside-diff-range=False blob=20 66 80 ff 69 patched=20 66 80 ff 69   (= ldc.i4 1778352230)
+0x13126 inside-diff-range=False blob=20 7c 80 ff 69 patched=20 7c 80 ff 69   (= ldc.i4 1778352252)
+
+$ md5sum "%TEMP%\vd_ep_01\assemblies\VirtualDesktop.Core.dll" "%TEMP%\vd_ep_01\assemblies\idx49"
+27bf89c9e588afe47f82094e2afab477  VirtualDesktop.Core.dll
+27bf89c9e588afe47f82094e2afab477  idx49
+$ cmp -l "F:/.../patched_assemblies/Xenko.OpenXR.dll" idx49 | wc -l
+14
 ```
 
 未跑（本轮无法跑）：`pktmon` 抓包实跑、任何需要 Quest 在场的验证、`adb` 读 `UserSettings.HasValidIdentity`。
