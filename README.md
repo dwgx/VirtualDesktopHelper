@@ -17,10 +17,10 @@ Windows 端 **Virtual Desktop 串流检测 / 诊断 / 修复工具**。
 
 顶部常驻总判定：**可串流 / 有隐患 / 阻断**。
 
-体检第一屏最上面不是 36 行列表，而是**「接下来做什么」**：失败项排最前，
+体检第一屏最上面不是 36 行列表，而是 **「接下来做什么」**：失败项排最前，
 可修的其次，只是解释的再次。判定本身永远由全部 36 项算出，筛选不改变结论。
 
-旁边还有一个**「深度探测丢包」**按钮（等价于命令行 `--deep`）：
+旁边还有一个 **「深度探测丢包」** 按钮（等价于命令行 `--deep`）：
 主体检只做 8 次快速采样，因为主体检的耗时由最慢那一项决定；
 画面卡但各项都绿的时候，按它跑 20 次，同时测默认网关与头显 IP——
 网关也丢是 PC 到路由器这一段，只有头显丢是 Wi-Fi 那一段。
@@ -91,17 +91,34 @@ tools\publish.ps1            REM 构建自包含单文件 + SHA256SUMS + VERSION
 dist\v0.2.0\VdHelper.exe     REM 直接双击用
 ```
 
-无头自检（CI 与脚本用）：
+所有命令行的用法。退出码写在下表里，脚本可以直接判：
+
+| 命令 | 作用 | 退出码 |
+|---|---|---|
+| `VdHelper.exe` | 打开界面（三个标签页） | — |
+| `--selftest [--out f] [--symptom S1..S7]` | 无头自检 | `0` 可串流 / `3` 有隐患 / `4` 阻断 / `5` 运行失败 |
+| `--adb [--serial S]` | 头显侧，第三屏的命令行等价物 | `0` 正常 / `3` 有隐患 / `4` 未连上或不可用 |
+| `--deep [--samples N]` | 丢包与抖动深度探测（默认 20 次采样，约 20 秒） | `0` 完成 |
+| `--report f.md` / `--report-html f.html` | 写成能直接贴进 issue 的成品 | 同 `--selftest` |
+| `--apply --list` | 列出本轮可自动修复的项 | `0` |
+| `--apply <fixId>` | 执行一项修复（会先备份，可回滚） | `0` 成功 / `6` 失败 / `9` 没有匹配的修复项 |
+| `--set-param <key> <json>` | 直接写一个配置键 | `0` 成功并已回读确认 / `2` 未知键 / `7` 只读或不在本机 / `8` Streamer 在运行 / `6` 写失败 |
+
+常用组合：
 
 ```powershell
-VdHelper.exe --selftest --out report.txt   # 退出码 0=可串流 3=有隐患 4=阻断 5=运行失败
+VdHelper.exe --report-html issue.html --symptom S2   REM 最常被要的那一份
+VdHelper.exe --apply --list                          REM 先看能修什么，再决定修不修
+VdHelper.exe --set-param ShowPairingRequests true    REM 需要先退出 Streamer
 ```
 
 开发：
 
 ```powershell
 dotnet build src/VdHelper/VdHelper.csproj -c Release
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\export-checks.ps1   # 重新生成 docs/checks.md
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\publish.ps1        # 构建 + SHA256 + 自检
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\export-checks.ps1    # 重新生成 docs/checks.md
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\check-symptom-map.ps1   # 反漂移闸门，README 数字也会被它核对
 ```
 
 ## 先读这三页

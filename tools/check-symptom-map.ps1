@@ -85,7 +85,44 @@ if (Test-Path -LiteralPath $readmePath) {
     }
 }
 
-if ($dangling -or $unreachable -or $readmeStale) { exit 1 }
+# Emphasis markers that CommonMark will not open. "\u300c" and friends count as punctuation, so
+# "**\u4e2a\u300c\u6b63\u6587\u300d\u201d" is not a valid left-flanking opener and GitHub prints the
+# asterisks literally. Caught twice on the README by rendering it, never by reading the source.
+$punct = @([char]0x300C, [char]0x300D, [char]0x300E, [char]0x300F, [char]0xFF08, [char]0xFF09,
+           [char]0xFF1A, [char]0xFF0C, [char]0x3002, [char]0x3001, [char]0xFF1B, [char]0xFF01)
+$emphBroken = $false
+foreach ($md in @('README.md', 'docs/RELEASE-0.2.0.md')) {
+    $mdPath = Join-Path $root $md
+    if (-not (Test-Path -LiteralPath $mdPath)) { continue }
+    $lineNo = 0
+    $tick = [string][char]0x60
+    foreach ($line in [System.IO.File]::ReadAllLines($mdPath, [System.Text.Encoding]::UTF8)) {
+        $lineNo++
+        $seen = 0
+        $inCode = $false
+        for ($c = 0; $c -lt $line.Length - 1; $c++) {
+            if ($line[$c] -eq [char]$tick) { $inCode = -not $inCode; continue }
+            # Asterisks inside a code span are literal by design: the release notes document a
+            # rendering bug by writing the broken markup out.
+            if ($inCode) { continue }
+            if ($line[$c] -ne '*' -or $line[$c + 1] -ne '*') { continue }
+            $isOpener = ($seen % 2) -eq 0
+            $seen++
+            if (-not $isOpener -or $c -eq 0) { continue }
+            $prev = $line[$c - 1]
+            $next = if ($c + 2 -lt $line.Length) { $line[$c + 2] } else { ' ' }
+            # An opener needs a non-space on its left and a non-punctuation on its right. Text
+            # running straight into a CJK bracket fails the second half and prints the asterisks.
+            if ($punct -contains $next -and -not [char]::IsWhiteSpace($prev) -and -not ($punct -contains $prev)) {
+                Write-Host ""
+                Write-Host ("FAIL " + $md + ":" + $lineNo + " 的 ** 紧跟在文字后、又紧挨中文标点，GitHub 会原样输出星号") -ForegroundColor Red
+                $emphBroken = $true
+            }
+        }
+    }
+}
+
+if ($dangling -or $unreachable -or $readmeStale -or $emphBroken) { exit 1 }
 Write-Host ""
 Write-Host "OK  症状表与检测项一一对应，README 计数同步" -ForegroundColor Green
 exit 0
