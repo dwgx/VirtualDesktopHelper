@@ -8,7 +8,7 @@
 ```powershell
 VdHelper.exe --report out.md --symptom S2        REM Markdown，适合贴 issue
 VdHelper.exe --report-html out.html --symptom S2  REM 单文件 HTML，原始输出折叠在 <details> 里
-VdHelper.exe --report out.md                      REM 不带 --symptom：按 7 个症状类分组输出全部 25 项
+VdHelper.exe --report out.md                      REM 不带 --symptom：按 7 个症状类分组输出全部 35 项（PC 侧判定项）
 ```
 
 退出码与 `--selftest` 一致：`0` 可串流 / `3` 有隐患 / `4` 阻断 / `5` 运行失败 / `2` 参数写错。

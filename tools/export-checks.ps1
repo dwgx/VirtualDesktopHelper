@@ -45,7 +45,20 @@ foreach ($line in $lines) {
 [void]$sb.AppendLine('检测项的完整定义（症状 / 检查命令 / 判据 / 修复动作 / 回滚 / 风险）见')
 [void]$sb.AppendLine('`research/02-network-diagnosis/02-pc-checklist.md`，实现见 `src/VdHelper/Core/Health/`。')
 [void]$sb.AppendLine()
-[void]$sb.AppendLine('参数项（111 个，含 18 个只读）见 `research/04-streamer-settings/01-config-keys.md`，')
+$paramPath = Join-Path $root 'src/VdHelper/Resources/parameters.json'
+$paramCount = 0
+$roCount = 0
+$roSecret = 0
+if (Test-Path -LiteralPath $paramPath) {
+    $params = Get-Content -Raw -Encoding UTF8 -LiteralPath $paramPath | ConvertFrom-Json
+    if ($params -is [System.Array]) { $plist = @($params) } else { $plist = @($params.parameters) }
+    $paramCount = $plist.Count
+    $ro = @($plist | Where-Object { $_.readOnly })
+    $roCount = $ro.Count
+    $roSecret = @($ro | Where-Object { $_.secret }).Count
+}
+$paramLine = '参数项（{0} 个，含 {1} 个只读，其中 {2} 个是配对密文）见 `research/04-streamer-settings/01-config-keys.md`，' -f $paramCount, $roCount, $roSecret
+[void]$sb.AppendLine($paramLine)
 [void]$sb.AppendLine('由 `tools/extract-parameters.py` 生成到 `src/VdHelper/Resources/parameters.json`。')
 [void]$sb.AppendLine()
 [void]$sb.AppendLine('头显侧判定规则见 `research/06-adb-headset/03-symptom-decision-table.md`。')

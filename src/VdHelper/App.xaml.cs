@@ -147,11 +147,10 @@ public static class SelfTest
         HealthReport? report = null;
         try
         {
-            report = await HealthEngine.RunAsync(CancellationToken.None);
-            var changes = HealthHistory.Save(report);
-
-            // --symptom narrows the report to one user-reported failure mode. It is also the
-            // natural support artefact: "run this and send me the output".
+            // Validate --symptom before probing anything. This used to sit after the health run,
+            // so a typo cost a full sweep of the machine: 6323 ms against 193 ms for the same typo
+            // on --report, and 6818 ms for a real run. The argument is known before the first
+            // probe starts; reading it afterwards is what made the two paths disagree.
             var symptomId = string.Empty;
             var si = Array.IndexOf(args, "--symptom");
             if (si >= 0 && si + 1 < args.Length) symptomId = args[si + 1];
@@ -162,6 +161,12 @@ public static class SelfTest
                     string.Join("/", SymptomCatalog.All.Select(s => s.Id)));
                 return 2;
             }
+
+            report = await HealthEngine.RunAsync(CancellationToken.None);
+            var changes = HealthHistory.Save(report);
+
+            // --symptom narrows the report to one user-reported failure mode. It is also the
+            // natural support artefact: "run this and send me the output".
 
             if (focus is not null)
                 sb.AppendLine($"症状类 {focus.Id}「{focus.Title}」：{focus.PhraseLine}\n重点：{focus.FirstLook}\n");

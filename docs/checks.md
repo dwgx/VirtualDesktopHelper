@@ -1,9 +1,9 @@
 # 检测项清单（自动生成）
 
 > 由 `tools/export-checks.ps1` 从 `VdHelper.exe --selftest` 的真实运行结果生成，**不要手工编辑**。
-> 生成时间以 git 提交为准；本机实测退出码 4（0=可串流 3=有隐患 4=阻断）。
+> 生成时间以 git 提交为准；本机实测退出码 3（0=可串流 3=有隐患 4=阻断）。
 
-本机最近一次结论：VDHelper selftest  verdict=Blocked  阻断：有检查项失败，串流很可能起不来
+本机最近一次结论：VDHelper selftest  verdict=AtRisk  有隐患：能串但可能不稳或掉帧
 
 ## 本机实测结果
 
@@ -17,40 +17,40 @@
 | 警告 | **fw-defender** | Defender 防火墙：Domain     True / Private   False / Public    False |
 | 通过 | **svc-vd** | VirtualDesktop.Service.exe Running Automatic |
 | 通过 | **port-vd** | 4 个端口由 Virtual Desktop 持有，没有被别的程序抢占 |
-| 通过 | **session-stale** | 当前没有活动会话；1 个残留通道都不在本网段（是连官方服务器留下的，不是头显） |
+| 警告 | **session-stale** | 4 个到头显的通道仍是已建立状态（最早建立于 1 小时 15 分前） |
 | 通过 | **streamer-proc** | Streamer 进程运行中（1 个） |
 | 警告 | **svc-log** | 服务日志有 5 条历史 ERROR（最近一次 2026-09-18 15:37:35.6962），但 Streamer 正在运行 |
-| 通过 | **udp-discovery** | UDP 38850 正在监听（发现/配对协议就绪） |
+| 通过 | **udp-discovery** | 串流中，Streamer 已释放发现端口（正常） |
 | 警告 | **cfg-streamer** | ShowPairingRequests=false：靠弹窗配对新头显会被静默忽略（靠名字在客户端选则不受影响）；DontWarnApps 含 NetworkProfile：官方自己的网络告警被屏蔽了；AutoAdjustBitrate=false：自动调码率已关，卡在「measuring bandwidth」时社区的首选解法就是把它打开 |
 | 警告 | **ics** | SharedAccess(ICS)：Running |
 | 通过 | **fw-outbound** | 出站策略：Domain          NotConfigured / Private         NotConfigured / Public          NotConfigured |
 | 通过 | **av** | 已注册杀软：Windows Defender（productState 原值见下方原始输出，未解码：那是各版本含义不一的位掩码） |
 | 通过 | **route-metric** | 有线网卡优先级 10，没有虚拟网卡排在它前面 |
 | 通过 | **link-type** | PC 走有线（Ethernet） |
-| 阻断 | **lan-reach** | 头显 192.168.11.14 ping 不通（ARP 缓存里也没有它） |
+| 通过 | **lan-reach** | 头显 192.168.11.14 可达（ping 2 ms） |
 | 通过 | **link-rate** | Ethernet 协商速率 1 Gbps |
 | 通过 | **vpn-proc** | 没有发现 VPN/代理客户端进程 |
 | 通过 | **rdp-session** | 只有本机 console 会话（1 条），没有远程桌面在跑 |
-| 通过 | **nat-type** | 路由器支持 UPnP（UPnP / SSDP），NAT 类型 Cone/Restricted；外网 IP 是 172.16.80.42（私有段），上级还有一层 NAT——这只影响异地连接，不影响同网段 |
+| 通过 | **nat-type** | 路由器支持 UPnP（UPnP / SSDP），NAT 类型 Open；外网 IP 是 172.16.80.42（私有段），上级还有一层 NAT——这只影响异地连接，不影响同网段 |
 | 通过 | **fw-pair** | 入站放行有效（Virtual Desktop Streamer），没有针对 VD 的出站拦截 |
 | 通过 | **accounts-persisted** | 配对信息已落盘（OculusQuest 1 条、Oculus 3 条），设备名 Meta Quest 3 |
 | 警告 | **fw-profile-inbound** | profile 默认入站：Domain     True        NotConfigured / Private   False        NotConfigured / Public    False        NotConfigured |
 | 警告 | **gpu-pick** | Virtual Desktop Monitor |
-| 警告 | **proc-tuner** | 按进程名命中硬件调校类 6 个（未测 CPU 占用或线程优先级，只按名字匹配） |
+| 警告 | **proc-tuner** | 按进程名命中硬件调校类 5 个（未测 CPU 占用或线程优先级，只按名字匹配） |
 | Unknown | **nic-powersave** | 读不到网卡电源管理属性 |
 | 警告 | **display-inventory** | Virtual Desktop Monitor(Error) |
 | 通过 | **cfg-version** | Streamer 版本 1.34.22.0 |
-| 通过 | **gpu-encoder** | 硬件编码器空闲（当前 0 个编码会话） |
-| 警告 | **gpu-throttle** | GPU 跑在最高频率的 62%（1905/3090 MHz），温度只有 52°C |
+| 通过 | **gpu-encoder** | 硬件编码器正在工作（1 个编码会话） |
+| 警告 | **gpu-throttle** | GPU 占用 73% 却只跑在最高频率的 75%（2317/3090 MHz，温度 72°C）。驱动没有报任何降频原因，所以这不是功耗墙也不是过热——原因不明，如实写在这里。 |
 | Unknown | **wifi-quality** | 无线未连接（disconnected），这一项没有测到任何链路数据 |
-| 警告 | **net-loss** | 头显 192.168.11.14 完全不应答（0 收到） |
+| 通过 | **net-loss** | 没有测到丢包（快速采样 8 次） |
 
 ## 检查项定义与来源
 
 检测项的完整定义（症状 / 检查命令 / 判据 / 修复动作 / 回滚 / 风险）见
 `research/02-network-diagnosis/02-pc-checklist.md`，实现见 `src/VdHelper/Core/Health/`。
 
-参数项（111 个，含 18 个只读）见 `research/04-streamer-settings/01-config-keys.md`，
+参数项（111 个，含 19 个只读，其中 18 个是配对密文）见 `research/04-streamer-settings/01-config-keys.md`，
 由 `tools/extract-parameters.py` 生成到 `src/VdHelper/Resources/parameters.json`。
 
 头显侧判定规则见 `research/06-adb-headset/03-symptom-decision-table.md`。
