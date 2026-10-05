@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+﻿﻿﻿﻿﻿using System.Diagnostics;
 using System.Globalization;
 using VdHelper.Core.Checks;
 using VdHelper.Core.Model;
@@ -18,8 +18,12 @@ namespace VdHelper.Core.Health;
 public static class GpuRuntimeChecks
 {
     private const string SmiArgs =
+        // power.draw and clocks_event_reasons.active are the two fields that answer "why is it not at
+        // max clock". Without them the check named a power wall it had not measured a watt of. Both
+        // verified present on this machine before being asked for.
         "--query-gpu=name,clocks.current.graphics,clocks.max.graphics,temperature.gpu," +
-        "utilization.gpu,encoder.stats.sessionCount --format=csv,noheader,nounits";
+        "utilization.gpu,encoder.stats.sessionCount,power.draw,clocks_event_reasons.active" +
+        " --format=csv,noheader,nounits";
 
     public static IReadOnlyList<ICheck> Create() => [GpuEncoderCheck(), GpuThrottleCheck()];
 
@@ -70,6 +74,10 @@ public static class GpuRuntimeChecks
                     ["频率比"] = ratio.ToString("P0", CultureInfo.InvariantCulture),
                     ["温度"] = f.TemperatureC + " °C",
                     ["GPU 占用"] = f.Utilization + " %",
+                    ["功耗"] = f.PowerDrawW is null ? "读不到" : f.PowerDrawW.Value.ToString("0.0", CultureInfo.InvariantCulture) + " W",
+                    ["降频原因位域"] = f.ThrottleReasons is null
+                        ? "读不到（驱动未报此字段）"
+                        : "0x" + f.ThrottleReasons.Value.ToString("X", CultureInfo.InvariantCulture),
                 };
 
                 if (f.TemperatureC >= 85)
@@ -79,21 +87,102 @@ public static class GpuRuntimeChecks
                         ev, Array.Empty<FixAction>(),
                         "先看散热：清灰、垫高、进风口是否被挡。这类「画质莫名变差」的帖子最后往往落到这一步。");
 
-                if (ratio > 0 && ratio < 0.8)
-                    return new CheckResult("gpu-throttle", CheckStatus.Warn,
-                        $"GPU 跑在最高频率的 {ratio:P0}（{f.CurrentClock}/{f.MaxClock} MHz），温度只有 {f.TemperatureC}°C",
-                        "温度不高却上不了满频，通常是**功耗墙**而不是过热：混合输出、独显没接在满功耗档、"
-                        + "或者驱动限了。编码器跟着一起慢下来，码率就上不去。",
+                // Judge on what the driver says it is doing, not on the clock ratio alone. A card
+                // at 47% load is supposed to sit below its boost clock; that is not a fault and it is
+                // certainly not a power wall.
+                if (f.ThrottleReasons is null)
+                    return new CheckResult("gpu-throttle", CheckStatus.Unknown,
+                        $"GPU 跑在最高频率的 {ratio:P0}（{f.CurrentClock}/{f.MaxClock} MHz），"
+                        + "但驱动没有报告 clocks_event_reasons，这一项无法判断原因——"
+                        + "不猜。频率比低本身在低负载下是正常的。",
+                        "这一项以前在没有读 clocks_event_reasons 的情况下把原因写成「通常是功耗墙」——"
+                        + "一个瓦都没量。现在字段读不到，就如实说读不到。",
                         ev, Array.Empty<FixAction>(),
-                        "检查笔记本是不是插电、显卡驱动有没有限功耗；这一项与「码率上不去」直接相关。");
+                        "频率比低不等于出问题了。这一项要等驱动报出降频原因才判得。");
+
+                var reasons = f.ThrottleReasons.Value;
+                var real = reasons & RealThrottle;
+                if (real != 0)
+                {
+                    var why = string.Join("、", DescribeReasons(reasons));
+                    var watts = f.PowerDrawW is null ? "" : $"，当前功耗 {f.PowerDrawW:0.#} W";
+                    return new CheckResult("gpu-throttle", CheckStatus.Warn,
+                        $"GPU 被压在最高频率的 {ratio:P0}（{f.CurrentClock}/{f.MaxClock} MHz）"
+                        + $"（占用 {f.Utilization}%，温度 {f.TemperatureC}°C{watts}）。"
+                        + $"驱动报的降频原因：{why}。",
+                        "原因来自 nvidia-smi 的 clocks_event_reasons.active 位域，是驱动自己报的，"
+                        + "不是从频率比推出来的。",
+                        ev, Array.Empty<FixAction>(),
+                        "这是驱动自己报的原因，不是推断。看那一条决定下一步。");
+                }
+
+                // No throttle reason set. If the card is busy and still not boosting, that is the
+                // interesting case — and it is not one this tool has an explanation for.
+                if (ratio > 0 && ratio < 0.8 && f.Utilization >= 60)
+                    return new CheckResult("gpu-throttle", CheckStatus.Warn,
+                        $"GPU 占用 {f.Utilization}% 却只跑在最高频率的 {ratio:P0}"
+                        + $"（{f.CurrentClock}/{f.MaxClock} MHz，温度 {f.TemperatureC}°C）。"
+                        + "驱动没有报任何降频原因，所以这不是功耗墙也不是过热——"
+                        + "原因不明，如实写在这里。",
+                        "占用不低、频率没上去、而驱动说它没有降频。这三种同时成立时，"
+                        + "功耗墙和过热都可以排除，但本工具给不出剩下的那种原因。",
+                        ev, Array.Empty<FixAction>(),
+                        "负载不低但没跑满频率，而驱动说它没被限制。这一项本工具给不出原因，"
+                        + "需要看驱动侧或第三方工具。");
 
                 return new CheckResult("gpu-throttle", CheckStatus.Pass,
-                    $"GPU 频率正常（{f.CurrentClock}/{f.MaxClock} MHz = {ratio:P0}，{f.TemperatureC}°C）",
-                    "没有被温度或功耗压着。", ev, Array.Empty<FixAction>());
+                        $"GPU 跑在最高频率的 {ratio:P0}，占用 {f.Utilization}%、"
+                        + $"温度 {f.TemperatureC}°C。"
+                        + "驱动没有报任何降频原因——不是被压着。",
+                        $"占用 {f.Utilization}%、降频原因位域 0x{reasons:X}，两条都不支持「被压着」的判断。",
+                        ev, Array.Empty<FixAction>());
+
             });
 
+    /// <summary>Throttle reasons, null when the driver did not report the field.</summary>
+    private static ulong? TryParseReasons(string cell)
+    {
+        var s = cell.Trim();
+        // The driver prints 0x0000000000000000. A [N/A] cell means the field is unavailable, which is
+        // not the same as "no throttling" and must not be read as 0.
+        if (s.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            && ulong.TryParse(s.AsSpan(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var v))
+            return v;
+        return ulong.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var d) ? d : null;
+    }
+
+    // NVIDIA clocks_event_reasons bits. Idle, ApplicationsClocksSetting and DisplayClockSetting are
+    // normal states, not throttling; the rest are reasons the card is held below its boost clock.
+    private const ulong GpuIdle = 1UL << 0;
+    private const ulong ApplicationsClocks = 1UL << 1;
+    private const ulong SwPowerCap = 1UL << 2;
+    private const ulong HwSlowdown = 1UL << 3;
+    private const ulong SyncBoost = 1UL << 4;
+    private const ulong SwThermalSlowdown = 1UL << 5;
+    private const ulong HwThermalSlowdown = 1UL << 6;
+    private const ulong HwPowerBrake = 1UL << 7;
+    private const ulong DisplayClockSetting = 1UL << 8;
+
+    /// <summary>Bits that mean the card is actually being held down.</summary>
+    private const ulong RealThrottle =
+        SwPowerCap | HwSlowdown | SwThermalSlowdown | HwThermalSlowdown | HwPowerBrake;
+
+    private static IEnumerable<string> DescribeReasons(ulong r)
+    {
+        if ((r & SwPowerCap) != 0) yield return "软件功耗墙 (SW Power Cap)";
+        if ((r & HwPowerBrake) != 0) yield return "硬件功耗刹车 (HW Power Brake)";
+        if ((r & SwThermalSlowdown) != 0) yield return "软件温度降频 (SW Thermal)";
+        if ((r & HwThermalSlowdown) != 0) yield return "硬件温度降频 (HW Thermal)";
+        if ((r & HwSlowdown) != 0) yield return "硬件减速 (HW Slowdown)";
+        if ((r & SyncBoost) != 0) yield return "Sync Boost 生效";
+        if ((r & ApplicationsClocks) != 0) yield return "应用时钟档位已设定";
+        if ((r & DisplayClockSetting) != 0) yield return "显示时钟档位已设定";
+        if ((r & GpuIdle) != 0) yield return "GPU 空闲";
+    }
+
     private readonly record struct SmiRow(
-        string Name, int CurrentClock, int MaxClock, int TemperatureC, int Utilization, int EncoderSessions);
+        string Name, int CurrentClock, int MaxClock, int TemperatureC, int Utilization, int EncoderSessions,
+        double? PowerDrawW, ulong? ThrottleReasons);
 
     private static async Task<SmiRow?> QuerySmiAsync(CancellationToken ct)
     {
@@ -120,7 +209,7 @@ public static class GpuRuntimeChecks
             var first = text.Split('\r', '\n').FirstOrDefault(l => l.Trim().Length > 0);
             if (first is null) return null;
             var parts = first.Split(',').Select(x => x.Trim()).ToArray();
-            if (parts.Length < 6) return null;
+            if (parts.Length < 8) return null;
 
             return new SmiRow(
                 parts[0],
@@ -128,7 +217,9 @@ public static class GpuRuntimeChecks
                 int.TryParse(parts[2], out var m) ? m : 0,
                 int.TryParse(parts[3], out var t) ? t : 0,
                 int.TryParse(parts[4], out var u) ? u : 0,
-                int.TryParse(parts[5], out var e) ? e : 0);
+                int.TryParse(parts[5], out var e) ? e : 0,
+                double.TryParse(parts[6], NumberStyles.Float, CultureInfo.InvariantCulture, out var w) ? w : null,
+                TryParseReasons(parts[7]));
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception
                                       or InvalidOperationException or System.IO.IOException)

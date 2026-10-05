@@ -33,8 +33,9 @@ Windows 端 **Virtual Desktop 串流检测 / 诊断 / 修复工具**。
 - **Virtual Desktop Monitor 显示驱动是禁用的**：`ConfigManagerErrorCode=22`（ERROR_DISABLED）。
   两个独立来源（CIM 与 `Get-PnpDevice`）给出同一结论。这一条正好落在「连上但没画面」上。
   工具只报不改——改显示驱动可能让画面彻底出不来。
-- **GPU 没跑在满频，原因是功耗墙不是温度**：频率在最高值的 76–89% 浮动，温度始终只有 52–56°C。
-  两者的修法完全不同：过热要清灰垫高，功耗墙要查插电状态与驱动限功耗。
+- **GPU 没跑在满频，但这不是问题**：频率在最高值的 74% 附近，占用只有 47–52%，
+  驱动报的降频原因位域是 `0x0`（一条降频都没有），功耗 72 W。这一条以前写成「原因是功耗墙不是温度」——
+  一个瓦都没量。现在 GPU 只要负载高、频率却上不去，而驱动说它没被限制，这一项会明写「原因不明」。
 - **防火墙「关了」不等于「不拦」**：Private/Public profile 整个是关的，
   但三个 profile 的 `DefaultInboundAction` 都是 `NotConfigured`，语义上等于 Block。
 - **发现端口被占，日志里查不到**：Streamer 用 `new UdpClient` 独占绑定 38850，绑不上时异常被静默吞掉。
