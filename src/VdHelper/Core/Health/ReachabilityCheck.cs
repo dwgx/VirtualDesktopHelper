@@ -76,6 +76,13 @@ public static class ReachabilityCheck
                 // device behind reassuring wording.
                 var reachable = neighbor.Count > 0
                     && neighbor.Any(n => n.StartsWith("Reachable", StringComparison.OrdinalIgnoreCase));
+                // The state exactly as Windows reports it. Reachable, Stale, Probe and Incomplete
+                // mean different things, and only Reachable proves the device is on this link.
+                // Checked rather than assumed: a local address that stops answering goes to Probe,
+                // not Stale, and this headset's entry was seen in both within minutes — so wording
+                // that said "已过期" for everything non-Reachable would have named a state the
+                // tool never saw.
+                var stateName = neighbor.Count == 0 ? "" : neighbor[0].Split('|')[0].Trim();
                 ev["邻居表"] = neighbor.Count == 0
                     ? "(ARP 缓存里没有这台设备 → 它当前不在这个链路上)"
                     : string.Join(" ;; ", neighbor)
@@ -119,12 +126,20 @@ public static class ReachabilityCheck
                     + "先开头显、后开 PC 上的 Streamer，就一定搜不到——这不是坏了，是那 3 秒已经过去了。";
                 return new CheckResult("lan-reach", CheckStatus.Block,
                     $"头显 {ip} ping 不通"
-                    + (absent ? "（ARP 缓存里也没有它）" : "（但 ARP 缓存里有它）"),
+                    + (absent
+                        ? "（ARP 缓存里也没有它）"
+                        : reachable
+                            ? "（邻居表状态 Reachable：它在这条链路上）"
+                            : $"（邻居表里有记录，但状态是 {stateName}，不是 Reachable）"),
                     (absent
                         ? "两件事同时成立：它不在这个链路上，而且它上次的地址也不再通。"
                         + "最常见的是头显改了 IP（DHCP 续租后跳号）、连到了访客网络、或者根本没连 Wi-Fi。"
-                        : "ARP 缓存里有它，说明它在这条链路上，只是 ping 被挡或它不响应 ICMP —— "
-                        + "这种情况更像 AP 隔离或来宾网络。") + notNetwork,
+                        : reachable
+                            ? "邻居表状态是 Reachable：它最近还在这条链路上回应过这台 PC，所以只是 ping 被挡或它不响应 ICMP —— 这种情况更像 AP 隔离或来宾网络。"
+                            : stateName.Equals("Stale", StringComparison.OrdinalIgnoreCase)
+                                ? "邻居表里有它的记录，但状态是 Stale：这只说明它**曾经在**这条链路上，记录已经过期，不能证明它现在还在。更可能是它改了 IP 或者连去了别的网段。"
+                                : $"邻居表里有它的记录，但状态是 {stateName}，不是 Reachable——此刻它在链路那一头没有回应。更像是它关了 Wi-Fi、掉电，或者连到了别的网段，而不是被 AP 隔离挡住。")
+                    + notNetwork,
                     ev, Array.Empty<FixAction>(),
                     absent
                         ? "先在头显「设置 → Wi-Fi」里看一眼当前 IP，填回上面那个框；"
