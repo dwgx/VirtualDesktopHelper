@@ -189,6 +189,11 @@ public static class StreamerChecks
                         "需要管理员权限才能枚举全部监听套接字。");
                 }
 
+                ev["查询方式"] = "IPGlobalProperties.GetIPGlobalProperties().GetActiveUdpListeners()";
+                ev["查询范围"] = "端口 38850（发现/配对收包）与 38860（PC 存在广播）";
+                ev["枚举结果"] = listeners.Count == 0
+                    ? "枚举成功；在这两个端口上找到 0 个监听套接字"
+                    : "枚举成功；找到 " + listeners.Count + " 个：" + string.Join("、", listeners.Select(l => l.Key));
                 // Who owns the port matters as much as whether it is bound. The Streamer opens
                 // 38850 with `new UdpClient` and swallows the exception if the bind fails
                 // (research/13-endpoints/02-discovery-protocol.md, VD-R/-.112.cs:281/330/:454-456),
