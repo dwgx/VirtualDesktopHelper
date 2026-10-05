@@ -48,10 +48,33 @@ public sealed class HeadsetProbe(AdbClient adb)
                 Array.Empty<FixAction>(), "adb 可能被占用；关掉其它工具再试。");
 
         if (serials.Count == 0)
-            return new CheckResult("adb", CheckStatus.Warn, "没有连着的头显",
-                "用 USB 连接头显并在头显里点「允许 USB 调试」，或先在 PC 上开无线调试。",
+        {
+            var configured = ConfigFile.Read<string>(Health.ReachabilityCheck.IpKey);
+            var reachable = false;
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                try
+                {
+                    using var ping = new System.Net.NetworkInformation.Ping();
+                    reachable = (await ping.SendPingAsync(configured, 800).ConfigureAwait(false)).Status
+                        == System.Net.NetworkInformation.IPStatus.Success;
+                }
+                catch (System.Net.NetworkInformation.PingException) { reachable = false; }
+            }
+            ev["头显是否在网络上可达"] = string.IsNullOrWhiteSpace(configured)
+                ? "(没填 headsetIp，无法判断)"
+                : reachable ? $"是：{configured} ping 通" : $"否：{configured} ping 不通";
+            return new CheckResult("adb",
+                reachable ? CheckStatus.Unknown : CheckStatus.Warn,
+                reachable ? "头显在网络上，但 adb 连不上它" : "没有连着的头显",
+                reachable
+                    ? $"**网络这一段是通的**——{configured} ping 得到应答。所以这不是网络问题，是 adb 这一段没建立。"
+                    : "`adb devices -l` 的设备列表是空的。用 USB 连接头显并在头显里点「允许 USB 调试」，"
+                      + "或先在 PC 上开无线调试。",
                 ev, Array.Empty<FixAction>(),
-                "无线方式：`adb tcpip 5555` 后 `adb connect <头显IP>:5555`；头显 IP 可在「设置 → Wi-Fi → 连接详情」看到。");
+                "无线方式：头显里 开发者选项 → 打开无线调试，PC 上 `adb pair <头显IP>:配对端口> <配对码>`，"
+                + "再 `adb connect <头显IP>:5555`；头显 IP 可在「设置 → Wi-Fi → 连接详情」看到。");
+        }
 
         var serial = serials[0]!;
         ev["serial"] = serial;

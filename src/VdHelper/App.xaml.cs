@@ -462,28 +462,44 @@ public static class AdbProbe
             Console.WriteLine("找不到 adb.exe（本机实测 PATH 里没有）。");
             Console.WriteLine("装 Android platform-tools，或把 adb 放进 PATH 后重试；"
                 + "已知位置见 src/VdHelper/Core/Adb/AdbClient.cs 的候选表。");
-            return 3;
+            return 4;
         }
 
-        var check = await new Core.Adb.HeadsetDeepProbe(client).ProbeAsync(serial ?? "", CancellationToken.None)
+        // The third screen runs TWO probes — HeadsetProbe then HeadsetDeepProbe — and --adb used to
+        // run only the deep one. So the command people paste into issues was silently a subset of
+        // what the tool can see. Both now run, in the same order.
+        var basic = await new Core.Adb.HeadsetProbe(client).RunAsync(CancellationToken.None)
+            .ConfigureAwait(false);
+        var check = await new Core.Adb.HeadsetDeepProbe(client)
+            .ProbeAsync(basic.Evidence.TryGetValue("serial", out var s0) ? s0 : (serial ?? ""), CancellationToken.None)
             .ConfigureAwait(false);
 
-        Console.WriteLine($"[{check.Status}] {check.Id}  {check.Summary}");
-        if (!string.IsNullOrWhiteSpace(check.Detail))
-            Console.WriteLine("  " + check.Detail.Replace("\n", "\n  "));
-        foreach (var (k, v) in check.Evidence)
-            Console.WriteLine($"  {k}: {v}");
-        if (!string.IsNullOrWhiteSpace(check.Guidance))
+        foreach (var r in new[] { basic, check })
         {
-            var g = check.Guidance.TrimStart();
-            if (g.StartsWith("指引：", StringComparison.Ordinal)) g = g["指引：".Length..];
-            Console.WriteLine("  指引：" + g);
+            Console.WriteLine($"[{r.Status}] {r.Id}  {r.Summary}");
+            if (!string.IsNullOrWhiteSpace(r.Detail))
+                Console.WriteLine("  " + r.Detail.Replace("\n", "\n  "));
+            foreach (var (k, v) in r.Evidence)
+                Console.WriteLine($"  {k}: {v}");
+            if (!string.IsNullOrWhiteSpace(r.Guidance))
+            {
+                var g = r.Guidance.TrimStart();
+                if (g.StartsWith("指引：", StringComparison.Ordinal)) g = g["指引：".Length..];
+                Console.WriteLine("  指引：" + g);
+            }
+            Console.WriteLine();
         }
-        foreach (var f in check.Fixes)
-            Console.WriteLine($"  可修: {f.Id} — {f.Title}（风险 {f.Risk}）");
 
-        // 3 = adb missing or no device, 4 = device reachable but something is wrong, 0 = fine.
-        return check.Status == CheckStatus.Pass ? 0
-            : check.Status == CheckStatus.Warn ? 3 : 4;
+        // 0 = both probes clean, 3 = something to look at, 4 = not connected or unusable. Judge on
+        // the worse of the two now that both run, so a clean deep probe cannot mask a warned
+        // basic one.
+        var worst = (Status: basic.Status, Deep: check.Status);
+        var rank = (CheckStatus s) => s switch
+        {
+            CheckStatus.Pass => 0,
+            CheckStatus.Warn => 3,
+            _ => 4,
+        };
+        return Math.Max(rank(worst.Status), rank(worst.Deep));
     }
 }
