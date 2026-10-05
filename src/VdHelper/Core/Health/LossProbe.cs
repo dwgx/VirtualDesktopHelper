@@ -94,7 +94,6 @@ public static class LossProbe
                         "既没有默认网关，也没有填头显 IP。", ev, Array.Empty<FixAction>(),
                         "在第三屏填一个头显 IP，这一项才有东西可测。");
 
-                var worst = 0.0;
                 var seen = new List<(string Label, string Host, int Received, int Sent, double Loss)>();
                 foreach (var (label, host) in targets)
                 {
@@ -103,17 +102,28 @@ public static class LossProbe
                         $"{s.Received}/{s.Sent} 收到 · 丢包 {s.LossPercent:F0}% · "
                         + $"延迟 {s.MinMs:F0}/{s.AvgMs:F0}/{s.MaxMs:F0} ms · 抖动 {s.JitterMs:F1} ms";
                     seen.Add((label, host, s.Received, s.Sent, s.LossPercent));
-                    worst = Math.Max(worst, s.LossPercent);
                 }
 
                 // Same distinction as the CLI verdict: "nobody answered" is not packet loss. The
                 // screen used to report "测到 100% 丢包" whenever the headset was simply asleep,
                 // and then told the reader to suspect the router — which the gateway line right
                 // above had already ruled out.
+                // Three-way, and in the same order as Verdict() below — the CLI and the screen were
+                // answering differently about the same measurement.
+                //
+                // The gap that let this come back: branch 1 required clean.Count > 0, so a gateway
+                // that answered with 30% loss plus a headset that answered nothing skipped it, and
+                // fell through to `worst >= 5` — where worst is the max over all targets, and a dead
+                // target contributes 100. The screen printed 测到 100% 丢包 for an asleep headset and
+                // pointed at the router, while --deep on the same data printed the headset as
+                // partially lossy and said 这不是丢包. "Nobody answered" is never packet loss, whatever
+                // the other target happened to be doing.
                 var silent = seen.Where(r => r.Received == 0).ToList();
+                var partial = seen.Where(r => r.Received > 0 && r.Loss >= 5).ToList();
                 var clean = seen.Where(r => r.Received > 0 && r.Loss < 5).ToList();
+                var worstPartial = partial.Count == 0 ? 0 : partial.Max(r => r.Loss);
 
-                if (silent.Count > 0 && (clean.Count > 0 || silent.Count == seen.Count))
+                if (silent.Count > 0)
                     return new CheckResult("net-loss", CheckStatus.Warn,
                         string.Join("、", silent.Select(r => $"{r.Label} {r.Host}")) + $" 完全不应答（0 收到）",
                         "这一项测的不是丢包，而是「有没有人应答」。0 收到不等于丢包——睡着的头显和关着屏幕的笔记本都是 0 收到。",
@@ -123,9 +133,10 @@ public static class LossProbe
                             : "无法从这次采样判断。 ")
                         + "先确认头显醒着、Wi-Fi 连着、地址没变；把这一项当成丢包去查路由器会白查。");
 
-                if (worst >= 5)
+                if (worstPartial >= 5)
                     return new CheckResult("net-loss", CheckStatus.Warn,
-                        $"测到 {worst:F0}% 丢包（快速采样 {InPassSamples} 次）",
+                        string.Join("、", partial.Select(r => $"{r.Label} {r.Host} {r.Loss:F0}%"))
+                        + $" 部分丢包（快速采样 {InPassSamples} 次，最高 {worstPartial:F0}%）",
                         "视频流对丢包极其敏感：1% 的丢包就能让画面明显卡顿。"
                         + "注意单次 ping 永远测不出来——丢包往往是随机的、或者只在某个方向上。",
                         ev, Array.Empty<FixAction>(),
