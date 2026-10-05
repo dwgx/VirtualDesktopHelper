@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+﻿﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using SharpOpenNat;
@@ -61,8 +61,19 @@ public static class NatChecks
             if (devices.Count == 0)
                 return NotFound(sw, ev);
 
-            var device = devices.FirstOrDefault(d => d.HostEndPoint.AddressFamily == AddressFamily.InterNetwork)
+            // Prefer the device on our own subnet. Taking the first IPv4 responder picks a mesh node
+            // on a Google Nest / Eero setup, and then 设备内地址 and the double-NAT line below both
+            // describe that node's uplink instead of the router. The local gateway was already read
+            // into ev["本机网关"] and was not being used to choose.
+            var localNets = NetworkInventory.PrimaryCandidates()
+                .Select(a => a.PrimaryIPv4).Where(ip => ip is not null).ToList();
+            var device = devices.FirstOrDefault(d =>
+                            d.HostEndPoint.AddressFamily == AddressFamily.InterNetwork
+                            && localNets.Any(l => NetworkInventory.IsLanPeer(d.HostEndPoint.Address, l)))
+                         ?? devices.FirstOrDefault(d => d.HostEndPoint.AddressFamily == AddressFamily.InterNetwork)
                          ?? devices[0];
+            var deviceIsOurSubnet = device.HostEndPoint.AddressFamily == AddressFamily.InterNetwork
+                && localNets.Any(l => NetworkInventory.IsLanPeer(device.HostEndPoint.Address, l));
             ev["NAT 设备"] = device.HostEndPoint.ToString();
             ev["设备类型"] = device.HostEndPoint.Port == PmpServerPort ? "NAT-PMP (5351)" : "UPnP / SSDP";
             ev["设备内地址"] = device.LocalAddress.ToString();
@@ -90,16 +101,27 @@ public static class NatChecks
             ev["原始异常"] = errors.Count == 0 ? "(无)" : string.Join(" ;; ", errors);
             ev["总耗时"] = $"{sw.ElapsedMilliseconds} ms";
 
-            // 判定：映射拿得到 = Open；设备在、但没有 38810 的入站映射 = Cone/Restricted。
-            // 两种 NAT 类型都不影响同网段串流，所以找到设备就判 Pass，永远不判 Block/Warn：
-            // HealthReport 把任何 Warn 汇总成「有隐患：能串但可能不稳或掉帧」，把一个只跟异地有关
-            // 的事实说成掉帧元凶是假的。双层 NAT 的信息放进 Summary 与 Guidance，不抬状态。
-            var natType = mapping is not null ? "Open" : "Cone/Restricted";
+            // What was actually measured: the router answers UPnP, and whether it currently holds a
+            // 38810 inbound mapping. That is all.
+            //
+            // It used to also print a NAT type — Open when the mapping was there, Cone/Restricted
+            // when it was not. But ConnectionManager.cs:238-243 only requests that mapping when the
+            // Streamer has "Allow remote connections" ticked, so "no mapping" mostly means nobody
+            // ticked the box. That is what got translated into Cone/Restricted NAT. Nothing here
+            // performs a NAT behaviour test: GetSpecificMappingAsync reads one entry and
+            // GetExternalIPAsync reads one address, so Cone / Port Restricted / Symmetric were
+            // never distinguished. Distinguishing them needs a mapping probe or STUN; saying so is
+            // more useful than a label the data does not carry.
+            var hasMapping = mapping is not null;
             var doubleNat = ext is not null && IsPrivate(ext);
-            var summary = $"路由器支持 UPnP（{ev["设备类型"]}），NAT 类型 {natType}";
-            if (doubleNat)
-                summary += $"；外网 IP 是 {ext}（私有段），上级还有一层 NAT——这只影响异地连接，不影响同网段";
-
+            var summary = $"路由器响应 UPnP 控制面（{ev["设备类型"]}），"
+                + (hasMapping ? "且当前有 38810 的入站映射" : "当前没有 38810 的入站映射")
+                + "；**NAT 类型这一项没有测**（需要映射行为探测或 STUN，本检查只读了两项）";
+            if (ext is not null && IsPrivate(ext))
+                summary += (deviceIsOurSubnet ? "；外网 IP 是 " + ext + "（私有段），上级还有一层 NAT"
+                                             : "；外网 IP 是 " + ext + "（私有段）——"
+                                               + "**但选中的 UPnP 设备不在本网段，这条双层 NAT 的结论不成立**")
+                    + "——这只影响异地连接，不影响同网段";
             var detail = mapping is not null
                 ? "路由器上已经有这条入站映射，说明 UPnP 控制面可用、且 38810 这类入站端口能穿过本级 NAT。"
                 : "路由器认得 UPnP 请求、映射表也能读，但里面没有 38810 的入站映射。"
