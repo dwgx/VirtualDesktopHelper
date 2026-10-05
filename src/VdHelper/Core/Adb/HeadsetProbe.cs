@@ -130,13 +130,30 @@ public sealed class HeadsetProbe(AdbClient adb)
         var packages = ev.TryGetValue("已装包", out var pkgs) ? pkgs : "";
         var installed = PackageNames.Where(p => packages.Contains(p, StringComparison.OrdinalIgnoreCase)).ToList();
 
-        var granted = await ReadPermissionsAsync(serial, installed, ct);
-        foreach (var (perm, Granted) in granted)
+        var (grantedList, packagesRead, readFailures) = await ReadPermissionsAsync(serial, installed, ct);
+        foreach (var (perm, Granted) in grantedList)
             ev["权限 " + perm] = Granted ? "granted" : "未授予";
+        for (var i = 0; i < readFailures.Count; i++)
+            ev["权限读取失败 " + (i + 1)] = readFailures[i];
+
+
+        // Nothing came back. Every permission would now be filed as "this OS does not know that
+        // string" and the check would answer Pass "权限齐全" — which is the one sentence this whole
+        // panel must never say about a device it could not read. Say what failed instead.
+        if (packagesRead == 0 && installed.Count > 0)
+            return new CheckResult("adb", CheckStatus.Unknown,
+                $"{installed.Count} 个客户端包装着，但一条权限都没读到",
+                installed.Count + " 个包的 `dumpsys package` 全部失败，所以这一项**没测成**，"
+                + "不是「权限齐全」。失败原因见下面每一条证据。"
+                + "常见原因：设备上 dumpsys 被限制、adb 会话中途断了、包名在这一版上不存在。",
+                ev, Array.Empty<FixAction>(),
+                "先重跑一次；如果仍然全失败，多半是这一版 HorizonOS 上的包名或权限串变了，"
+                + "对照 research/06-adb-headset/03-symptom-decision-table.md 重新核一遍。");
+
         foreach (var perm in Absent)
             ev["权限 " + perm] = "该系统不认识这条（非故障）";
 
-        var missing = granted.Where(g => !g.Granted).Select(g => g.Permission).Distinct().ToList();
+        var missing = grantedList.Where(g => !g.Granted).Select(g => g.Permission).Distinct().ToList();
         var running = new List<string>();
         if (installed.Count > 0)
             foreach (var pkg in installed)
@@ -180,7 +197,7 @@ public sealed class HeadsetProbe(AdbClient adb)
         var status = missing.Count > 0 ? CheckStatus.Block : CheckStatus.Pass;
         var summary = missing.Count > 0
             ? $"{installed.Count} 个客户端包在运行，缺 {missing.Count} 项运行时权限"
-            : $"{installed.Count} 个客户端包在运行，{granted.Count} 项权限齐全";
+            : $"{installed.Count} 个客户端包在运行，{grantedList.Count} 项权限齐全";
         return new CheckResult("adb", status, summary,
             "权限缺失会怎样，表现见 research/06-adb-headset/03-symptom-decision-table.md。"
             + "**下面三条全部标了［未验证］**：它们来自 install_template.bat 与文档，"
@@ -206,16 +223,29 @@ public sealed class HeadsetProbe(AdbClient adb)
     /// exists and demanding the other would invent a fault.
     /// </para>
     /// </summary>
-    private async Task<List<(string Permission, bool Granted)>> ReadPermissionsAsync(
+    private async Task<(List<(string Permission, bool Granted)> Results, int PackagesRead,
+        IReadOnlyList<string> Failures)> ReadPermissionsAsync(
         string serial, IReadOnlyList<string> packages, CancellationToken ct)
     {
         var grantedSet = new HashSet<string>(StringComparer.Ordinal);
         var knownSet = new HashSet<string>(StringComparer.Ordinal);
 
+        // How many packages came back at all. `if (!r.Ok) continue;` swallowed every failure, so a
+        // device where dumpsys failed for every package left knownSet empty, every permission got
+        // filed as "this OS does not have that string", and the check answered Pass "权限齐全" — a
+        // green answer to a question it had failed to ask. The count is what lets the caller tell
+        // "asked, and there is nothing to grant" from "never got to ask".
+        var read = 0;
+        var failures = new List<string>();
         foreach (var pkg in packages)
         {
             var r = await adb.RunAsync(["-s", serial, "shell", "dumpsys", "package", pkg], 15000, ct);
-            if (!r.Ok) continue;
+            if (!r.Ok)
+            {
+                failures.Add($"{pkg}: exit {r.ExitCode}{(r.TimedOut ? "（超时）" : "")} {(r.StdErr.Length > 0 ? r.StdErr.Trim() : "(无 stderr)")}");
+                continue;
+            }
+            read++;
             var text = string.Join('\n', r.Lines);
             foreach (var line in r.Lines)
             {
@@ -239,7 +269,7 @@ public sealed class HeadsetProbe(AdbClient adb)
             }
             results.Add((perm, grantedSet.Contains(perm)));
         }
-        return results;
+        return (results, read, failures);
     }
 
     /// <summary>Permissions this Quest OS does not have at all — neither granted nor a fault.</summary>
