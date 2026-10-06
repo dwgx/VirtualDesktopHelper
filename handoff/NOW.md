@@ -1,7 +1,7 @@
 # 项目板 · VDHelper
 
 ## 刚发生
-UI 计划收口（P0-1…P0-11、P1 各项完成；P1-13 用 `WindowChrome.CornerRadius="8"` 替代 `AllowsTransparency`，不把窗口踢下 GPU；P1-5 间距 token 明确不做）；新增第四道闸门 `tools/check-exit-codes.ps1`（只读清单硬编码，结构上到不了 `--quit-streamer` / `--apply <id>` / `--set-param`，已接进 CI）；退出码契约九条命令实测全对；**第一次真串流会话**，工具报的 4 个已建立通道与 Windows 逐条对上（方向是本地端口 38810-40 → 头显临时端口，警告写在 `IsLanPeer` 旁边）；`v0.6.0` 之后 **34 个提交未进任何 release**。上一版项目板说 Pages 返回 404、`v0.3.0`、156 处引证——三条都已证伪（Pages `built` 且 200、版本 0.6.0、157 处）。
+**v0.7.0 已发布并下载回来验过**（SHA256 `35806365…876c5` 一致、二进制能跑），补了 **MIT 授权**（之前公开仓库无许可证＝保留所有权利）。两份只读自审（`research/15-review/04`、`05`）共 13 处「说的比测的多」全部处置，参数校验器用**直接调用发布程序集的探针**对全部 111 行验过，19 用例 0 失败。新增 `usb-headset`（读 `Get-PnpDevice` 匹配 `VID_2833`，回答「头显到底有没有接在这台电脑」——此前全仓零命中）。**渲染 HTML 报告时发现今天最严重的一个缺陷**：标题写「此刻没有已建的 VD 通道」，而 `udp-discovery` 与 Windows 都显示 4 条通道已建立——原因是 `_livePorts` 只从 `fresh` 子集取；两份审计都漏了，因为都在读检测项而没人读被渲染成的文档。社区复扫两份报告落盘，其中 scout 声称「本仓库没点名 AP isolation」**是错的**，已在报告中更正为四处 `file:line`。**五道闸门**（症状反漂移 / 退出码契约 / 报告自洽 / 引证 / issue 模板），CI 连续绿色。
 
 ## 下一步
-两份只读审计在跑，等 `research/15-review/04-self-audit-checks.md` 与 `05-self-audit-adb.md` 落盘后逐条处置；Owner 侧四件未决：开无线调试或插 USB-C（串流通了但 `adb devices` 仍为空）、管理员那一次点击跑 `capture-discovery.ps1`、补丁 APK、是否切 v0.7.0。
+等 Owner 四件：① 开无线调试或插 USB-C（`adb devices` 仍空；**插上后 `usb-headset` 会立刻告诉你 Windows 看没看见它**）；② 管理员那一次点击跑 `tools/capture-discovery.ps1` 抓 60 秒；③ 补丁 APK（`F:/Project/VirtualDesktop/analysis/apk_patch/` 仍是 0 个）；④ **要不要接 STUN**——`NatTypeTester`（MIT，NuGet `Stun.Net`，`net10.0` 直接可消费）能补上 `NatChecks.cs:111-114` 自认的唯一缺口，但接了工具就开始向外发包。**头显侧代码至今一次都没在真机上跑过**，这是我不打算假装完成的那部分。
