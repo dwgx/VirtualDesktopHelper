@@ -12,7 +12,7 @@
         WindowStyle="None">
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="0" GlassFrameThickness="0" ResizeBorderThickness="8"
-                      CornerRadius="0" UseAeroCaptionButtons="False" />
+                      CornerRadius="8" UseAeroCaptionButtons="False" />
     </WindowChrome.WindowChrome>
     <!-- Title bar / body / status bar: 48 / * / 48, as in the official chrome. -->
     <Grid>
