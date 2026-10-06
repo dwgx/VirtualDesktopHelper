@@ -31,7 +31,7 @@ public static class SymptomCatalog
         new("S2", "能看到但连不上",
             ["computer is unreachable", "PC is unreachable", "failed to see any computer at all",
              "can't connect to a computer contact support"],
-            ["session-stale", "port-vd", "lan-reach", "headset-deep", "fw-pair", "fw-vd", "fw-outbound",
+            ["session-stale", "port-vd", "lan-reach", "usb-headset", "headset-deep", "fw-pair", "fw-vd", "fw-outbound",
              "fw-profile-inbound", "net-profile", "route-metric", "vpn-proc", "net-apipa",
              "net-virtual", "ics", "nat-type"],
             "电脑已经被发现，问题在后面的握手：先确认头显 IP 能不能 ping 通，再看防火墙与出口网卡。"),

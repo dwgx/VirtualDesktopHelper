@@ -271,6 +271,106 @@ public static class WindowsStateChecks
         || a.Description.Contains("802.11", StringComparison.OrdinalIgnoreCase)
         || a.Description.Contains("Wireless", StringComparison.OrdinalIgnoreCase);
 
+    // ---------------------------------------------------------------- USB-level headset presence
+
+    private const string PsUsbHeadset =
+        "Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | "
+        + "Where-Object { $_.InstanceId -like 'USB*' } | "
+        + "Select-Object FriendlyName,Status,InstanceId | Format-Table -AutoSize | Out-String -Width 200";
+
+    // VID_2833 is Oculus/Meta, VID_2BEC is the Quest-side vendor observed by
+    // Eliminater74/MetaQuestTrayTool's LinkConnectionProbeService's OculusUsbVidPrefixes. VID_0000&PID_0002 is the
+    // descriptor-failure pair: Windows enumerated something on the bus and could not read who it is.
+    // It is a different fault from "nothing is plugged in" and the old wording collapsed the two.
+    private static readonly string[] MetaVids = ["VID_2833", "VID_2BEC"];
+    private const string DescriptorFail = "VID_0000&PID_0002";
+
+    /// <summary>
+    /// Is the headset attached to this PC at all, and can Windows identify it?
+    ///
+    /// There was no check here at all — grep for VID_2833 or USB in src/ returns nothing — so
+    /// "the headset is not on this PC" and "it is on this PC but not streaming" produced the same
+    /// report. That distinction is the first question when someone plugs in USB-C and it does not work,
+    /// and answering it needs neither adb nor the headset's cooperation.
+    ///
+    /// Absence is Unknown, never a fault: the tool's whole premise is streaming over Wi-Fi, where nothing
+    /// is ever plugged in.
+    /// </summary>
+    public static ICheck UsbHeadsetCheck() =>
+        CheckFactory.Delegate(
+            new("usb-headset", "USB 上的头显", "头显到底有没有接在这台电脑上，Windows 认不认得它？", "串流"),
+            async ct =>
+            {
+                var lines = await PowerShellRunner.LinesAsync(PsUsbHeadset, ct).ConfigureAwait(false);
+                var ev = new Dictionary<string, string>
+                {
+                    ["本项只读"] = "Get-PnpDevice -PresentOnly，不枚举整个 PnP 树，不改任何设备状态。",
+                    ["匹配的头显 VID"] = string.Join(" / ", MetaVids),
+                };
+
+                var headsets = new List<string>();
+                var badHeadset = new List<string>();
+                var descriptorFailures = new List<string>();
+                foreach (var line in lines)
+                {
+                    // Format-Table columns are separated by runs of spaces, and FriendlyName may
+                    // itself contain spaces, so anchor on the VID/PID pattern instead of splitting.
+                    var m = Regex.Match(line, @"^(?<name>\S.*?)\s{2,}(?<status>\S+)\s+USB\\(?<id>\S+)$");
+                    if (!m.Success) continue;
+                    var name = m.Groups["name"].Value.Trim();
+                    var status = m.Groups["status"].Value.Trim();
+                    var id = m.Groups["id"].Value.Trim();
+
+                    if (MetaVids.Any(v => id.StartsWith(v, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        var row = $"{name}（{id}，状态 {status}）";
+                        (status.Equals("OK", StringComparison.OrdinalIgnoreCase) ? headsets : badHeadset)
+                            .Add(row);
+                    }
+                    else if (id.Contains(DescriptorFail, StringComparison.OrdinalIgnoreCase))
+                        descriptorFailures.Add($"{name}（{id}，状态 {status}）");
+                }
+
+                ev["读到的 USB 设备数"] = lines.Count.ToString();
+                if (headsets.Count > 0) ev["识别到的头显"] = string.Join(" ;; ", headsets);
+                if (badHeadset.Count > 0) ev["识别到但状态异常的头显"] = string.Join(" ;; ", badHeadset);
+                if (descriptorFailures.Count > 0)
+                    ev["枚举成功但身份读取失败"] = string.Join(" ;; ", descriptorFailures);
+
+                if (descriptorFailures.Count > 0)
+                    return new CheckResult("usb-headset", CheckStatus.Warn,
+                        $"有 {descriptorFailures.Count} 个 USB 设备枚举上了，但 Windows 没能读出它是谁",
+                        "**VID_0000&PID_0002 表示 Windows 在读到设备身份之前就失败了**——"
+                        + "线和口有电，但厂商/型号没读上来。这一项和「没插线」是两种不同的故障："
+                        + "换一根数据线或换一个 USB 口通常能解决，重装软件没有用。",
+                        ev, Array.Empty<FixAction>(),
+                        "先换线换口（必须是数据线，很多充电线没有数据芯），再试。"
+                        + "换完还是这个 VID，说明不是线的问题。");
+
+                if (badHeadset.Count > 0)
+                    return new CheckResult("usb-headset", CheckStatus.Warn,
+                        $"头显在 USB 上，但设备状态不是 OK（{badHeadset.Count} 个）",
+                        "Windows 认得这个 VID，所以线和口是通的；问题在驱动或设备本身。",
+                        ev, Array.Empty<FixAction>(),
+                        "先在设备管理器里看这一项有没有黄色三角，再决定要不要重装驱动。");
+
+                if (headsets.Count > 0)
+                    return new CheckResult("usb-headset", CheckStatus.Pass,
+                        $"头显接在这台电脑上，Windows 认得（{headsets.Count} 个）",
+                        "**这只证明 PC 这一侧枚举到了设备**——不等于 adb 连得上，也不等于在串流。"
+                        + "adb 是另一件事，在第三屏单独看。",
+                        ev, Array.Empty<FixAction>(),
+                        "USB 这一侧没问题。如果第三屏仍然连不上，那是 adb 那一段，不是这一段。");
+
+                return new CheckResult("usb-headset", CheckStatus.Unknown,
+                    "这台电脑上没有枚举到 USB 方式的头显",
+                    "**这不是故障。** 本工具的主场景是 Wi-Fi 串流，那时本来就不会插 USB；"
+                    + "只有在你刚插上 USB-C 之后，这一项才有判断价值。",
+                    ev, Array.Empty<FixAction>(),
+                    "刚插线的话：确认头显里点了「允许 USB 调试」，并换一根确认是数据线的线。"
+                    + "本来就在用 Wi-Fi 的话：这一项可以直接忽略。");
+            });
+
     private static bool IsWirelessName(string alias) =>
         alias.Contains("Wi-Fi", StringComparison.OrdinalIgnoreCase)
         || alias.Contains("Wireless", StringComparison.OrdinalIgnoreCase);

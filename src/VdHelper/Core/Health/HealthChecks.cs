@@ -55,6 +55,7 @@ public static class HealthChecks
         WindowsStateChecks.OutboundPolicyCheck(),
         WindowsStateChecks.ThirdPartyAvCheck(),
         WindowsStateChecks.RouteMetricCheck(),
+        WindowsStateChecks.UsbHeadsetCheck(),
         WindowsStateChecks.WirelessOnlyCheck(),
         ReachabilityCheck.Create(),
         .. LinkRateChecks.Create(),
