@@ -29,6 +29,12 @@ public sealed class ParameterRow : INotifyPropertyChanged
         get
         {
             var tags = new List<string>();
+            // Which machine the key lives on. 57 of the 111 rows are headset-side and the only
+            // thing distinguishing them was the absence of a 切换 button. It also disambiguates the
+            // two keys that appear twice — VRFramerate (table 3 enum, table 4 int) and
+            // AutoAdjustBitrate (table 0 bool, table 5 bool) — which otherwise render as two rows
+            // with the same name, different type, and nothing to tell them apart.
+            tags.Add(Info.LivesOnPc ? "PC 侧" : "头显侧");
             if (ReadOnly) tags.Add("只读");
             if (Info.Caution) tags.Add("谨慎");
             if (Info.NeedsRestart) tags.Add("需重启");
