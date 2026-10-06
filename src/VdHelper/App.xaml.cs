@@ -332,6 +332,20 @@ public static class ApplyFix
                 Console.WriteLine($"  命令：{Reports.ReportWriter.Redact(fix.What)}");
                 Console.WriteLine($"  备份：{Reports.ReportWriter.Redact(fix.Backup)}");
                 Console.WriteLine($"  回滚：{Reports.ReportWriter.Redact(fix.Rollback)}");
+                // Check before attempting, not after failing. Five fixes declare NeedsElevation and
+                // nothing ever compared that against how this process was started — the flag was
+                // only ever printed in --apply --list. Running one from an ordinary shell produced
+                // whatever the underlying netsh or service call produced, which is not a diagnosis.
+                // Same shape as the Streamer guard in SetParam: refuse, say what to do, change nothing.
+                if (fix.NeedsElevation && !IsElevated())
+                {
+                    Console.WriteLine($"{fix.Id} 需要管理员权限，当前这个进程没有。");
+                    Console.WriteLine("没有执行任何操作——半途失败比直接拒绝更难收拾。");
+                    Console.WriteLine("用管理员身份重开一个终端再跑同一条命令：");
+                    Console.WriteLine($"  VdHelper.exe --apply {fix.Id}");
+                    Console.WriteLine("或者直接双击 VdHelper.exe 界面的对应修复项，它会自己提权。");
+                    return 7;
+                }
                 var outcome = await fix.Apply(CancellationToken.None);
                 Console.WriteLine(outcome.Success
                     ? $"  结果：成功 — {outcome.Message}"
@@ -374,6 +388,26 @@ public static class ApplyFix
         if (!wantedList)
             Console.WriteLine("（上面这句判定是修复之前算的。重跑一次 --selftest 看现在的状态。）" + report.VerdictText);
         return 0;
+    }
+
+    /// <summary>Whether this process was started elevated.
+    ///
+    /// Reads the token; it never prompts. A standard user who is a member of Administrators returns
+    /// false here, which is the right answer: this process cannot do what the fix needs right now,
+    /// and the fix must not be attempted halfway.
+    /// </summary>
+    internal static bool IsElevated()
+    {
+        try
+        {
+            using var id = System.Security.Principal.WindowsIdentity.GetCurrent();
+            return new System.Security.Principal.WindowsPrincipal(id)
+                .IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or PlatformNotSupportedException)
+        {
+            return false;
+        }
     }
 
     /// <summary>"通过 → 警告" next to the id, when the verdict moved regardless of the wording.</summary>
