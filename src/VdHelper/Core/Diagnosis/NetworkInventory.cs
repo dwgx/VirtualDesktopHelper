@@ -107,6 +107,11 @@ public static class NetworkInventory
 
     public static IReadOnlyList<int> VdPorts { get; } = [38810, 38820, 38830, 38840];
 
+    // Verified against Windows on a live session: local 38810/20/30/40 -> 192.168.11.14 on
+    // 37455/40227/39715/38891, all Established. Note the direction before trying to reproduce it —
+    // those are the LOCAL ports the Streamer binds, and the headset answers on its own ephemeral
+    // ports. Filtering on RemotePort instead of LocalPort returns zero, which looks exactly like a
+    // session that never existed. See notes/2026-10-06-live-session-and-peer-direction.md.
     /// <summary>
     /// Same /24 — enough to tell a LAN peer from a cloud relay, and no more than claimed.
     /// <para>
