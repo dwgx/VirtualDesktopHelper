@@ -106,13 +106,22 @@ public sealed class HeadsetDeepProbe(AdbClient adb)
             ev["头显是否在网络上可达"] = string.IsNullOrWhiteSpace(configured)
                 ? "(没填 headsetIp，无法判断)"
                 : reachable ? $"是：{configured} ping 通" : $"否：{configured} ping 不通";
+            // Do not restate the network conclusion. The basic probe (HeadsetProbe.cs:87) has already
+            // said "网络这一段是通的——<ip> ping 得到应答" in a card directly above this one, with the
+            // same summary line; repeating it here made the third screen show the same paragraph
+            // twice, which is half the panel. What this probe adds is only that nothing downstream
+            // could run at all — so say that, and leave the wiring steps to the guidance it shares.
             return Unknown(
                 reachable ? "头显在网络上，但 adb 连不上它" : "没有连着的头显",
                 reachable
-                    ? $"**网络这一段是通的**——{configured} ping 得到应答。所以这不是网络问题，是 adb 这一段没建立："
-                      + "要么没插 USB，要么头显里的「无线调试」没开。三项子判定一个都跑不了。"
+                    ? "和上一屏同一个结论：adb 没连上，所以头显侧的三项子判定（包、权限、设置）"
+                      + "一个都跑不了——不是它们有问题，是没有可读的对象。"
                     : "`adb devices -l` 的设备列表是空的，三项子判定一个都跑不了。",
-                ev, WiringGuidance);
+                // Same reasoning for the guidance. WiringGuidance is the same three steps the card
+                // above is already showing; repeating it verbatim put the whole connect procedure on
+                // screen twice. Point at it instead — the steps are one click-scroll away, not one
+                // tab-switch away.
+                ev, reachable ? "先把 adb 连上，步骤见上面那张卡。" : WiringGuidance);
         }
 
         if (online.Count > 1 && string.IsNullOrWhiteSpace(serial))
