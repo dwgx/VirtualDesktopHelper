@@ -271,14 +271,21 @@ public static class HealthChecks
                     || (System.Net.IPAddress.TryParse(p.Peer.Split(':')[0], out var peerIp)
                         && localNets.Any(l => NetworkInventory.IsLanPeer(l, peerIp)));
 
+                // Presence is not freshness. These two feeds the headline and this check's own verdict,
+                // and they answer different questions: the headline asks whether channels are up, this
+                // check asks whether they are recent. Reading the headline from `fresh` made a live but
+                // stale session report 此刻没有已建立的 VD 通道 — while Windows, udp-discovery and
+                // session-stale all said the opposite, in the same document. Measured: 4 channels up for
+                // two hours, headline claiming none.
+                var lanAll = established.Where(IsLan).ToList();
                 var lan = fresh.Where(IsLan).ToList();
                 // Named for what it is: sockets to Virtual Desktop's servers, not relays.
                 var relay = fresh.Except(lan).ToList();
 
                 // Consumed by HealthReport: a headline that says "will not start" while channels are
                 // up is the kind of contradiction that makes a tool untrustworthy.
-                ev["_livePorts"] = string.Join(",", lan.Select(p => p.Port));
-                ev["_livePeer"] = lan.Select(p => p.Peer).FirstOrDefault() ?? "";
+                ev["_livePorts"] = string.Join(",", lanAll.Select(p => p.Port));
+                ev["_livePeer"] = lanAll.Select(p => p.Peer).FirstOrDefault() ?? "";
                 if (relay.Count > 0)
                     ev["出网到官方服务器的连接"] = string.Join(" ;; ", relay.Select(p => $"{p.Port} -> {p.Peer}"))
                         + "（这不是头显串流：这是 Streamer 启动后主动连到 Virtual Desktop 的服务器端点）";

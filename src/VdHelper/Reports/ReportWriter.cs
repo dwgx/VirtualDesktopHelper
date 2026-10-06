@@ -266,7 +266,7 @@ public static class ReportWriter
 
     private static string Live(Meta m) => m.LivePorts.Count == 0
         ? "此刻没有已建立的 VD 通道（不是「串流中」）。"
-        : $"串流中：{m.LivePorts.Count} 个通道已建立（端口 {string.Join("、", m.LivePorts)}）"
+        : $"{m.LivePorts.Count} 个通道已建立（端口 {string.Join("、", m.LivePorts)}）"
             + (m.LivePeer.Length == 0 ? "" : $"，对端 {m.LivePeer}");
 
     private static string IsNew(HealthHistory.Change c) => c.IsNew ? "（新增）" : "";
