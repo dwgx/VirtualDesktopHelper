@@ -47,8 +47,12 @@ public static class ParameterValues
         }
 
         // int / enum: the catalog's Range column lists the legal values for an enum.
-        if (type.StartsWith("int", StringComparison.Ordinal)
-            || type.StartsWith("enum", StringComparison.Ordinal))
+        // Contains, not StartsWith. Four PC-side keys are typed `int (enum VideoCodec)` and friends:
+        // StartsWith("enum") is false for those, so EnumAllows was never reached and
+        // `--set-param PreferredCodec 999` wrote 999 while the string "999" on the same key was
+        // correctly refused. Same key, opposite answers, measured against all 111 catalog rows.
+        var isEnum = type.Contains("enum", StringComparison.OrdinalIgnoreCase);
+        if (type.StartsWith("int", StringComparison.Ordinal) || isEnum)
         {
             if (value.ValueKind == JsonValueKind.Number)
             {
@@ -57,7 +61,12 @@ public static class ParameterValues
                     why = "不是整数";
                     return false;
                 }
-                if (type.StartsWith("enum", StringComparison.Ordinal) && !EnumAllows(info, n.ToString()))
+                // Only consult the list when the catalog actually has one. `ActiveCodec` is an enum
+                // whose Range is prose (同 #40), so EnumAllowed yields an empty list; testing
+                // !EnumAllows against empty refused every value with 不在目录列出的合法取值里 — a
+                // list the catalog does not contain. An enum with no list falls through to the same
+                // treatment as an int with no list.
+                if (isEnum && EnumAllowed(info).Count > 0 && !EnumAllows(info, n.ToString()))
                 {
                     why = "不在目录列出的合法取值里";
                     return false;
@@ -138,21 +147,43 @@ public static class ParameterValues
     private static bool EnumAllows(ParameterInfo info, string n) =>
         EnumAllowed(info).Any(a => a.Equals(n, StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>Low/high from a range written as "0.4–1.0", "0.4~1.0", "1..10" and similar.</summary>
+    /// <summary>Low/high from a range written as "0.4–1.0", "0.4~1.0", "1..10" and similar.
+    ///
+    /// The bound is taken as the trailing number token on each side of the separator, not as the
+    /// whole side. Five PC-side sliders are documented as `UI 滑块 0.4–1.0（step 0.01）`, where
+    /// parsing `UI 滑块 0.4` as a double fails and the whole range collapses to (null, null) — so
+    /// `--set-param FoveaSize 999` wrote 999 while the same key's stated range went unchecked.
+    /// Measured across all 111 rows: ten of twelve float keys had no usable bound for this reason.
+    /// </summary>
     private static (double? Lo, double? Hi) NumericRange(ParameterInfo info)
     {
         var r = (info.Range ?? "").Trim();
         var seps = new[] { "–", "—", "~", "..", " to ", " - " };
+        static double? Tail(string s) =>
+            double.TryParse(TrailingNumber(s), NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d : null;
         foreach (var s in seps)
         {
             var i = r.IndexOf(s, StringComparison.Ordinal);
             if (i <= 0) continue;
-            var lo = r[..i].Trim();
-            var hi = r[(i + s.Length)..].Trim();
-            if (double.TryParse(lo, NumberStyles.Float, CultureInfo.InvariantCulture, out var l)
-                && double.TryParse(hi, NumberStyles.Float, CultureInfo.InvariantCulture, out var h))
-                return (l, h);
+            var l = Tail(r[..i]);
+            // The high side is a trailing token too, but stop at the first character that is neither
+            // a digit nor a decimal point so `1.0（step 0.01）` yields 1.0 and not 0.01.
+            var h = double.TryParse(LeadingNumber(r[(i + s.Length)..]), NumberStyles.Float,
+                CultureInfo.InvariantCulture, out var hd) ? hd : (double?)null;
+            if (l is not null && h is not null) return (l, h);
         }
         return (null, null);
+    }
+
+    private static string TrailingNumber(string s)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(s, @"([0-9]*\.?[0-9]+)\s*$");
+        return m.Success ? m.Groups[1].Value : "";
+    }
+
+    private static string LeadingNumber(string s)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(s, @"^\s*([0-9]*\.?[0-9]+)");
+        return m.Success ? m.Groups[1].Value : "";
     }
 }

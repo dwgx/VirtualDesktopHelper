@@ -33,3 +33,4 @@ selftest.txt
 # 根目录下所有 _ 开头的都是一次性产物（自检输出、截图、commit message 草稿）。
 # 旧规则逐个字母枚举（_[a-z].txt / _t?.png），两字符以上或带数字的直接漏了进来。
 /_*
+tools/__pycache__/

@@ -1,4 +1,4 @@
-﻿﻿using System.Globalization;
+﻿﻿﻿using System.Globalization;
 using VdHelper.Core.Checks;
 using VdHelper.Core.Diagnosis;
 using VdHelper.Core.Model;
@@ -307,7 +307,11 @@ public static class HealthChecks
                     ev["通道对端"] = string.Join(" ;; ", peers);
                     return new CheckResult("session-stale", CheckStatus.Warn,
                         $"{staleLan.Count} 个到头显的通道仍是已建立状态（最早建立于 {oldest}）",
-                        "**这不等于串流已经断了。**Windows 只有在对端发 FIN 或 TCP 超时之后才改变状态，"
+                        // A space before the Latin word on each side. Without it the closing ** sits
+                        // between a full-width 。 and a letter, which CommonMark will not accept as
+                        // right-flanking, so the span never closes and the asterisks print verbatim —
+                        // visible in the pasted issue, not in the app.
+                        "**这不等于串流已经断了。** Windows 只有在对端发 FIN 或 TCP 超时之后才改变状态，"
                         + "所以一次跑了半小时的正常串流，和一次头显早已退出的残留套接字，在这一张表里长得一模一样。"
                         + "**只看套接字年龄分辨不出来。**",
                         ev, Array.Empty<FixAction>(),

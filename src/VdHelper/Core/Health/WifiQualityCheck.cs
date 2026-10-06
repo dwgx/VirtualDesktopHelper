@@ -1,4 +1,4 @@
-﻿using VdHelper.Core.Checks;
+﻿﻿using VdHelper.Core.Checks;
 using VdHelper.Core.Model;
 
 namespace VdHelper.Core.Health;
@@ -138,16 +138,18 @@ public static class WifiQualityCheck
                     warnings.Add($"信号只有 {pct}%，弱信号下丢包与重传都会上升，而视频流对这两者最敏感。");
 
                 var channelNum = int.TryParse(channel, out var ch) ? ch : 0;
-                if (channelNum > 0 && channelNum is >= 1 and <= 14 && rx.Length > 0
-                    && double.TryParse(rx, out var r) && r > 100)
+                var selfContradictory = channelNum is >= 1 and <= 14 && rx.Length > 0
+                    && double.TryParse(rx, out var r) && r > 100;
+                if (selfContradictory)
                     warnings.Add("连的是 2.4 GHz 频段但协商速率却高于 100 Mbps，数值自相矛盾，请以实际频段为准。");
                 if (channelNum is >= 36 and <= 48)
                     warnings.Add("信道 " + channelNum + " 属于 DFS 频段，部分路由器上会因雷达检测而短暂静默，表现为周期性卡顿。");
                 if (channelNum is >= 149 and <= 177)
                     notes.Add("信道 " + channelNum + " 在 5 GHz 高信道段，通常是较空闲的选择（这不是问题）。");
-                // 2.4 GHz is worth its own warning even with a good signal: it is the crowded band,
-                // and the old pass path said 无线链路正常 on a 2.4 GHz link at 90% signal.
-                if (channelNum is >= 1 and <= 14)
+                // Not on a self-inconsistent read. That branch has already told the user the numbers
+                // disagree and to trust the band over the rate; adding "and you really are on crowded
+                // 2.4 GHz" two lines later asserts the conclusion it just withdrew.
+                if (channelNum is >= 1 and <= 14 && !selfContradictory)
                     warnings.Add($"连的是 2.4 GHz（信道 {channelNum}）。这个频段在住宅环境里通常最拥挤，"
                         + "吞吐会高、干扰也多；头显在这种链路上更容易出现卡顿。");
 

@@ -1,4 +1,4 @@
-﻿﻿﻿using System.Text.RegularExpressions;
+﻿﻿﻿﻿using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -307,18 +307,36 @@ public static class StreamerChecks
                     .Select(a => a.PrimaryIPv4!).Where(ip => ip is not null).ToList();
                 // Peer is "address:port", so it has to be split before IPAddress.TryParse — otherwise
                 // every socket, the headset's included, parses as false and lands in the cloud bucket.
+                //
+                // Three buckets, not two. IPv6 peers used to fall into "not LAN" and were then
+                // written to the report as 到公网的已建立连接 — but fe80:: is link-local, i.e. on this
+                // very wire, and an IPv6 address does not parse out of `Split(':')[0]` anyway. So
+                // "could not decide" was being reported as "decided: public internet", which is the
+                // opposite failure: telling someone they have an outbound connection they may not
+                // have, and hiding one they do.
+                System.Net.IPAddress? PeerIp(PortView p)
+                {
+                    var s = p.Peer;
+                    var cut = s.LastIndexOf(':');
+                    if (cut > 0) s = s[..cut];
+                    return System.Net.IPAddress.TryParse(s, out var ip) ? ip : null;
+                }
                 bool IsLan(PortView p) =>
-                    System.Net.IPAddress.TryParse(p.Peer.Split(':')[0], out var ip)
-                    && ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
+                    PeerIp(p) is { AddressFamily: System.Net.Sockets.AddressFamily.InterNetwork } ip
                     && localNets.Any(l => NetworkInventory.IsLanPeer(ip, l));
+
                 var live = established.Where(IsLan).ToList();
-                var cloud = established.Where(p => !IsLan(p)).ToList();
+                var cloud = established.Where(p => PeerIp(p) is not null && !IsLan(p)).ToList();
+                var unparsed = established.Where(p => PeerIp(p) is null).ToList();
                 ev["是否有活动会话"] = live.Count > 0
                     ? "是（" + string.Join("、", live.Select(p => $"{p.Port}→{p.Peer}")) + "）"
                     : "否";
                 if (cloud.Count > 0)
-                    ev["到公网的已建立连接（非串流）"] = string.Join("、",
+                    ev["非串流的已建立连接（对端不在本网段）"] = string.Join("、",
                         cloud.Select(p => $"{p.Port}→{p.Peer}"));
+                if (unparsed.Count > 0)
+                    ev["对端无法解析的已建立连接（IPv6 或非 IP，未判定是否串流）"] = string.Join("、",
+                        unparsed.Select(p => $"{p.Port}→{p.Peer}"));
 
                 if (ev.ContainsKey("UDP 38850"))
                     return new CheckResult("udp-discovery", CheckStatus.Pass,

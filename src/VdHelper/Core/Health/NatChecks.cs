@@ -1,4 +1,4 @@
-﻿﻿using System.Diagnostics;
+﻿﻿﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using SharpOpenNat;
@@ -131,7 +131,12 @@ public static class NatChecks
 
             return new CheckResult(
                 "nat-type", CheckStatus.Pass, summary, detail, ev,
-                Array.Empty<FixAction>(), RemoteGuidance(doubleNat));
+                // Constrain the guidance by deviceIsOurSubnet, the same way the summary above is
+                // constrained. The summary already says the double-NAT conclusion does not hold
+                // when the selected UPnP device is off-subnet; the guidance then asserted it anyway,
+                // so one CheckResult said "this conclusion does not stand" and "here is how to fix
+                // the router upstream" in consecutive lines.
+                Array.Empty<FixAction>(), RemoteGuidance(doubleNat && deviceIsOurSubnet));
         }
         catch (Exception ex)
         {

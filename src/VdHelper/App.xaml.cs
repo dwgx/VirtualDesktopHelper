@@ -326,9 +326,12 @@ public static class ApplyFix
                         + $"（{string.Join("、", offered)}）——这是**同一个修复**，只执行一次。");
 
                 Console.WriteLine($"执行 {fix.Id} — {fix.Title}");
-                Console.WriteLine($"  命令：{fix.What}");
-                Console.WriteLine($"  备份：{fix.Backup}");
-                Console.WriteLine($"  回滚：{fix.Rollback}");
+                // Same reason as the adb path below: --selftest redacts at :231, and these are
+                // the same strings it redacts. What a fix will do, where it backs up and how to
+                // roll it back are the three most-quoted lines anyone pastes into an issue.
+                Console.WriteLine($"  命令：{Reports.ReportWriter.Redact(fix.What)}");
+                Console.WriteLine($"  备份：{Reports.ReportWriter.Redact(fix.Backup)}");
+                Console.WriteLine($"  回滚：{Reports.ReportWriter.Redact(fix.Rollback)}");
                 var outcome = await fix.Apply(CancellationToken.None);
                 Console.WriteLine(outcome.Success
                     ? $"  结果：成功 — {outcome.Message}"
@@ -346,11 +349,11 @@ public static class ApplyFix
                     + (fix.NeedsElevation ? "  会弹 UAC" : "  不需要管理员"));
                 Console.WriteLine($"  做什么：{fix.Title}");
                 Console.WriteLine(offered.Count == 1
-                    ? $"  出自：{offered[0]} — {group.First().Check.Summary}"
+                    ? $"  出自：{offered[0]} — {Reports.ReportWriter.Redact(group.First().Check.Summary)}"
                     : $"  出自：{string.Join("、", offered)}（同一个修复，{offered.Count} 个检查命中；执行一次）");
-                if (!string.IsNullOrWhiteSpace(fix.What)) Console.WriteLine("  说明：" + fix.What);
-                if (!string.IsNullOrWhiteSpace(fix.Backup)) Console.WriteLine("  备份：" + fix.Backup);
-                if (!string.IsNullOrWhiteSpace(fix.Rollback)) Console.WriteLine("  回滚：" + fix.Rollback);
+                if (!string.IsNullOrWhiteSpace(fix.What)) Console.WriteLine("  说明：" + Reports.ReportWriter.Redact(fix.What));
+                if (!string.IsNullOrWhiteSpace(fix.Backup)) Console.WriteLine("  备份：" + Reports.ReportWriter.Redact(fix.Backup));
+                if (!string.IsNullOrWhiteSpace(fix.Rollback)) Console.WriteLine("  回滚：" + Reports.ReportWriter.Redact(fix.Rollback));
                 Console.WriteLine($"  执行：VdHelper.exe --apply {fix.Id}");
             }
 
@@ -523,14 +526,18 @@ public static class AdbProbe
 
         foreach (var r in new[] { basic, check })
         {
-            Console.WriteLine($"[{r.Status}] {r.Id}  {r.Summary}");
+            // Redact, like the --selftest path at :223-233. These two probes are the ones most
+            // likely to carry something sensitive — adb shell output goes into Evidence verbatim —
+            // and the report's stated property is that no DPAPI blob, token or account entry
+            // reaches the console. It was true of the report path and false of this one.
+            Console.WriteLine($"[{r.Status}] {r.Id}  {Reports.ReportWriter.Redact(r.Summary)}");
             if (!string.IsNullOrWhiteSpace(r.Detail))
-                Console.WriteLine("  " + r.Detail.Replace("\n", "\n  "));
+                Console.WriteLine("  " + Reports.ReportWriter.Redact(r.Detail).Replace("\n", "\n  "));
             foreach (var (k, v) in r.Evidence)
-                Console.WriteLine($"  {k}: {v}");
+                Console.WriteLine($"  {k}: {Reports.ReportWriter.Redact(v)}");
             if (!string.IsNullOrWhiteSpace(r.Guidance))
             {
-                var g = r.Guidance.TrimStart();
+                var g = Reports.ReportWriter.Redact(r.Guidance).TrimStart();
                 if (g.StartsWith("指引：", StringComparison.Ordinal)) g = g["指引：".Length..];
                 Console.WriteLine("  指引：" + g);
             }

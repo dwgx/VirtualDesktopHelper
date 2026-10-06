@@ -101,8 +101,7 @@ public static class GpuRuntimeChecks
                         (f.ThrottleReasons is null
                             ? "温度已越过 85°C。但驱动没有报 clocks_event_reasons，"
                               + "所以「是不是因为热才降频」这一项**没测成**，不猜。"
-                            : $"温度 {f.TemperatureC}°C 已越过 85°C，驱动报的降频原因："
-                              + string.Join("、", DescribeReasons(f.ThrottleReasons.Value)) + "。")
+                            : MaskedReasonText(f.ThrottleReasons.Value, f.TemperatureC))
                         + (f.PowerDrawW is null ? "" : $"功耗 {f.PowerDrawW:0.#} W。")
                         + "温度高本身就会掉频、画面卡、编码延迟涨。",
                         ev, Array.Empty<FixAction>(),
@@ -125,7 +124,7 @@ public static class GpuRuntimeChecks
                 var real = reasons & RealThrottle;
                 if (real != 0)
                 {
-                    var why = string.Join("、", DescribeReasons(reasons));
+                    var why = string.Join("、", DescribeReasons(real));
                     var watts = f.PowerDrawW is null ? "" : $"，当前功耗 {f.PowerDrawW:0.#} W";
                     return new CheckResult("gpu-throttle", CheckStatus.Warn,
                         $"GPU 被压在最高频率的 {ratio:P0}（{f.CurrentClock}/{f.MaxClock} MHz）"
@@ -174,12 +173,17 @@ public static class GpuRuntimeChecks
 
     // NVIDIA clocks_event_reasons bits. Idle, ApplicationsClocksSetting and DisplayClockSetting are
     // normal states, not throttling; the rest are reasons the card is held below its boost clock.
-    //
     // The throttling branch was written as correct-by-construction and marked unverified, on the
     // grounds that nothing would make this laptop report a throttle bit on demand. That retired
-    // itself: the machine reached 89% load and 100.8 W on its own, and the published v0.6.0 binary
-    // reported 降频原因位域 0x4 — SwPowerCap, 1UL << 2 — and named it. So the bit table and the branch
-    // are confirmed against a real driver report, not only against the documentation.
+    // itself when a real run reported 降频原因位域 0x4 — SwPowerCap, 1UL << 2 — and named it. The bit
+    // table and the branch are therefore confirmed against a driver report, not only the docs.
+    //
+    // The run on record is docs/checks.md:44 — GPU 被压在最高频率的 71%（2205/3090 MHz）,
+    // 占用 53%, 69 °C, 90.1 W, 驱动报的降频原因：软功耗墙. An earlier version of this comment gave
+    // that run as "89% load and 100.8 W". Both numbers were wrong: 89% is that run's frequency
+    // ratio, not its utilisation, and 100.8 W appears in no recorded run anywhere. Corrected here
+    // rather than deleted, because the error is the kind worth recognising — a run's ratio read as
+    // its load, and a figure with no source attached to a verified-looking claim.
     private const ulong GpuIdle = 1UL << 0;
     private const ulong ApplicationsClocks = 1UL << 1;
     private const ulong SwPowerCap = 1UL << 2;
@@ -205,6 +209,22 @@ public static class GpuRuntimeChecks
         if ((r & ApplicationsClocks) != 0) yield return "应用时钟档位已设定";
         if ((r & DisplayClockSetting) != 0) yield return "显示时钟档位已设定";
         if ((r & GpuIdle) != 0) yield return "GPU 空闲";
+    }
+
+    /// <summary>Throttle text for the temperature branch, which does not mask its own field.</summary>
+    private static string MaskedReasonText(ulong reasons, int tempC)
+    {
+        var real = reasons & RealThrottle;
+        if (real == 0)
+        {
+            // The unmasked call would join an empty list and print "驱动报的降频原因：。" — which
+            // reads as a populated field. Only GpuIdle/ApplicationsClocks/DisplayClockSetting were
+            // set, or the field really is 0x0; either way there is no throttle reason to name.
+            return $"温度 {tempC}°C 已越过 85°C，但驱动的 clocks_event_reasons 里没有任何真实降频位"
+                 + $"（原值 0x{reasons:X}）。温度高本身就会掉频，位域为 0 不代表不掉频。";
+        }
+        return $"温度 {tempC}°C 已越过 85°C，驱动报的降频原因："
+             + string.Join("、", DescribeReasons(real)) + "。";
     }
 
     private readonly record struct SmiRow(

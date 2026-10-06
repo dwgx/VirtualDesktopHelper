@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿using VdHelper.Core.Model;
+﻿﻿﻿﻿﻿﻿using VdHelper.Core.Model;
 
 namespace VdHelper.Core.Adb;
 

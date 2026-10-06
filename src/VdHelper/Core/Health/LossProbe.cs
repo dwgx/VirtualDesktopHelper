@@ -124,14 +124,28 @@ public static class LossProbe
                 var worstPartial = partial.Count == 0 ? 0 : partial.Max(r => r.Loss);
 
                 if (silent.Count > 0)
+                {
+                    // The silent branch returned before the partial one, so a group of "gateway 30%
+                    // loss + headset not answering" produced a summary naming only the headset. The
+                    // 30% survived in evidence and nowhere else — and the guidance then cited that
+                    // same gateway as evidence the local link is fine. Verdict() below reports both,
+                    // so the screen and the CLI were answering differently about one measurement.
+                    var alsoPartial = partial.Count > 0
+                        ? "；另外 " + string.Join("、", partial.Select(r => $"{r.Label} {r.Host}"))
+                          + $" 测到 {worstPartial:F0}% 丢包"
+                        : "";
                     return new CheckResult("net-loss", CheckStatus.Warn,
-                        string.Join("、", silent.Select(r => $"{r.Label} {r.Host}")) + $" 完全不应答（0 收到）",
-                        "这一项测的不是丢包，而是「有没有人应答」。0 收到不等于丢包——睡着的头显和关着屏幕的笔记本都是 0 收到。",
+                        string.Join("、", silent.Select(r => $"{r.Label} {r.Host}")) + $" 完全不应答（0 收到）"
+                        + alsoPartial,
+                        "这一项测的不是丢包，而是「有没有人应答」。0 收到不等于丢包——睡着的头显和关着屏幕的笔记本都是 0 收到。"
+                        + (partial.Count > 0 ? "同一轮采样里确实还有目标在丢包，那部分单独列在上面。" : ""),
                         ev, Array.Empty<FixAction>(),
                         "本机链路本身" + (clean.Count > 0
                             ? "没问题：" + string.Join("、", clean.Select(r => $"{r.Label} {r.Host}")) + " 通畅。 "
                             : "无法从这次采样判断。 ")
+                        + (partial.Count > 0 ? "上面那几条丢包是另一回事，别和「不应答」混在一起查。" : "")
                         + "先确认头显醒着、Wi-Fi 连着、地址没变；把这一项当成丢包去查路由器会白查。");
+                }
 
                 if (worstPartial >= 5)
                     return new CheckResult("net-loss", CheckStatus.Warn,
