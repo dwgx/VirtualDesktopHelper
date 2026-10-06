@@ -212,8 +212,14 @@
                                        Text="{Binding GuidanceText, StringFormat=指引：{0}}"
                                        Visibility="{Binding HasGuidance, Converter={StaticResource BoolToVisible}}" />
 
-                            <TextBlock Style="{StaticResource Mono}" Margin="0,8,0,0"
-                                       Text="{Binding EvidenceText, StringFormat=原始输出：{0}}" />
+                            <Expander x:Name="RawOutput" Margin="0,8,0,0">
+                                <Expander.Header>
+                                    <TextBlock Style="{StaticResource Muted}" FontSize="11.5"
+                                               Text="{Binding EvidenceLineCount, StringFormat=原始输出（{0} 行）· 点击展开}" />
+                                </Expander.Header>
+                                <TextBlock Style="{StaticResource Mono}" Margin="0,6,0,0"
+                                           Text="{Binding EvidenceText, StringFormat={}{0}}" />
+                            </Expander>
                         </StackPanel>
                     </Expander>
                 </DataTemplate>

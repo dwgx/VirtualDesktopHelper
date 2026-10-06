@@ -81,6 +81,9 @@ public sealed class CheckRow : INotifyPropertyChanged
         _ => "未知",
     };
     public string Detail => Result.Detail;
+    /// <summary>Line count for the collapsed raw-output heading, not the text itself.</summary>
+    public int EvidenceLineCount => Result.Evidence.Count(kv => !kv.Key.StartsWith('_'));
+
     public string EvidenceText => string.Join("\n", Result.Evidence
         .Where(kv => !kv.Key.StartsWith('_'))
         .Select(kv => $"{kv.Key}: {kv.Value}"));
