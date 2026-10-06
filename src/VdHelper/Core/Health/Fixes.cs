@@ -252,13 +252,27 @@ public static class Fixes
 
         var run = await PowerShellRunner.RunAsync(wrapper, false, 90_000, ct).ConfigureAwait(false);
 
+        // Use what the wrapper already told us, before spending 15 seconds proving it by waiting.
+        // Start-Process -Verb RunAs fails with "The operation was canceled by the user" the moment
+        // anyone clicks 否, and that string was being captured into `run` and then never read — so the
+        // user waited out the full poll and was told 多半是 UAC 弹窗没人确认, a guess, when the cause
+        // was known and sitting in a variable 40 characters away.
+        if (run.TimedOut)
+            return (false, "提权后的脚本在 90 秒内没有结束（UAC 弹窗一直没人点，或内层脚本卡住了）。");
+        if (run.ExitCode != 0)
+        {
+            var why = (run.StdErr.Length > 0 ? run.StdErr : run.StdOut).Trim();
+            return (false, "提权启动失败：" + (why.Length > 0 ? why : $"exit={run.ExitCode}")
+                + "——UAC 弹窗点「否」时就是这个结果。");
+        }
+
         try
         {
             for (var i = 0; i < 60 && !File.Exists(marker); i++)
                 await Task.Delay(250, ct).ConfigureAwait(false);
 
             if (!File.Exists(marker))
-                return (false, "提权脚本没有留下结果（多半是 UAC 弹窗没人确认）。");
+                return (false, "提权脚本没有留下结果：内层进程启动了，但没有写结果文件。");
 
             var text = (await File.ReadAllTextAsync(marker, ct).ConfigureAwait(false)).Trim();
             return text.StartsWith("exit=0", StringComparison.Ordinal)
