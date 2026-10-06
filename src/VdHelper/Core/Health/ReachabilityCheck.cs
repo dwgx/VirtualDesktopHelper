@@ -1,4 +1,4 @@
-﻿﻿﻿using System.Net;
+﻿﻿﻿﻿﻿﻿﻿using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using VdHelper.Core.Adb;
@@ -102,17 +102,23 @@ public static class ReachabilityCheck
                 //
                 // Any reply means the link is up, because the verdict is about reachability and not
                 // about loss: loss is net-loss's job and it samples twenty times.
-                var attempts = new List<(bool Ok, long Ms, string Detail)>();
+                var attempts = new List<(bool Success, long Ms, string Detail)>();
                 for (var attempt = 0; attempt < 3; attempt++)
                 {
                     if (attempt > 0) await Task.Delay(300, ct).ConfigureAwait(false);
-                    attempts.Add(await PingAsync(address, 1200, ct).ConfigureAwait(false));
+                    var a = await PingAsync(address, 1200, ct).ConfigureAwait(false);
+                    attempts.Add(a);
+                    if (a.Success) break;
                 }
-                var ping = attempts.FirstOrDefault(a => a.Ok);
-                var replies = attempts.Count(a => a.Ok);
+                var ping = attempts.FirstOrDefault(a => a.Success);
+                var replies = attempts.Count(a => a.Success);
+                // one phrase, used by both the evidence and the summary, so they cannot disagree
+                var probeNote = replies == 1 && attempts.Count == 1
+                    ? "，首次即应答"
+                    : $"，{attempts.Count} 次采样应答 {replies} 次";
                 ev["ping"] = replies > 0
-                    ? $"{ping.Ms} ms（3 次采样应答 {replies} 次）"
-                    : $"不通（3 次采样全部未应答）";
+                    ? $"{ping.Ms} ms（{probeNote.TrimStart('，')}）"
+                    : $"不通（{attempts.Count} 次采样全部未应答）";
                 ev["ping 明细"] = string.Join(" ;; ", attempts.Select((a, i) => $"#{i + 1} {a.Detail}"));
                 ev["采样"] = $"{replies}/{attempts.Count} 次应答";
 
@@ -126,7 +132,7 @@ public static class ReachabilityCheck
 
                 if (replies > 0)
                     return new CheckResult("lan-reach", CheckStatus.Pass,
-                        $"头显 {ip} 可达（ping {ping.Ms} ms，3 次采样应答 {replies} 次）",
+                        $"头显 {ip} 可达（ping {ping.Ms} ms{probeNote}）",
                         "网络层通。如果头显里还是「连不上」，问题在 VD 应用侧或账号侧，不在网络。",
                         ev, Array.Empty<FixAction>());
 
