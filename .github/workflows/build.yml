@@ -44,6 +44,13 @@ jobs:
         shell: pwsh
         run: ./tools/check-symptom-map.ps1
 
+      # Exit-code contract gate. README promises one and scripts key off it, so a silent change to any
+      # return value breaks every consumer. Read-only by construction — the state-changing commands are
+      # not in its list, per WORKFLOW.md §10.
+      - name: Exit code gate
+        shell: pwsh
+        run: ./tools/check-exit-codes.ps1
+
       # Citation gate: every File.cs:NNN in the shipped tool must resolve in a decompiled tree.
       # On CI neither tree exists, so it skips loudly rather than failing — the local run is the
       # one that actually checks. See tools/check-citations.py for why two trees and "at least one".
