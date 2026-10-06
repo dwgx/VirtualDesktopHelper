@@ -113,13 +113,13 @@ footer a{color:var(--mut)}
 <div class="wrap">
 <header class="hero">
   <div class="eyebrow">VDHELPER · WINDOWS PC · 本机实测</div>
-  <h1>「连不上」不是一个错误码，<br><span class="grad">是 35 条可检测的断链</span></h1>
+  <h1>「连不上」不是一个错误码，<br><span class="grad">是 34 条可检测的断链</span></h1>
   <p class="lead">VDHelper 是 Windows 端的 Virtual Desktop 串流检测 / 诊断 / 修复工具。它回答一个具体问题：<strong>为什么头显找不到这台 PC，或者找到了却连不上。</strong>本页所有数字都来自本机真实运行结果与仓库里可核实的语料，没有一条是估的。</p>
-<p class="lead">本表是最初的 <strong>27</strong> 条设计清单。工具后来又加了检测项，现在每次体检实际跑的是 <strong>35</strong> 条（见下方本机实测）。<strong>差额的走向和「待实现」相反</strong>——是清单没跟上工具，不是工具没做完。本次体检到底跑了哪几项，以 <code>--selftest</code> 的输出为准。</p>
+<p class="lead">本表是最初的 <strong>27</strong> 条设计清单。工具后来又加了检测项，现在每次体检实际跑的是 <strong>34</strong> 条（见下方本机实测）。<strong>差额的走向和「待实现」相反</strong>——是清单没跟上工具，不是工具没做完。本次体检到底跑了哪几项，以 <code>--selftest</code> 的输出为准。</p>
   <div class="actions"><a class="primary" href="checks.html">看 27 项检测判据全表</a><a class="ghost" href="faq.html">先排掉 10 个社区错解 ↓</a></div>
 </header>
 <div class="stats">
-  <div class="stat"><div class="n g" data-to="35">0</div><div class="l">条已实装检测项<br>（每次体检都跑）</div></div>
+  <div class="stat"><div class="n g" data-to="34">0</div><div class="l">条已实装检测项<br>（每次体检都跑）</div></div>
   <div class="stat"><div class="n" data-to="96">0</div><div class="l">条真实用户失败描述<br>（来自 79 个完整帖子）</div></div>
   <div class="stat"><div class="n" data-to="43">0</div><div class="l">条症状→根因条目<br>（S1–S7 分诊表逐表数出）</div></div>
   <div class="stat"><div class="n" data-to="2">0</div><div class="l">个根因完全未覆盖<br>（覆盖度小结口径：共 23）</div></div>
@@ -130,10 +130,10 @@ footer a{color:var(--mut)}
   <div class="card"><p style="margin:0"><span class="badge warn">有隐患：能串但可能不稳或掉帧</span></p>
   <p class="note">原始行：VDHelper selftest  verdict=AtRisk  有隐患：能串但可能不稳或掉帧</p></div>
   <div class="stats" style="margin:18px 0 4px">
-    <div class="stat"><div class="n g" data-to="21">0</div><div class="l">通过 / 共 35 项</div></div>
+    <div class="stat"><div class="n g" data-to="22">0</div><div class="l">通过 / 共 34 项</div></div>
     <div class="stat"><div class="n" data-to="12">0</div><div class="l">警告</div></div>
     <div class="stat"><div class="n" data-to="0">0</div><div class="l">阻断</div></div>
-    <div class="stat"><div class="n" data-to="2">0</div><div class="l">信息不足（Unknown）</div></div>
+    <div class="stat"><div class="n" data-to="0">0</div><div class="l">信息不足（Unknown）</div></div>
   </div>
   <div class="tblwrap"><table>
 <thead><tr><th>状态</th><th>编号</th><th>结论</th></tr></thead><tbody>
@@ -145,32 +145,31 @@ footer a{color:var(--mut)}
 <tr><td><span class="badge warn">警告</span></td><td><code>fw-defender</code></td><td>Defender 防火墙：Domain     True / Private   False / Public    False</td></tr>
 <tr><td><span class="badge pass">通过</span></td><td><code>svc-vd</code></td><td>VirtualDesktop.Service.exe Running Automatic</td></tr>
 <tr><td><span class="badge pass">通过</span></td><td><code>port-vd</code></td><td>4 个端口由 Virtual Desktop 持有，没有被别的程序抢占</td></tr>
-<tr><td><span class="badge warn">警告</span></td><td><code>session-stale</code></td><td>4 个到头显的通道仍是已建立状态（最早建立于 1 小时 15 分前）</td></tr>
+<tr><td><span class="badge warn">警告</span></td><td><code>session-stale</code></td><td>4 个到头显的通道仍是已建立状态（最早建立于 5 分钟前）</td></tr>
 <tr><td><span class="badge pass">通过</span></td><td><code>streamer-proc</code></td><td>Streamer 进程运行中（1 个）</td></tr>
 <tr><td><span class="badge warn">警告</span></td><td><code>svc-log</code></td><td>服务日志有 5 条历史 ERROR（最近一次 2026-09-18 15:37:35.6962），但 Streamer 正在运行</td></tr>
-<tr><td><span class="badge pass">通过</span></td><td><code>udp-discovery</code></td><td>串流中，Streamer 已释放发现端口（正常）</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>udp-discovery</code></td><td>串流中：到头显的通道已建立，Streamer 已释放发现端口（正常）</td></tr>
 <tr><td><span class="badge warn">警告</span></td><td><code>cfg-streamer</code></td><td>ShowPairingRequests=false：靠弹窗配对新头显会被静默忽略（靠名字在客户端选则不受影响）；DontWarnApps 含 NetworkProfile：官方自己的网络告警被屏蔽了；AutoAdjustBitrate=false：自动调码率已关，卡在「measuring bandwidth」时社区的首选解法就是把它打开</td></tr>
 <tr><td><span class="badge warn">警告</span></td><td><code>ics</code></td><td>SharedAccess(ICS)：Running</td></tr>
 <tr><td><span class="badge pass">通过</span></td><td><code>fw-outbound</code></td><td>出站策略：Domain          NotConfigured / Private         NotConfigured / Public          NotConfigured</td></tr>
 <tr><td><span class="badge pass">通过</span></td><td><code>av</code></td><td>已注册杀软：Windows Defender（productState 原值见下方原始输出，未解码：那是各版本含义不一的位掩码）</td></tr>
 <tr><td><span class="badge pass">通过</span></td><td><code>route-metric</code></td><td>有线网卡优先级 10，没有虚拟网卡排在它前面</td></tr>
 <tr><td><span class="badge pass">通过</span></td><td><code>link-type</code></td><td>PC 走有线（Ethernet）</td></tr>
-<tr><td><span class="badge pass">通过</span></td><td><code>lan-reach</code></td><td>头显 192.168.11.14 可达（ping 2 ms）</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>lan-reach</code></td><td>头显 192.168.11.14 可达（ping 1 ms，首次即应答）</td></tr>
 <tr><td><span class="badge pass">通过</span></td><td><code>link-rate</code></td><td>Ethernet 协商速率 1 Gbps</td></tr>
 <tr><td><span class="badge pass">通过</span></td><td><code>vpn-proc</code></td><td>没有发现 VPN/代理客户端进程</td></tr>
 <tr><td><span class="badge pass">通过</span></td><td><code>rdp-session</code></td><td>只有本机 console 会话（1 条），没有远程桌面在跑</td></tr>
-<tr><td><span class="badge pass">通过</span></td><td><code>nat-type</code></td><td>路由器支持 UPnP（UPnP / SSDP），NAT 类型 Open；外网 IP 是 172.16.80.42（私有段），上级还有一层 NAT——这只影响异地连接，不影响同网段</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>nat-type</code></td><td>路由器响应 UPnP 控制面（UPnP / SSDP），且当前有 38810 的入站映射；<strong>NAT 类型这一项没有测</strong>（需要映射行为探测或 STUN，本检查只读了两项）；外网 IP 是 172.16.80.42（私有段），上级还有一层 NAT——这只影响异地连接，不影响同网段</td></tr>
 <tr><td><span class="badge pass">通过</span></td><td><code>fw-pair</code></td><td>入站放行有效（Virtual Desktop Streamer），没有针对 VD 的出站拦截</td></tr>
 <tr><td><span class="badge pass">通过</span></td><td><code>accounts-persisted</code></td><td>配对信息已落盘（OculusQuest 1 条、Oculus 3 条），设备名 Meta Quest 3</td></tr>
 <tr><td><span class="badge warn">警告</span></td><td><code>fw-profile-inbound</code></td><td>profile 默认入站：Domain     True        NotConfigured / Private   False        NotConfigured / Public    False        NotConfigured</td></tr>
 <tr><td><span class="badge warn">警告</span></td><td><code>gpu-pick</code></td><td>Virtual Desktop Monitor</td></tr>
-<tr><td><span class="badge warn">警告</span></td><td><code>proc-tuner</code></td><td>按进程名命中硬件调校类 5 个（未测 CPU 占用或线程优先级，只按名字匹配）</td></tr>
-<tr><td><span class="badge unknown">Unknown</span></td><td><code>nic-powersave</code></td><td>读不到网卡电源管理属性</td></tr>
+<tr><td><span class="badge warn">警告</span></td><td><code>proc-tuner</code></td><td>按进程名命中硬件调校类 7 个（未测 CPU 占用或线程优先级，只按名字匹配）</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>nic-powersave</code></td><td>没有网卡关闭了网络唤醒</td></tr>
 <tr><td><span class="badge warn">警告</span></td><td><code>display-inventory</code></td><td>Virtual Desktop Monitor(Error)</td></tr>
 <tr><td><span class="badge pass">通过</span></td><td><code>cfg-version</code></td><td>Streamer 版本 1.34.22.0</td></tr>
-<tr><td><span class="badge pass">通过</span></td><td><code>gpu-encoder</code></td><td>硬件编码器正在工作（1 个编码会话）</td></tr>
-<tr><td><span class="badge warn">警告</span></td><td><code>gpu-throttle</code></td><td>GPU 占用 73% 却只跑在最高频率的 75%（2317/3090 MHz，温度 72°C）。驱动没有报任何降频原因，所以这不是功耗墙也不是过热——原因不明，如实写在这里。</td></tr>
-<tr><td><span class="badge unknown">Unknown</span></td><td><code>wifi-quality</code></td><td>无线未连接（disconnected），这一项没有测到任何链路数据</td></tr>
+<tr><td><span class="badge pass">通过</span></td><td><code>gpu-encoder</code></td><td>本机此刻有 1 个 NVENC 硬件编码会话</td></tr>
+<tr><td><span class="badge warn">警告</span></td><td><code>gpu-throttle</code></td><td>GPU 被压在最高频率的 71%（2205/3090 MHz）（占用 53%，温度 69°C，当前功耗 90.1 W）。驱动报的降频原因：软件功耗墙 (SW Power Cap)。</td></tr>
 <tr><td><span class="badge pass">通过</span></td><td><code>net-loss</code></td><td>没有测到丢包（快速采样 8 次）</td></tr>
 </tbody></table></div>
   <p class="note">检测项的完整定义（症状 / 命令 / 判据 / 修复 / 回滚 / 风险）见 <a href="checks.html">检测项全表</a>；参数项与头显侧规则见 <code>checks.md</code> 末尾的三处指向。</p>
