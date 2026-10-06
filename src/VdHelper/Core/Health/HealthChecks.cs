@@ -24,8 +24,8 @@ public static class HealthChecks
         // fw-restore-vd attached, on a machine it had not managed to read. A query that genuinely
         // finds nothing still returns zero rows and still reaches the judge, which is the point:
         // "there is no rule" and "I could not ask" have to stay different answers. Two paths carry
-        // that, not one: PowerShellCheck.cs:33-37 treats a non-zero exit as Unknown, and :39-49
-        // treats stderr-with-empty-stdout as Unknown. The second is the common shape for fw-vd,
+        // that, not one: PowerShellCheck treats a non-zero exit as Unknown, and also treats
+        // stderr-with-empty-stdout as Unknown. The second is the common shape for fw-vd,
         // where the cmdlet exists and refuses on access — which is why -ErrorAction Stop matters
         // as much as the stderr check does.
         "Get-NetFirewallRule -ErrorAction Stop | Where-Object { $_.DisplayName -like 'Virtual Desktop*' } | Select-Object DisplayName,Enabled,Direction,Action | Format-Table -AutoSize | Out-String -Width 200";
