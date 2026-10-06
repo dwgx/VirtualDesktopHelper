@@ -92,6 +92,20 @@ VdHelper.exe --report-html out.html --symptom S2  REM 单文件 HTML，原始输
 报告还会点名「症状类列了、但本轮 PC 侧体检没有结果」的检测（如 `headset-deep`），
 而不是悄悄略过——那一栏是 Unknown，不是通过。
 
+## 下载直接跑（没有签名，会被拦一次）
+
+release 里的 `VdHelper.exe` **没有代码签名**（`Get-AuthenticodeSignature` 报 `NotSigned`）。
+SmartScreen 对没有签名的下载会拦一次，弹「Windows 已保护你的电脑」。**这是预期行为，不是文件坏了。**
+
+**先核对哈希再放行**——包里的 `SHA256SUMS.txt` 就是给你做这一步的：
+
+```bat
+certutil -hashfile VdHelper.exe SHA256
+```
+
+对得上再点「更多信息」→「仍要运行」。**对不上就别运行**，把值贴进 issue。
+
+自包含单文件，约 134 MB，不需要装 .NET。
 ## 用法
 
 ```bat
