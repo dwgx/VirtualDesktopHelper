@@ -106,8 +106,8 @@ public sealed class HeadsetDeepProbe(AdbClient adb)
             ev["头显是否在网络上可达"] = string.IsNullOrWhiteSpace(configured)
                 ? "(没填 headsetIp，无法判断)"
                 : reachable ? $"是：{configured} ping 通" : $"否：{configured} ping 不通";
-            // Do not restate the network conclusion. The basic probe (HeadsetProbe.cs:87) has already
-            // said "网络这一段是通的——<ip> ping 得到应答" in a card directly above this one, with the
+            // Do not restate the network conclusion. The basic probe has already said
+            // "网络这一段是通的——<ip> ping 得到应答" in a card directly above this one, with the
             // same summary line; repeating it here made the third screen show the same paragraph
             // twice, which is half the panel. What this probe adds is only that nothing downstream
             // could run at all — so say that, and leave the wiring steps to the guidance it shares.
