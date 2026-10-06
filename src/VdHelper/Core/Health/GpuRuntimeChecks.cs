@@ -258,15 +258,29 @@ public static class GpuRuntimeChecks
             var parts = first.Split(',').Select(x => x.Trim()).ToArray();
             if (parts.Length < 8) return null;
 
+            // Verified against this machine's real driver, which prints eight fields in the order
+            // queried: "NVIDIA GeForce RTX 5070 Ti Laptop GPU, 2070, 3090, 60, 37, 2, 59.44,
+            // 0x0000000000000000". The last seven are numeric; only the name is free text.
+            //
+            // Taken from the END, not the start, because a GPU name may itself contain a comma.
+            // Reading parts[0..7] and guarding on Length < 8 would not catch that: a name with one
+            // comma yields nine fields, the guard passes, and every value lands one slot early —
+            // CurrentClock gets the tail of the name, int.TryParse fails, and the card is reported
+            // at 0 MHz. Silent and wrong, which is the worst shape. Splitting off the last seven
+            // makes a comma in the name harmless and the field count authoritative.
+            var n = parts.Length;
+            var name = string.Join(",", parts[..(n - 7)]).Trim();
+            var tail = parts[(n - 7)..];
+
             return new SmiRow(
-                parts[0],
-                int.TryParse(parts[1], out var c) ? c : 0,
-                int.TryParse(parts[2], out var m) ? m : 0,
-                int.TryParse(parts[3], out var t) ? t : 0,
-                int.TryParse(parts[4], out var u) ? u : 0,
-                int.TryParse(parts[5], out var e) ? e : 0,
-                double.TryParse(parts[6], NumberStyles.Float, CultureInfo.InvariantCulture, out var w) ? w : null,
-                TryParseReasons(parts[7]));
+                name,
+                int.TryParse(tail[0], out var c) ? c : 0,
+                int.TryParse(tail[1], out var m) ? m : 0,
+                int.TryParse(tail[2], out var t) ? t : 0,
+                int.TryParse(tail[3], out var u) ? u : 0,
+                int.TryParse(tail[4], out var e) ? e : 0,
+                double.TryParse(tail[5], NumberStyles.Float, CultureInfo.InvariantCulture, out var w) ? w : null,
+                TryParseReasons(tail[6]));
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception
                                       or InvalidOperationException or System.IO.IOException)
