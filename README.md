@@ -135,14 +135,21 @@ dotnet build src/VdHelper/VdHelper.csproj -c Release
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\publish.ps1        # 构建 + SHA256 + 自检
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\export-checks.ps1    # 重新生成 docs/checks.md
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\check-symptom-map.ps1   # 反漂移闸门，README 数字也会被它核对
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\check-exit-codes.ps1   # 退出码契约，只跑只读命令
+python tools\check-citations.py                                             # 引用的 File.cs:NNN 必须能解析
+python tools\check-issue-form.py
+
+> 四个闸门都在 CI 里跑（`.github/workflows/build.yml`）。
+> `check-exit-codes.ps1` 的只读清单是硬编码的，结构上到不了 `--quit-streamer` / `--apply <id>` /
+> `--set-param <key> <value>`——原因见 `WORKFLOW.md` §10。
 ```
 
 ## 先读这三页
 
 检测项全表、症状分诊表、社区错解逐条纠偏——都由脚本从调研源文件生成，数字不会和代码脱节。
 
-> **下面三个是 `.html`，在 GitHub 上看到的是源码，不是渲染后的页面**（本仓库还没开 Pages）。
-> 想直接看内容，点 [`docs/checks.md`](docs/checks.md)（GitHub 会正常渲染），或本地跑一次
+> **下面三个是 `.html`。文档站已开在 https://dwgx.github.io/VirtualDesktopHelper/ ，内容与这三页同源**
+> （`gh-pages` 分支，由 `tools/export-docs-site.ps1` 生成）。想直接看源码，点 [`docs/checks.md`](docs/checks.md)。
 > `tools/export-docs-site.ps1` 再用浏览器打开。
 
 - [常见问题 · 症状分诊 + 错解纠偏](docs/faq.html)
