@@ -49,7 +49,7 @@
                         <StackPanel Grid.Column="2" Margin="10,0,10,0">
                             <TextBlock Style="{StaticResource Muted}" FontSize="11.5"
                                        TextTrimming="CharacterEllipsis" Text="{Binding Effect}" />
-                            <TextBlock Style="{StaticResource Mono}" FontSize="10.5"
+                            <TextBlock Style="{StaticResource Mono}" FontSize="{StaticResource FsMeta}"
                                        Text="{Binding SourceText, StringFormat=来源 {0}}" />
                         </StackPanel>
                         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">

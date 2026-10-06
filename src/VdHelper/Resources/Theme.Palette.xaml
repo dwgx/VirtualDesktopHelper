@@ -46,6 +46,17 @@
     <PathGeometry x:Key="GlyphUnknown" FillRule="EvenOdd" Figures="M8,1 A7,7 0 1 0 8,15 A7,7 0 1 0 8,1 Z M8,4.5 A3.5,3.5 0 1 0 8,11.5 A3.5,3.3 0 1 0 8,4.5 Z" />
 
     <FontFamily x:Key="UiFont">Verdana, Microsoft YaHei UI</FontFamily>
+
+    <!-- Five sizes, taken from the official's scale (research/05-ui-reverse/01-ui-spec.md §1.6).
+         The window had seven (10.5 / 11 / 11.5 / 12 / 12.5 / 13 / 15), each picked while writing the
+         element it happened to be in, and neighbouring sections did not match. Named so that
+         changing the scale is one edit rather than a sweep. -->
+    <sys:Double x:Key="FsDisplay">16</sys:Double>   <!-- section headings -->
+    <sys:Double x:Key="FsBody">12.5</sys:Double>     <!-- row summaries -->
+    <sys:Double x:Key="FsMeta">11.5</sys:Double>     <!-- secondary text, ids, risk labels -->
+    <sys:Double x:Key="FsMono">11</sys:Double>       <!-- raw output -->
+    <sys:Double x:Key="FsDisplaySm">14</sys:Double>  <!-- window title -->
+
     <sys:Double x:Key="BodySize">14.667</sys:Double>
 
 </ResourceDictionary>

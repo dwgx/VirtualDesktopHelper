@@ -19,7 +19,7 @@
                 BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
             <StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                    <TextBlock Style="{StaticResource ChromeText}" FontSize="12" Text="接下来做什么" />
+                    <TextBlock Style="{StaticResource ChromeText}" FontSize="{StaticResource FsBody}" Text="接下来做什么" />
                     <TextBlock Style="{StaticResource Muted}" Margin="8,0,0,0" FontSize="11.5"
                                Text="{Binding ActionsHint}" />
                 </StackPanel>
@@ -34,7 +34,7 @@
                                 <TextBlock Grid.Column="0" FontSize="11" FontWeight="700"
                                            VerticalAlignment="Center" Text="{Binding Tag}"
                                            Foreground="{Binding Accent}" />
-                                <TextBlock Grid.Column="1" TextWrapping="Wrap" FontSize="12"
+                                <TextBlock Grid.Column="1" TextWrapping="Wrap" FontSize="{StaticResource FsBody}"
                                            Foreground="#C9D0DE">
                                     <Run Text="{Binding Title, Mode=OneWay}" />
                                     <Run Text=" — " Foreground="#6B7385" />
@@ -68,7 +68,7 @@
                                     <ContentPresenter Margin="{TemplateBinding Padding}"
                                                       VerticalAlignment="Center"
                                                       TextElement.FontFamily="{StaticResource UiFont}"
-                                                      TextElement.FontSize="12"
+                                                      TextElement.FontSize="{StaticResource FsBody}"
                                                       TextElement.Foreground="{StaticResource InkBrush}" />
                                 </Border>
                                 <ControlTemplate.Triggers>
@@ -178,7 +178,7 @@
                                            FontFamily="Consolas" FontSize="11.5" Foreground="{StaticResource MutedBrush}"
                                            TextTrimming="CharacterEllipsis" Text="{Binding Title}" />
                                 <TextBlock Grid.Column="2" VerticalAlignment="Center" TextWrapping="Wrap"
-                                           Margin="10,0,0,0" Style="{StaticResource ChromeText}" FontSize="13"
+                                           Margin="10,0,0,0" Style="{StaticResource ChromeText}" FontSize="{StaticResource FsBody}"
                                            Text="{Binding Summary}" />
                             </Grid>
                         </Expander.Header>

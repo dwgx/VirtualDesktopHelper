@@ -18,7 +18,7 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <StackPanel>
-                <TextBlock Style="{StaticResource ChromeText}" FontSize="13" Text="{Binding Summary}"
+                <TextBlock Style="{StaticResource ChromeText}" FontSize="{StaticResource FsBody}" Text="{Binding Summary}"
                            Foreground="{Binding Status, Converter={StaticResource StatusBrush}}" />
                 <TextBlock Style="{StaticResource Mono}" Text="{Binding AdbStatus}" />
             </StackPanel>
