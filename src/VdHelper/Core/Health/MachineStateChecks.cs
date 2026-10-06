@@ -129,7 +129,13 @@ public static class MachineStateChecks
                         "这两项（WakeOnMagicPacket / WakeOnPattern）都是**唤醒能力**，不是休眠开关。"
                         + "所以本项答的是「网卡睡着以后还能不能被叫醒」；"
                         + "「它会不会在空闲时睡着」要看 DeviceSleepOnDisconnect 与电源管理里的"
-                        + "「允许计算机关闭此设备以节约电源」——两者都读进证据了，但没参与判定。"
+                        // Not 「两者都读进证据了」. Only DeviceSleepOnDisconnect is: the script reads
+                        // WakeOnMagicPacket / WakeOnPattern / DeviceSleepOnDisconnect, and 允许计算机
+                        // 关闭此设备以节约电源 is a Device Manager checkbox that
+                        // Get-NetAdapterPowerManagement does not return. Claiming both would send
+                        // someone to ev["电源管理属性"] looking for a field that was never collected.
+                        + "——只有 DeviceSleepOnDisconnect 在证据里；设备管理器里那个「允许计算机关闭此设备以节约电源」"
+                        + "本项读不到（Get-NetAdapterPowerManagement 不返回它），所以没参与判定。"
                         + "**本项没有让任何网卡真正进入过睡眠。**", ev, Array.Empty<FixAction>());
 
                 return new CheckResult("nic-powersave", CheckStatus.Warn,

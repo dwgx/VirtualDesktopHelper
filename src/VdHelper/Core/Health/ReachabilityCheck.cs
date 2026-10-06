@@ -86,7 +86,7 @@ public static class ReachabilityCheck
                 ev["邻居表"] = neighbor.Count == 0
                     ? "(ARP 缓存里没有这台设备 → 它当前不在这个链路上)"
                     : string.Join(" ;; ", neighbor)
-                      + (reachable ? "（状态可达）" : "（状态陈旧：这条记录已经过期，不能当作它还在）");
+                      + (reachable ? "（状态可达）" : $"（状态 {stateName}，不是 Reachable：这条邻居记录正在解析或已经陈旧，不能当作它还在）");
 
                 var sameSubnet = local?.PrimaryIPv4 is not null
                     && SameSubnet(local.PrimaryIPv4, address);

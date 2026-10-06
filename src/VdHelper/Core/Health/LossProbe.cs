@@ -159,7 +159,7 @@ public static class LossProbe
 
                 return new CheckResult("net-loss", CheckStatus.Pass,
                     $"没有测到丢包（快速采样 {InPassSamples} 次）",
-                    "注意这是单次快照，而且只有 8 次采样；随机丢包很容易刚好没赶上。"
+                    $"注意这是单次快照，而且只有 {InPassSamples} 次采样；随机丢包很容易刚好没赶上。"
                     + "画面卡的时候用「深度探测」跑 20 次，或命令行 --deep。",
                     ev, Array.Empty<FixAction>());
             });
