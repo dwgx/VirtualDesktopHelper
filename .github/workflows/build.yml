@@ -76,6 +76,14 @@ jobs:
         shell: pwsh
         run: python tools/check-docs-coverage.py
 
+      # The adb probes run shell commands on a device nobody here has one of. A whitelist, not a
+      # blocklist: headset-grant legitimately writes, so a blocklist would either flag it or need an
+      # exception. This asks the question that matters — exactly which commands does a probe run — and
+      # anything new has to be put on the list on purpose.
+      - name: ADB read-only gate
+        shell: pwsh
+        run: python tools/check-adb-readonly.py
+
       - name: Report consistency gate
         shell: pwsh
         run: python tools/check-report-consistency.py
