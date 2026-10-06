@@ -343,6 +343,10 @@ public static class ReportWriter
 
             > 生成方式：`VdHelper.exe --report <file>{UsageSuffix(m)}`。可直接贴到社区求助或 GitHub issue。
             > 脱敏口径：不写任何 DPAPI 密文、令牌、账户条目内容；机器名 / 用户名 / 局域网地址保留。
+            > **第三屏还包含头显的 adb 序列号**——`HeadsetProbe` / `HeadsetDeepProbe` 都把 serial 写进证据，
+            > 而它既不在 `InternalKeys` 表里、也不在 DPAPI 脱敏范围内。
+            > `reference/quest-adb-dashboard/docs/PUBLIC_SHARING.md` 把「真实序列号」列在 Do Not Share 里。
+            > **保留它是因为 `--serial` 是公开参数、不知道是哪一台就难以诊断**；贴到公开场合前请自己删掉这一行。
 
             ## 1. 结论
 
@@ -531,7 +535,7 @@ public static class ReportWriter
             </head>
             <body><main>
             <h1>VDHelper 体检报告</h1>
-            <p class="lead">由 <code>VdHelper.exe --report-html &lt;file&gt;{UsageSuffix(m)}</code> 生成：单文件、内联样式、UTF-8，可直接贴到社区求助或 GitHub issue。原始输出默认折叠。脱敏口径同 Markdown 版——不写任何 DPAPI 密文、令牌、账户条目内容，机器名 / 用户名 / 局域网地址保留。</p>
+            <p class="lead">由 <code>VdHelper.exe --report-html &lt;file&gt;{UsageSuffix(m)}</code> 生成：单文件、内联样式、UTF-8，可直接贴到社区求助或 GitHub issue。原始输出默认折叠。脱敏口径同 Markdown 版——不写任何 DPAPI 密文、令牌、账户条目内容，机器名 / 用户名 / 局域网地址保留；<b>第三屏另含头显 adb 序列号，公开前请自行删掉</b>。</p>
             <h2 id="verdict">1. 结论</h2>
             <div class="verdict" style="border-left-color:var(--{VerdictClass(m.Verdict)})"><span class="badge b-{VerdictClass(m.Verdict)}">{E(m.Word)}</span><span class="say">{E(m.Text)}</span></div>
             <dl class="meta">
