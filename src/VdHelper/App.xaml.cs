@@ -353,6 +353,13 @@ public static class ApplyFix
                 if (!outcome.Success) return 6;
             }
 
+        // Say what this process actually is before listing anything that depends on it. The list used
+        // to print 会弹 UAC for a fix that, from a non-elevated shell, now refuses with exit 7 before
+        // doing anything — so the label described an intention rather than a reachable outcome.
+        var elevated = IsElevated();
+        Console.WriteLine($"当前进程：{(elevated ? "管理员" : "非管理员")}"
+            + (elevated ? "" : "——需要提权的修复项现在跑不了，会在动手前就拒绝。"));
+
         if (wantedList)
             foreach (var group in matches)
             {
@@ -360,7 +367,9 @@ public static class ApplyFix
                 var offered = group.Select(g => g.Check.Id).ToList();
                 matched++;
                 Console.WriteLine($"{fix.Id}  [{fix.Risk} 风险]"
-                    + (fix.NeedsElevation ? "  会弹 UAC" : "  不需要管理员"));
+                    + (fix.NeedsElevation
+                        ? (elevated ? "  需要管理员（当前进程满足）" : "  需要管理员（当前进程不满足，跑不了）")
+                        : "  不需要管理员"));
                 Console.WriteLine($"  做什么：{fix.Title}");
                 Console.WriteLine(offered.Count == 1
                     ? $"  出自：{offered[0]} — {Reports.ReportWriter.Redact(group.First().Check.Summary)}"
