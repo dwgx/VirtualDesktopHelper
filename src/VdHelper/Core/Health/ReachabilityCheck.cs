@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿using System.Net;
+﻿﻿﻿﻿﻿﻿﻿﻿using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using VdHelper.Core.Adb;
@@ -102,6 +102,13 @@ public static class ReachabilityCheck
                 //
                 // Any reply means the link is up, because the verdict is about reachability and not
                 // about loss: loss is net-loss's job and it samples twenty times.
+                // Sampling only matters while it is failing. Once it answers the question is settled,
+                // and whether the link is lossy is net-loss's job with its twenty samples.
+                //
+                // All three shapes of this loop have since been observed on this machine without being
+                // provoked: first-reply early exit (采样: 1/1 次应答 / 首次即应答 — the one this loop was
+                // added for), partial (3 次采样应答 2 次 — the case a single sample used to Block on),
+                // and all-three-failed. It was left marked unverified when only two of the three existed.
                 var attempts = new List<(bool Success, long Ms, string Detail)>();
                 for (var attempt = 0; attempt < 3; attempt++)
                 {
