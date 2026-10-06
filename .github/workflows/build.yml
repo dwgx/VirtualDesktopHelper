@@ -1,0 +1,92 @@
+﻿﻿name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build
+        run: dotnet build src/VdHelper/VdHelper.csproj -c Release
+
+      # Headless smoke: exit 0 = streamable, 3 = at risk, 4 = blocked, 5 = the run itself failed.
+      # 3 and 4 are legitimate findings on a CI runner, so only 5 (and a crash) fails the job.
+      #
+      # Start-Process -Wait, not the & call operator: VdHelper is a WinExe (GUI subsystem), and
+      # PowerShell does NOT wait for GUI-subsystem processes. `&` returned immediately, so
+      # selftest.txt did not exist yet and $LASTEXITCODE was empty — every run since the workflow
+      # was added failed on a step that passes locally.
+      - name: Self test
+        shell: pwsh
+        run: |
+          $exe = 'src/VdHelper/bin/Release/net10.0-windows/VdHelper.exe'
+          $p = Start-Process -FilePath $exe -ArgumentList '--selftest','--out','selftest.txt' -PassThru -NoNewWindow
+          # Deadline rather than -Wait. This is the first step that runs the health engine, and an
+          # unbounded wait here hands a hang to every step queued behind it as if it were a queue —
+          # that is what the exit-code gate did for an hour. notes/2026-10-06-ci-was-silently-dead.md.
+          # .Handle must be touched before the process exits or ExitCode comes back null.
+          $null = $p.Handle
+          if (-not $p.WaitForExit(600000)) { try { $p.Kill($true) } catch { }; throw 'self test did not finish within 10 minutes' }
+          if (Test-Path selftest.txt) { Get-Content selftest.txt }
+          $code = $p.ExitCode
+          Write-Host "exit=$code"
+          if (-not (Test-Path selftest.txt)) { throw "self test produced no output file (exit $code)" }
+          if ($code -eq 5) { throw "self test failed to run (exit $code)" }
+          if ($code -gt 5 -or $code -lt 0) { throw "self test crashed (exit $code)" }
+
+      # Anti-drift gate: every check must be reachable from a symptom class, and every id a
+      # symptom references must exist. A symptom that filters to nothing is a silent dead end.
+      - name: Symptom map gate
+        shell: pwsh
+        run: ./tools/check-symptom-map.ps1
+
+      # Exit-code contract gate. README promises one and scripts key off it, so a silent change to any
+      # return value breaks every consumer. Read-only by construction — the state-changing commands are
+      # not in its list, per WORKFLOW.md §10.
+      - name: Exit code gate
+        shell: pwsh
+        # The script kills any command that outlives its own deadline; this is the outer bound in
+        # case the whole step wedges. A CI runner has no headset at the configured address, so every
+        # reachability probe waits out its full timeout, and this step runs the engine nine times.
+        timeout-minutes: 15
+        run: ./tools/check-exit-codes.ps1
+
+      # Citation gate: every File.cs:NNN in the shipped tool must resolve in a decompiled tree.
+      # On CI neither tree exists, so it skips loudly rather than failing — the local run is the
+      # one that actually checks. See tools/check-citations.py for why two trees and "at least one".
+      # Report self-consistency. A check writes evidence, the report renders it, and nothing connected
+      # the two until a rendered page contradicted itself: the headline said no channels while a check
+      # and Windows both said four were up. This runs the tool and checks the document against itself.
+      - name: Report consistency gate
+        shell: pwsh
+        run: python tools/check-report-consistency.py
+
+      - name: Citation gate
+        shell: pwsh
+        run: python tools/check-citations.py
+
+      # The issue template was silently invalid for a while: it had the legacy front-matter shape
+      # with no `body:` key, which a YAML issue form requires. Nothing in the build noticed.
+      - name: Issue form gate
+        shell: pwsh
+        run: |
+          python -m pip install --quiet pyyaml
+          python tools/check-issue-form.py
+
+      - name: Publish
+        run: dotnet publish src/VdHelper/VdHelper.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o out
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: VdHelper-win-x64
+          path: out/**
