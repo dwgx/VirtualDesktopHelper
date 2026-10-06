@@ -87,7 +87,12 @@
   These can be blocked by your firewall or possibly your router, if both headset and PC are connected
   wirelessly, **having AP isolation enabled on the router will cause this**.」
   四步分诊：ping 头显 → 关防火墙试 → 开 9943/9944 → 关路由器 PMF。
-  **「AP isolation」这一条本仓库完全没有点名。**
+  **主代理复核：这一条的「本仓库没点名」是不成立的。** `ReachabilityCheck.cs` 有四处：
+  `:95` 证据行「两端不在同一网段：头显可能在访客网络，或**路由器开了 AP 隔离**」；
+  `:169` 把「邻居表 Reachable 但 ping 不通」判为「更像 AP 隔离或来宾网络」；
+  `:172` 反过来在状态非 Reachable 时**明确排除**这个解释（「而不是被 AP 隔离挡住」）；
+  `:178` 指引「同网段还不通：查 AP 隔离 / 访客网络 / 无线与有线隔离 / …」。
+  `LossProbe.cs:271` 也点名。**该 sweep 的这条更新是错的，已在此更正。**
 - **HTTP 存活端点**：`wiki/How-ALVR-works.md` 记载 `http://localhost:8082/api/ping` 返回 200 即驱动存活，
   且 dashboard 在驱动未启动时仍然可用——**「客户端发现不了」被写成一个独立的、可命名的状态**。
 
