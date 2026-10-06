@@ -256,6 +256,14 @@ public static class ReportWriter
             + "不代表账号侧被验证过——鉴权失败的头显在本报告里和能连上的头显长得一样。",
         "本仓库与本报告**不分发任何官方二进制**（APK / keystore / 官方 EXE）。"
             + "报告里出现的安装路径只用于让你在自己机器上核对，不要据此去别处下载。",
+        // Taken from this repo's own prior work: reference/quest-adb-dashboard/docs/METHODS.md:42-48,
+        // "What ADB Cannot Reliably Prove". A different axis from the lines above — those say what this
+        // tool does not do, this says what a headset inventory must not be used to conclude. Owner's
+        // earlier dashboard had it written down; this repo did not, and the third screen is exactly
+        // where someone would read an inventory and over-read it.
+        "第三屏的 adb 清单**不能用来断言**：出厂地址与制造国、完整生产履历、"
+            + "超出固件所暴露属性之外的硬件真伪、固件没有暴露的隐藏校准值、"
+            + "账号归属与保修状态与购买来源。这一节只说明「读到了什么」，不说明「这意味着什么」。",
         "本工具**不会自动修改路由器设置或第三方杀软**：这两类改动只给指引，由你在对应软件里自己完成。"
             + "工具能自动改的项都带备份与回滚命令，且需要你显式确认（本报告的「原始输出」里能查到它用的是哪条命令）。",
         "报告里的每一项都是**运行那一刻**的观测，状态会变。原始输出含本机与头显的局域网地址，"
