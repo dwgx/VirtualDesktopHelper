@@ -337,13 +337,17 @@ public static class ApplyFix
                 // only ever printed in --apply --list. Running one from an ordinary shell produced
                 // whatever the underlying netsh or service call produced, which is not a diagnosis.
                 // Same shape as the Streamer guard in SetParam: refuse, say what to do, change nothing.
-                if (fix.NeedsElevation && !IsElevated())
+                // Only when the fix does not raise its own prompt. fw-restore-vd and streamer-restart
+                // route through ElevatedAsync, which starts powershell -Verb RunAs and works fine from
+                // here; refusing those would block fixes that would have succeeded. The other three
+                // call Start-Service / msiexec straight and would fail without a token.
+                if (fix.NeedsElevation && !fix.SelfElevates && !IsElevated())
                 {
-                    Console.WriteLine($"{fix.Id} 需要管理员权限，当前这个进程没有。");
+                    Console.WriteLine($"{fix.Id} 需要管理员权限，当前这个进程没有，而这一项不会自己弹 UAC。");
                     Console.WriteLine("没有执行任何操作——半途失败比直接拒绝更难收拾。");
                     Console.WriteLine("用管理员身份重开一个终端再跑同一条命令：");
                     Console.WriteLine($"  VdHelper.exe --apply {fix.Id}");
-                    Console.WriteLine("或者直接双击 VdHelper.exe 界面的对应修复项，它会自己提权。");
+                    Console.WriteLine("（另有两项 fw-restore-vd / streamer-restart 会自己弹 UAC，不需要管理员启动。）");
                     return 7;
                 }
                 var outcome = await fix.Apply(CancellationToken.None);
@@ -368,7 +372,9 @@ public static class ApplyFix
                 matched++;
                 Console.WriteLine($"{fix.Id}  [{fix.Risk} 风险]"
                     + (fix.NeedsElevation
-                        ? (elevated ? "  需要管理员（当前进程满足）" : "  需要管理员（当前进程不满足，跑不了）")
+                        ? (fix.SelfElevates
+                            ? "  会自己弹 UAC（当前进程不需要管理员）"
+                            : (elevated ? "  需要管理员（当前进程满足）" : "  需要管理员（当前进程不满足，跑不了）"))
                         : "  不需要管理员"));
                 Console.WriteLine($"  做什么：{fix.Title}");
                 Console.WriteLine(offered.Count == 1

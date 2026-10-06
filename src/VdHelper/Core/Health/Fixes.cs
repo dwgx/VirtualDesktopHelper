@@ -65,7 +65,7 @@ public static class Fixes
                     ? new FixResult(true, "已重建入站放行规则", detail)
                     : new FixResult(false, "无法提权执行：" + detail, detail);
             },
-            NeedsElevation: true),
+            NeedsElevation: true, SelfElevates: true),
     ];
     }
 
@@ -120,7 +120,7 @@ public static class Fixes
             "再手动启动一次 Virtual Desktop.Streamer.exe 即可。",
             FixRisk.Low,
             RestartStreamerVerifiedAsync,
-            NeedsElevation: true),
+            NeedsElevation: true, SelfElevates: true),
     ];
 
     private static async Task<FixResult> RestartStreamerVerifiedAsync(CancellationToken ct)

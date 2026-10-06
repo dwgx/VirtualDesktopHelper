@@ -46,7 +46,16 @@ public sealed record FixAction(
     Func<CancellationToken, Task<FixResult>> Apply,
     /// <summary>Set when applying raises a UAC prompt. Measured: this can take 90 s waiting for a
     /// human, so the UI has to say so instead of looking hung.</summary>
-    bool NeedsElevation = false);
+    bool NeedsElevation = false,
+    /// <summary>Set when the fix raises its own prompt through an inner
+    /// <c>Start-Process -Verb RunAs</c>, and therefore succeeds from a non-elevated parent.
+    ///
+    /// Needed because NeedsElevation alone cannot tell the two kinds apart, and they behave
+    /// differently: fw-restore-vd and streamer-restart route through ElevatedAsync and prompt on
+    /// their own, while svc-start, svc-repair and headset-grant call Start-Service / msiexec
+    /// directly and simply fail without a token. A guard keyed on NeedsElevation alone blocks the
+    /// first kind, which would have worked; ignoring it lets the second kind half-run.</summary>
+    bool SelfElevates = false);
 
 public sealed record CheckResult(
     string Id,
