@@ -17,7 +17,7 @@
 | 警告 | **fw-defender** | Defender 防火墙：Domain     True / Private   False / Public    False |
 | 通过 | **svc-vd** | VirtualDesktop.Service.exe Running Automatic |
 | 通过 | **port-vd** | 4 个端口由 Virtual Desktop 持有，没有被别的程序抢占 |
-| 警告 | **session-stale** | 4 个到头显的通道仍是已建立状态（最早建立于 5 分钟前） |
+| 警告 | **session-stale** | 4 个到头显的通道仍是已建立状态（最早建立于 1 小时 48 分前） |
 | 通过 | **streamer-proc** | Streamer 进程运行中（1 个） |
 | 警告 | **svc-log** | 服务日志有 5 条历史 ERROR（最近一次 2026-09-18 15:37:35.6962），但 Streamer 正在运行 |
 | 通过 | **udp-discovery** | 串流中：到头显的通道已建立，Streamer 已释放发现端口（正常） |
@@ -27,7 +27,7 @@
 | 通过 | **av** | 已注册杀软：Windows Defender（productState 原值见下方原始输出，未解码：那是各版本含义不一的位掩码） |
 | 通过 | **route-metric** | 有线网卡优先级 10，没有虚拟网卡排在它前面 |
 | 通过 | **link-type** | PC 走有线（Ethernet） |
-| 通过 | **lan-reach** | 头显 192.168.11.14 可达（ping 1 ms，首次即应答） |
+| 通过 | **lan-reach** | 头显 192.168.11.14 可达（ping 3 ms，首次即应答） |
 | 通过 | **link-rate** | Ethernet 协商速率 1 Gbps |
 | 通过 | **vpn-proc** | 没有发现 VPN/代理客户端进程 |
 | 通过 | **rdp-session** | 只有本机 console 会话（1 条），没有远程桌面在跑 |
@@ -41,7 +41,7 @@
 | 警告 | **display-inventory** | Virtual Desktop Monitor(Error) |
 | 通过 | **cfg-version** | Streamer 版本 1.34.22.0 |
 | 通过 | **gpu-encoder** | 本机此刻有 1 个 NVENC 硬件编码会话 |
-| 警告 | **gpu-throttle** | GPU 被压在最高频率的 71%（2205/3090 MHz）（占用 53%，温度 69°C，当前功耗 90.1 W）。驱动报的降频原因：软件功耗墙 (SW Power Cap)。 |
+| 警告 | **gpu-throttle** | GPU 被压在最高频率的 76%（2355/3090 MHz）（占用 94%，温度 68°C，当前功耗 104.6 W）。驱动报的降频原因：软件功耗墙 (SW Power Cap)。 |
 | 未知 | **wifi-quality** | 无线未连接（disconnected），这一项没有测到任何链路数据 |
 | 通过 | **net-loss** | 没有测到丢包（快速采样 8 次） |
 
