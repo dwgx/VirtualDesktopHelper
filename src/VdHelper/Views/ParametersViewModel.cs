@@ -76,7 +76,10 @@ public sealed class ParameterRow : INotifyPropertyChanged
                 return "(已加密的 DPAPI 密文 · 不显示)";
             return shown.Length > 60 ? shown[..60] + "…" : shown;
         }
-        return "(未设置 → 用默认值 " + info.Default + ")";
+        // Value first, then the qualifier. This column is 150px and trims, and the qualifier was
+        // written first — so what got cut was always the default itself, which is the one thing a
+        // reader came for. Rendered as 未设置（默认 true） the answer survives the trim.
+        return "未设置（默认 " + info.Default + "）";
     }
 
     internal void BindWrite()
