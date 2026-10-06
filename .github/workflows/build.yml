@@ -30,7 +30,13 @@ jobs:
         shell: pwsh
         run: |
           $exe = 'src/VdHelper/bin/Release/net10.0-windows/VdHelper.exe'
-          $p = Start-Process -FilePath $exe -ArgumentList '--selftest','--out','selftest.txt' -Wait -PassThru -NoNewWindow
+          $p = Start-Process -FilePath $exe -ArgumentList '--selftest','--out','selftest.txt' -PassThru -NoNewWindow
+          # Deadline rather than -Wait. This is the first step that runs the health engine, and an
+          # unbounded wait here hands a hang to every step queued behind it as if it were a queue —
+          # that is what the exit-code gate did for an hour. notes/2026-10-06-ci-was-silently-dead.md.
+          # .Handle must be touched before the process exits or ExitCode comes back null.
+          $null = $p.Handle
+          if (-not $p.WaitForExit(600000)) { try { $p.Kill($true) } catch { }; throw 'self test did not finish within 10 minutes' }
           if (Test-Path selftest.txt) { Get-Content selftest.txt }
           $code = $p.ExitCode
           Write-Host "exit=$code"
