@@ -55,27 +55,40 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border Margin="0,0,6,6" Padding="10,4" CornerRadius="3"
-                            Background="#161616" BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
-                        <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="Cursor" Value="Hand" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-                                        <Setter Property="Background" Value="#1E2A38" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Border.Style>
-                        <TextBlock Style="{StaticResource ChromeText}" FontSize="12"
-                                   Text="{Binding Label}">
-                            <TextBlock.InputBindings>
-                                <MouseBinding MouseAction="LeftClick"
-                                              Command="{Binding SelectCommand}" />
-                            </TextBlock.InputBindings>
-                        </TextBlock>
-                    </Border>
+                    <RadioButton GroupName="Symptom" Margin="0,0,6,6" Padding="10,4"
+                                 MinHeight="30" Cursor="Hand" Focusable="True"
+                                 Content="{Binding Label}"
+                                 Command="{Binding SelectCommand}"
+                                 CommandParameter="{Binding}">
+                        <RadioButton.Template>
+                            <ControlTemplate TargetType="RadioButton">
+                                <Border x:Name="Chip" Background="#161616" CornerRadius="3"
+                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                        SnapsToDevicePixels="True">
+                                    <ContentPresenter Margin="{TemplateBinding Padding}"
+                                                      VerticalAlignment="Center"
+                                                      TextElement.FontFamily="{StaticResource UiFont}"
+                                                      TextElement.FontSize="12"
+                                                      TextElement.Foreground="{StaticResource InkBrush}" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="Chip" Property="BorderBrush"
+                                                Value="{StaticResource AccentBrush}" />
+                                        <Setter TargetName="Chip" Property="Background" Value="#1E2A38" />
+                                    </Trigger>
+                                    <!-- The official suppresses focus visuals entirely; this chip is
+                                         the one control on the screen a keyboard user must reach to
+                                         say what is wrong, so it keeps one. -->
+                                    <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                        <Setter TargetName="Chip" Property="BorderBrush"
+                                                Value="{StaticResource AccentBrush}" />
+                                        <Setter TargetName="Chip" Property="BorderThickness" Value="2" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </RadioButton.Template>
+                    </RadioButton>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
