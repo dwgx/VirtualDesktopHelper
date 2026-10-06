@@ -1,4 +1,4 @@
-﻿using System.Net;
+﻿﻿﻿using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using VdHelper.Core.Adb;
@@ -94,9 +94,27 @@ public static class ReachabilityCheck
                 if (!sameSubnet)
                     ev["提示"] = "两端不在同一网段：头显可能在访客网络，或路由器开了 AP 隔离";
 
-                var ping = await PingAsync(address, 1200, ct);
-                ev["ping"] = ping.Success ? $"{ping.RoundtripMs} ms" : "不通";
-                ev["ping 明细"] = ping.Detail;
+                // Sample three times. This used to take exactly one ping and a single timeout was a
+                // Block. Caught on this machine rather than reasoned about: the check's own ping timed
+                // out and reported 阻断：串流很可能起不来, and six pings taken seconds later were all
+                // answered — the neighbour state was oscillating Reachable / Probe the whole time,
+                // which is what a power-saving client looks like.
+                //
+                // Any reply means the link is up, because the verdict is about reachability and not
+                // about loss: loss is net-loss's job and it samples twenty times.
+                var attempts = new List<(bool Ok, long Ms, string Detail)>();
+                for (var attempt = 0; attempt < 3; attempt++)
+                {
+                    if (attempt > 0) await Task.Delay(300, ct).ConfigureAwait(false);
+                    attempts.Add(await PingAsync(address, 1200, ct).ConfigureAwait(false));
+                }
+                var ping = attempts.FirstOrDefault(a => a.Ok);
+                var replies = attempts.Count(a => a.Ok);
+                ev["ping"] = replies > 0
+                    ? $"{ping.Ms} ms（3 次采样应答 {replies} 次）"
+                    : $"不通（3 次采样全部未应答）";
+                ev["ping 明细"] = string.Join(" ;; ", attempts.Select((a, i) => $"#{i + 1} {a.Detail}"));
+                ev["采样"] = $"{replies}/{attempts.Count} 次应答";
 
                 var openPorts = new List<string>();
                 foreach (var port in ProbePorts)
@@ -106,9 +124,9 @@ public static class ReachabilityCheck
                     ? string.Join(",", openPorts) + " 有响应"
                     : "38810/38820 未响应（串流未开始时本就不开，不能据此判故障）";
 
-                if (ping.Success)
+                if (replies > 0)
                     return new CheckResult("lan-reach", CheckStatus.Pass,
-                        $"头显 {ip} 可达（ping {ping.RoundtripMs} ms）",
+                        $"头显 {ip} 可达（ping {ping.Ms} ms，3 次采样应答 {replies} 次）",
                         "网络层通。如果头显里还是「连不上」，问题在 VD 应用侧或账号侧，不在网络。",
                         ev, Array.Empty<FixAction>());
 
