@@ -55,7 +55,7 @@
                         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock VerticalAlignment="Center" Style="{StaticResource Muted}" FontSize="11.5"
                                        Margin="0,0,8,0" Text="{Binding State}" />
-                            <Button Content="切换" MinWidth="64" Height="24"
+                            <Button Content="切换" MinWidth="64"
                                     Command="{Binding ToggleCommand}"
                                     Visibility="{Binding Editable, Converter={StaticResource BoolToVisible}}" />
                         </StackPanel>

@@ -65,7 +65,7 @@
                                                 <TextBlock VerticalAlignment="Center" Margin="0,0,8,0"
                                                            Style="{StaticResource Muted}" FontSize="11.5"
                                                            Text="{Binding State}" />
-                                                <Button Content="执行" MinWidth="64" Height="24"
+                                                <Button Content="执行" MinWidth="64"
                                                         Command="{Binding ApplyCommand}" />
                                             </StackPanel>
                                         </Grid>

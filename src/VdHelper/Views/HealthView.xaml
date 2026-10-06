@@ -104,7 +104,7 @@
             <!-- On-demand deep probe. The pass only takes a quick loss sample; this is the
                  20-sample run for "the picture keeps stuttering even though everything is green". -->
             <StackPanel Orientation="Horizontal">
-                <Button Content="深度探测丢包（20 次采样）" MinWidth="180" Height="24"
+                <Button Content="深度探测丢包（20 次采样）" MinWidth="180"
                         Command="{Binding DeepProbeCommand}" />
                 <TextBlock Style="{StaticResource Muted}" Margin="10,0,0,0" VerticalAlignment="Center"
                            Text="画面卡但各项都绿的时候跑这个" />
@@ -202,7 +202,7 @@
                                                         <TextBlock VerticalAlignment="Center" Margin="0,0,8,0"
                                                                    Style="{StaticResource Muted}" FontSize="11.5"
                                                                    Text="{Binding Risk, StringFormat=风险 {0}}" />
-                                                        <Button Content="执行" MinWidth="72" Height="24"
+                                                        <Button Content="执行" MinWidth="72"
                                                                 Command="{Binding ApplyCommand}" />
                                                     </StackPanel>
                                                 </Grid>
