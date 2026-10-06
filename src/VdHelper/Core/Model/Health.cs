@@ -133,8 +133,8 @@ public sealed class HealthReport
             {
                 var scope = string.IsNullOrWhiteSpace(LiveSessionPeer) ? "" : $"（对端 {LiveSessionPeer}）";
                 return Verdict == HealthVerdict.Streamable
-                    ? $"串流中：{live.Count} 个通道已建立会话{scope}，体检全过"
-                    : $"串流中：{live.Count} 个通道已建立会话{scope}；下面 {CountBy(CheckStatus.Warn) + CountBy(CheckStatus.Block)} 项隐患不影响当前这一局，但下次连接前值得看一眼";
+                    ? $"串流中：{live.Count} 个通道的会话已建立{scope}，体检全过"
+                    : $"串流中：{live.Count} 个通道的会话已建立{scope}；下面 {CountBy(CheckStatus.Warn) + CountBy(CheckStatus.Block)} 项隐患不影响当前这一局，但下次连接前值得看一眼";
             }
 
             var verdict = Verdict switch
