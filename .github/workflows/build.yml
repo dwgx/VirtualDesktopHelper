@@ -49,6 +49,10 @@ jobs:
       # not in its list, per WORKFLOW.md §10.
       - name: Exit code gate
         shell: pwsh
+        # The script kills any command that outlives its own deadline; this is the outer bound in
+        # case the whole step wedges. A CI runner has no headset at the configured address, so every
+        # reachability probe waits out its full timeout, and this step runs the engine nine times.
+        timeout-minutes: 15
         run: ./tools/check-exit-codes.ps1
 
       # Citation gate: every File.cs:NNN in the shipped tool must resolve in a decompiled tree.

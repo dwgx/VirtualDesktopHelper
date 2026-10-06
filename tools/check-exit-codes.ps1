@@ -25,6 +25,11 @@
 
   退出码的期望值直接写在下面，和 README 对齐；README 改了这里也要改，反之亦然。
 
+.PARAMETER TimeoutSeconds
+  Per-command deadline. A command that has not exited by then is killed and counted as a failure.
+  Default 90s: generous for a machine with a headset, short enough that nine network-probing
+  invocations cannot run away on a runner that has neither.
+
 .PARAMETER IncludeDeep
   额外跑 `--deep`。它向网关与头显 IP 发 ICMP 包，会被防火墙计数。
 
@@ -35,7 +40,8 @@
   powershell -NoProfile -ExecutionPolicy Bypass -File tools\check-exit-codes.ps1 -IncludeDeep
 #>
 param(
-    [switch]$IncludeDeep
+    [switch]$IncludeDeep,
+    [int]$TimeoutSeconds = 90
 )
 
 $ErrorActionPreference = 'Stop'
@@ -79,8 +85,23 @@ $fail = 0
 foreach ($c in $cases) {
     $out = Join-Path $tmp 'out.txt'
     $err = Join-Path $tmp 'err.txt'
-    $proc = Start-Process -FilePath $exe -ArgumentList $c.Args -Wait -PassThru `
+    $proc = Start-Process -FilePath $exe -ArgumentList $c.Args -PassThru `
         -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err
+    # Touch .Handle before it exits. Without it Process.ExitCode stays null once the process is
+    # gone — the handle has to have been cached while it was alive. This is why the original
+    # -Wait version was used and why removing -Wait without adding this made every rc print blank.
+    $null = $proc.Handle
+    # Wait with a deadline. Start-Process -Wait blocks forever, and these commands run the whole
+    # health engine: on a CI runner there is no headset at 192.168.11.14, so every reachability probe
+    # waits out its full timeout — and this step runs the engine nine times. Observed on
+    # GitHub-hosted windows-latest: the job sat in_progress for over an hour past the step before
+    # this one, with no conclusion on any step after it. A gate that can hang protects nothing.
+    if (-not $proc.WaitForExit($TimeoutSeconds * 1000)) {
+        try { $proc.Kill($true) } catch { }
+        $fail++
+        Write-Host ("  TIMEOUT  {0,-28} 超过 {1}s 未结束" -f $c.Name, $TimeoutSeconds) -ForegroundColor Red
+        continue
+    }
     $rc = $proc.ExitCode
 
     # selftest 类的期望码随机器状态在 0/3/4 之间浮动，所以只校验「属于文档允许的集合」；
