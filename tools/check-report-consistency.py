@@ -63,7 +63,23 @@ def contradictions(text: str) -> list[str]:
     return found
 
 
+def _force_utf8() -> None:
+    """Make stdout/stderr UTF-8 before anything prints Chinese.
+
+    GitHub's windows-latest console is cp1252, and this gate passed locally while failing in CI with
+    UnicodeEncodeError on its success line — the check itself had already passed by then. The other
+    Python gates get away with English output; this one would rather say what it means, so it makes
+    sure the terminal can hold it.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+
 def main() -> int:
+    _force_utf8()
     if not EXE.exists():
         print(f"找不到 {EXE} —— 先 dotnet build -c Release。", file=sys.stderr)
         return 1
