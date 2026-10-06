@@ -114,9 +114,9 @@ public sealed class HeadsetDeepProbe(AdbClient adb)
             return Unknown(
                 reachable ? "头显在网络上，但 adb 连不上它" : "没有连着的头显",
                 reachable
-                    ? "和上一屏同一个结论：adb 没连上，所以头显侧的三项子判定（包、权限、设置）"
+                    ? "和上一屏同一个结论：adb 没连上，所以头显侧的四项子判定（Wi-Fi MAC、本地设置、VPN、电量）"
                       + "一个都跑不了——不是它们有问题，是没有可读的对象。"
-                    : "`adb devices -l` 的设备列表是空的，三项子判定一个都跑不了。",
+                    : "`adb devices -l` 的设备列表是空的，四项子判定一个都跑不了。",
                 // Same reasoning for the guidance. WiringGuidance is the same three steps the card
                 // above is already showing; repeating it verbatim put the whole connect procedure on
                 // screen twice. Point at it instead — the steps are one click-scroll away, not one
@@ -142,6 +142,7 @@ public sealed class HeadsetDeepProbe(AdbClient adb)
             await ProbeMacAsync(target, ev, ct),
             await ProbeHeadsetSettingsAsync(target, ev, ct),
             await ProbeQuestVpnAsync(target, ev, ct),
+            await ProbeBatteryAsync(target, ev, ct),
         };
 
         // 合成：任一 Warn → Warn；无 Warn 但有 Unknown → Unknown；全 Pass → Pass。永不 Block——
@@ -203,6 +204,52 @@ public sealed class HeadsetDeepProbe(AdbClient adb)
     }
 
     // ------------------------------------------------------------------ F1 headset-side settings
+
+    /// <summary>
+    /// 电量与热状态。头显低电自动关机、以及过热降频，都是「头显里看不见电脑」的常见原因，
+    /// 而它们和 PC 这一侧完全无关——这一屏其它三项都读不到它们。
+    ///
+    /// 命令取自 reference/quest-adb-dashboard/docs/ADB_QUEST_NOTES.md:46-64 的只读清单：
+    /// <c>dumpsys battery</c> 与 <c>dumpsys thermalservice</c>。两条都是读。
+    /// </summary>
+    private async Task<Sub> ProbeBatteryAsync(
+        string serial, Dictionary<string, string> ev, CancellationToken ct)
+    {
+        const string key = "A7 电量与发热";
+        var bat = await TryAsync(["-s", serial, "shell", "dumpsys", "battery"], 8000, ct);
+        var heat = await TryAsync(["-s", serial, "shell", "dumpsys", "thermalservice"], 8000, ct);
+        ev["A7 电池原文"] = bat.Ok ? Clip(bat.StdOut) : DescribeFailure(bat);
+        ev["A7 热服务原文"] = heat.Ok ? Clip(heat.StdOut) : DescribeFailure(heat);
+
+        if (!bat.Ok)
+            return new Sub(key, CheckStatus.Unknown,
+                "读不到头显电量（dumpsys battery 没跑成）——这一项**没测成**，不是「电量正常」。");
+
+        var level = System.Text.RegularExpressions.Regex.Match(bat.StdOut, @"level:\s*(\d+)");
+        var health = System.Text.RegularExpressions.Regex.Match(bat.StdOut, @"health:\s*(\w+)");
+        var temp = System.Text.RegularExpressions.Regex.Match(bat.StdOut, @"temperature:\s*(\d+)");
+
+        if (!level.Success)
+            return new Sub(key, CheckStatus.Unknown,
+                "dumpsys battery 的输出里没有 level 字段（原文在证据里）——这一项**没测成**，不是「电量正常」。");
+
+        var pct = int.Parse(level.Groups[1].Value);
+        var h = health.Success ? health.Groups[1].Value : "(未知)";
+        var t = temp.Success ? temp.Groups[1].Value + "×10°C" : "(未知)";
+        var summary = $"电量 {pct}%（health={h}，电池温度 {t}）";
+
+        if (h.StartsWith("2", StringComparison.Ordinal) || h.Equals("overheat", StringComparison.OrdinalIgnoreCase))
+            return new Sub(key, CheckStatus.Warn,
+                summary + "——**电池自报 health 异常**，头显随时可能自己断电。"
+                + "这类表现是「头显突然不见了」，和 PC 这一侧无关。");
+
+        if (pct <= 15)
+            return new Sub(key, CheckStatus.Warn,
+                summary + "——**头显低电会自动关机**，而关机前后它不再广播发现包。"
+                + "表现为「刚才还好好的」。先插上电源再排查网络。");
+
+        return new Sub(key, CheckStatus.Pass, summary + "，没有低电或过热的迹象。");
+    }
 
     private async Task<Sub> ProbeHeadsetSettingsAsync(
         string serial, Dictionary<string, string> ev, CancellationToken ct)
@@ -476,6 +523,12 @@ public sealed class HeadsetDeepProbe(AdbClient adb)
         if (!m.Success) return false;
         mac = m.Value.ToLowerInvariant();
         return true;
+    }
+
+    private static string Clip(string s)
+    {
+        var one = s.Replace("\r", "").Replace("\n", " ;; ");
+        return one.Length > 400 ? one[..400] + " …" : one;
     }
 
     private static string DescribeFailure(AdbClient.Result r) =>

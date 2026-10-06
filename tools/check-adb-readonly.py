@@ -36,7 +36,9 @@ ADB_DIR = ROOT / "src" / "VdHelper" / "Core" / "Adb"
 # placeholders kept. Adding one here means deciding it is safe to run without asking anyone.
 APPROVED = {
     "cat /sys/class/net/wlan0/address",
+    "dumpsys battery",
     "dumpsys package",
+    "dumpsys thermalservice",
     "getprop ro.build.version.release",
     "getprop ro.product.model",
     "ip -4 addr show wlan0",
