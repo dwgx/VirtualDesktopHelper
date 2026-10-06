@@ -154,10 +154,11 @@ python tools\check-citations.py                                             # �
 python tools\check-issue-form.py
 python tools\check-report-consistency.py                               # 报告内部不能自相矛盾
 python tools\check-docs-coverage.py                                  # docs/checks.md 不能漏项
+```
+
 > **六个闸门都在 CI 里跑**（`.github/workflows/build.yml`）。后两道是今天加的：前一条修的是报告标题说「没有通道」而检测项说「有」——**那不是笔误，是 `_livePorts` 只从 fresh 子集取**，而两份审计都在读检测项、没有一个在读渲染成的文档。
 > `check-exit-codes.ps1` 的只读清单是硬编码的，结构上到不了 `--quit-streamer` / `--apply <id>` /
 > `--set-param <key> <value>`——原因见 `WORKFLOW.md` §10。
-```
 
 ## 先读这三页
 
