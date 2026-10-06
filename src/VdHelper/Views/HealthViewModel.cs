@@ -18,7 +18,7 @@ public sealed class FixRow : INotifyPropertyChanged
     public string Risk => Action.Risk.ToString();
 
     public string RunHint => Action.NeedsElevation
-        ? "执行中（会弹 UAC，请点「是」——本机实测这一等可能要 1 分半）"
+        ? "执行中（会弹 UAC，请点「是」——本机实测这一等要 98 秒）"
         : "执行中…";
     public string What => Action.What;
     public string Backup => Action.Backup;

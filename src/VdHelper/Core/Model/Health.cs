@@ -44,8 +44,9 @@ public sealed record FixAction(
     string Rollback,
     FixRisk Risk,
     Func<CancellationToken, Task<FixResult>> Apply,
-    /// <summary>Set when applying raises a UAC prompt. Measured: this can take 90 s waiting for a
-    /// human, so the UI has to say so instead of looking hung.</summary>
+    /// <summary>Set when applying raises a UAC prompt. Measured at 98 s on this machine (aeaf5de —
+    /// 4 stale sockets repaired, PID 11120 -> 36784). It is a wait for a human, so the UI has to say
+    /// so instead of looking hung.</summary>
     bool NeedsElevation = false,
     /// <summary>Set when the fix raises its own prompt through an inner
     /// <c>Start-Process -Verb RunAs</c>, and therefore succeeds from a non-elevated parent.
