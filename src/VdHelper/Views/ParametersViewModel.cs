@@ -41,7 +41,6 @@ public sealed class ParameterRow : INotifyPropertyChanged
             if (Info.NeedsReconnect) tags.Add("需重连");
             if (Info.AffectsLan) tags.Add("影响发现/连接");
             if (Info.AffectsQuality) tags.Add("影响画质");
-            if (!LivesOnPc) tags.Add("头显侧");
             return string.Join(" · ", tags);
         }
     }
