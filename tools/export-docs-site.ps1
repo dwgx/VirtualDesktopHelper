@@ -247,7 +247,7 @@ foreach ($l in $mdLines) {
   if ($l -match '^本机最近一次结论：(.+)$') { $verdict = $matches[1].Trim() }
   if ($l -match '^\s*\|' -and $l -notmatch '^\s*\|[\s\-:|]+\|\s*$' -and $l -notmatch '^\s*\|\s*状态\s*\|') {
     $c = Split-MdRow $l
-    if ($c.Count -ge 3 -and $c[0].Trim() -match '^(通过|警告|阻断|Pass|Warn|Block|Unknown)$') {
+    if ($c.Count -ge 3 -and $c[0].Trim() -match '^(通过|警告|阻断|未知|Pass|Warn|Block|Unknown)$') {
       $itemRows += , @($c[0].Trim(), $c[1].Trim(), (($c[2..($c.Count - 1)]) -join ' | '))
     }
   }
@@ -261,6 +261,7 @@ foreach ($r in $itemRows) {
     '通过'    { $countPass++ }
     '警告'    { $countWarn++ }
     '阻断'    { $countBlock++ }
+    '未知'    { $countUnknown++ }
     'Pass'    { $countPass++ }
     'Warn'    { $countWarn++ }
     'Block'   { $countBlock++ }
@@ -268,7 +269,7 @@ foreach ($r in $itemRows) {
   }
 }
 $statusClass = @{ '通过' = 'pass'; 'Pass' = 'pass'; '警告' = 'warn'; 'Warn' = 'warn';
-                   '阻断' = 'block'; 'Block' = 'block'; 'Unknown' = 'unknown' }
+                   '阻断' = 'block'; 'Block' = 'block'; '未知' = 'unknown'; 'Unknown' = 'unknown' }
 $verdictToken = ''
 if ($verdict -match 'verdict=(\S+)') { $verdictToken = $matches[1] }
 $verdictClass = switch ($verdictToken) {
