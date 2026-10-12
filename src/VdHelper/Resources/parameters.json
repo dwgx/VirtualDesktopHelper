@@ -1620,7 +1620,7 @@
     "needsReconnect": false,
     "readOnly": false,
     "caution": false,
-    "source": "SharedStreamerSettings.cs:1106；枚举 Mobile/DownloadState.cs:6-13",
+    "source": "SharedStreamerSettings.cs:1106；枚举 Mobile/DownloadState.cs:5-11",
     "table": 5
   },
   {

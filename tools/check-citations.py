@@ -11,8 +11,10 @@ Scope: src/VdHelper/**/*.cs and src/VdHelper/Resources/*.json — the artefacts 
 shown to users. Research notes are historical records and are deliberately not gated.
 
 Two trees are searched, because the same class name appears in both builds:
-  F:\Project\VirtualDesktop\localization\desktop\decompiled_streamer   (PC Streamer)
-  %TEMP%\vd_ep_01\vd                                                  (Quest/VD)
+  F:\Project\VirtualDesktop\localization\desktop\decompiled_streamer   (PC Streamer snapshot)
+  reference\decompiled\vd                                             (Quest assemblies)
+The Quest tree is rebuilt from the XABA blob; it used to sit in %TEMP% and a TEMP cleanup took it.
+Recipe and hash check: notes/2026-10-12-citation-trees-went-with-temp.md.
 A citation resolves if it lands in AT LEAST ONE tree. It is out of range in the other one
 constantly — SharedUserSettings.cs is 452 lines in the VD build and over 1500 in the Streamer
 build — and treating that as a failure would bury the real ones in noise.
@@ -28,7 +30,7 @@ import sys
 
 DEFAULT_TREES = (
     r"F:\Project\VirtualDesktop\localization\desktop\decompiled_streamer",
-    r"C:\Users\dwgx1\AppData\Local\Temp\vd_ep_01\vd",
+    r"reference\decompiled\vd",
 )
 
 CITATION = re.compile(r"([A-Za-z0-9_.\-]*\.cs):(\d+)(?:\s*[-–]\s*(\d+))?")
@@ -55,7 +57,13 @@ def main() -> int:
     args = ap.parse_args()
 
     root = pathlib.Path(args.root).resolve()
-    trees = [t for t in (args.tree or DEFAULT_TREES) if pathlib.Path(t).is_dir()]
+    # Keep each label with its configured slot: a filtered list silently relabels the second tree
+    # as "streamer" when the first one is absent, and prints nothing about a tree that is gone.
+    # Repo-relative paths resolve against --root so the Quest tree can live in reference/.
+    configured = []
+    for label, t in zip(("streamer", "vd"), (args.tree or DEFAULT_TREES)):
+        p = pathlib.Path(t)
+        configured.append((label, p if p.is_absolute() else root / p))
 
     targets = []
     for pattern in SCAN:
@@ -74,14 +82,18 @@ def main() -> int:
             origin.setdefault(key, f.relative_to(root).as_posix())
 
     print(f"citations: {len(cites)} distinct in {len(set(targets))} files")
-    if not trees:
+    indexes = []
+    for label, p in configured:
+        if p.is_dir():
+            idx = build_index(p)
+            indexes.append((label, idx))
+            print(f"  tree {label}: {len(idx)} .cs files — {p}")
+        else:
+            print(f"  tree {label}: MISSING — {p}")
+    if not indexes:
         print("SKIPPED — no decompiled tree present, citations not verified.")
         print("          (expected on CI; run locally after extracting one)")
         return 0
-
-    indexes = [(label, build_index(pathlib.Path(t))) for label, t in zip(("streamer", "vd"), trees)]
-    for label, t in zip(("streamer", "vd"), trees):
-        print(f"  tree {label}: {len(indexes[0][1]) if label == 'streamer' else len(indexes[1][1])} .cs files")
 
     dangling = []
     for (name, start, end), n in sorted(cites.items()):
