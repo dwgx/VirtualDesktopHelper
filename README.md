@@ -110,7 +110,7 @@ certutil -hashfile VdHelper.exe SHA256
 
 ```bat
 tools\publish.ps1            REM 构建自包含单文件 + SHA256SUMS + VERSION
-dist\v0.8.0\VdHelper.exe     REM 直接双击用
+dist\v0.9.0\VdHelper.exe     REM 直接双击用
 ```
 
 `--set-param` 在 Streamer 运行时一律拒绝（它有 2 秒防抖保存，会覆盖外部写入）。要先改参数就跑 `--quit-streamer`——本机的 Streamer 以管理员权限运行，所以那条命令中途会弹一次 UAC。
@@ -166,8 +166,9 @@ python tools\check-docs-coverage.py                                  # docs/chec
 检测项全表、症状分诊表、社区错解逐条纠偏——都由脚本从调研源文件生成，数字不会和代码脱节。
 
 > **下面三个是 `.html`。文档站已开在 https://dwgx.github.io/VirtualDesktopHelper/ ，内容与这三页同源**
-> （`gh-pages` 分支，由 `tools/export-docs-site.ps1` 生成）。想直接看源码，点 [`docs/checks.md`](docs/checks.md)。
-> `tools/export-docs-site.ps1` 再用浏览器打开。
+> （由 `tools/export-docs-site.ps1` 生成到 `docs/`，GitHub Pages 从 `main` 的 `docs/` 发布；
+> `gh-pages` 分支同步存一份）。想直接看源码，点 [`docs/checks.md`](docs/checks.md)。
+> 重新生成后请用浏览器打开核对一遍。
 
 - [常见问题 · 症状分诊 + 错解纠偏](docs/faq.html)
 - [检测项全表 · 怎么查 / 怎么判 / 怎么退](docs/checks.html)
